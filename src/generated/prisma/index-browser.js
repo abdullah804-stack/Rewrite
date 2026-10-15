@@ -158,9 +158,79 @@ exports.Prisma.VerificationTokenScalarFieldEnum = {
   expires: 'expires'
 };
 
+exports.Prisma.VoiceProfileScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  name: 'name',
+  depth: 'depth',
+  profile: 'profile',
+  coachScore: 'coachScore',
+  sampleWords: 'sampleWords',
+  version: 'version',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.GlossaryScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  name: 'name',
+  alwaysUse: 'alwaysUse',
+  neverUse: 'neverUse',
+  keepAsIs: 'keepAsIs',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.DocumentScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  profileId: 'profileId',
+  title: 'title',
+  preset: 'preset',
+  slug: 'slug',
+  isPublic: 'isPublic',
+  expiresAt: 'expiresAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.RevisionScalarFieldEnum = {
+  id: 'id',
+  documentId: 'documentId',
+  kind: 'kind',
+  intensity: 'intensity',
+  content: 'content',
+  styleReport: 'styleReport',
+  changes: 'changes',
+  provider: 'provider',
+  mode: 'mode',
+  wordCount: 'wordCount',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.UsageEventScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  kind: 'kind',
+  words: 'words',
+  provider: 'provider',
+  day: 'day',
+  createdAt: 'createdAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
+};
+
+exports.Prisma.JsonNullValueInput = {
+  JsonNull: Prisma.JsonNull
+};
+
+exports.Prisma.NullableJsonNullValueInput = {
+  DbNull: Prisma.DbNull,
+  JsonNull: Prisma.JsonNull
 };
 
 exports.Prisma.QueryMode = {
@@ -173,12 +243,33 @@ exports.Prisma.NullsOrder = {
   last: 'last'
 };
 
+exports.Prisma.JsonNullValueFilter = {
+  DbNull: Prisma.DbNull,
+  JsonNull: Prisma.JsonNull,
+  AnyNull: Prisma.AnyNull
+};
+exports.RevisionKind = exports.$Enums.RevisionKind = {
+  ORIGINAL: 'ORIGINAL',
+  REWRITE: 'REWRITE',
+  EDIT: 'EDIT'
+};
+
+exports.Intensity = exports.$Enums.Intensity = {
+  LIGHT: 'LIGHT',
+  BALANCED: 'BALANCED',
+  STRONG: 'STRONG'
+};
 
 exports.Prisma.ModelName = {
   User: 'User',
   Account: 'Account',
   Session: 'Session',
-  VerificationToken: 'VerificationToken'
+  VerificationToken: 'VerificationToken',
+  VoiceProfile: 'VoiceProfile',
+  Glossary: 'Glossary',
+  Document: 'Document',
+  Revision: 'Revision',
+  UsageEvent: 'UsageEvent'
 };
 
 /**
