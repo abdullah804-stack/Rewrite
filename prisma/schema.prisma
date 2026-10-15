@@ -12,15 +12,19 @@ datasource db {
   provider = "postgresql"
 }
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
+  id            String         @id @default(cuid())
+  email         String         @unique
   emailVerified DateTime?
   name          String?
   image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
   accounts      Account[]
   sessions      Session[]
+  profiles      VoiceProfile[]
+  glossaries    Glossary[]
+  documents     Document[]
+  usage         UsageEvent[]
 }
 
 model Account {
@@ -58,4 +62,95 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+model VoiceProfile {
+  id          String       @id @default(cuid())
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  depth       String       @default("full")
+  profile     Json
+  coachScore  Int?
+  sampleWords Int
+  version     Int          @default(1)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  documents   Document[]
+
+  @@index([userId])
+}
+
+model Glossary {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  alwaysUse String[]
+  neverUse  String[]
+  keepAsIs  String[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Document {
+  id        String       @id @default(cuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profileId String?
+  profile   VoiceProfile? @relation(fields: [profileId], references: [id], onDelete: SetNull)
+  title     String
+  preset    String       @default("blog")
+  slug      String?      @unique
+  isPublic  Boolean      @default(false)
+  expiresAt DateTime
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  revisions Revision[]
+
+  @@index([userId, updatedAt])
+  @@index([expiresAt])
+}
+
+model Revision {
+  id          String       @id @default(cuid())
+  documentId  String
+  document    Document     @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  kind        RevisionKind
+  intensity   Intensity?
+  content     String
+  styleReport Json?
+  changes     Json?
+  provider    String?
+  mode        String?
+  wordCount   Int
+  createdAt   DateTime     @default(now())
+
+  @@index([documentId, createdAt])
+}
+
+model UsageEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      String
+  words     Int
+  provider  String?
+  day       String
+  createdAt DateTime @default(now())
+
+  @@index([userId, day])
+}
+
+enum RevisionKind {
+  ORIGINAL
+  REWRITE
+  EDIT
+}
+
+enum Intensity {
+  LIGHT
+  BALANCED
+  STRONG
 }
