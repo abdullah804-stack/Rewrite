@@ -6,6 +6,7 @@ import { ProfilePicker } from "./ProfilePicker";
 import { DiffView } from "./DiffView";
 import { StyleReport } from "./StyleReport";
 import { Editor } from "./Editor";
+import { ShareButton } from "./ShareButton";
 import type { Metrics } from "@/lib/pipeline/metrics";
 import { HistorySidebar } from "./HistorySidebar";
 
@@ -33,6 +34,8 @@ export default function QuickPage() {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState("");
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
+  const [documentId, setDocumentId] = useState<string | null>(null);
+
 
   async function handleRewrite() {
     setLoading(true);
@@ -57,7 +60,7 @@ export default function QuickPage() {
 
       // Save the rewrite to the database if signed in
       if (typeof window !== "undefined") {
-        fetch("/api/documents", {
+                fetch("/api/documents", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -69,7 +72,13 @@ export default function QuickPage() {
             styleReport: data.after,
           }),
         })
-          .then(() => setHistoryRefreshKey((k) => k + 1))
+          .then((res) => res.json())
+          .then((saved) => {
+            if (saved?.document?.id) {
+              setDocumentId(saved.document.id);
+            }
+            setHistoryRefreshKey((k) => k + 1);
+          })
           .catch(() => {
             // history save is best-effort; never block the user
           });
@@ -86,10 +95,11 @@ export default function QuickPage() {
     setTimeout(() => setCopied(""), 2000);
   }
 
-  function handleReset() {
+    function handleReset() {
     setText("");
     setResult(null);
     setError(null);
+    setDocumentId(null);
   }
 
   return (
@@ -195,7 +205,7 @@ export default function QuickPage() {
 
         {result && (
           <>
-            <div className="flex flex-wrap items-center gap-2 mt-6">
+                        <div className="flex flex-wrap items-center gap-2 mt-6">
               <button
                 type="button"
                 onClick={handleReset}
@@ -203,7 +213,11 @@ export default function QuickPage() {
               >
                 New rewrite
               </button>
-                            <span className="text-xs text-neutral-400 ml-auto">
+              <ShareButton
+                documentId={documentId}
+                onStatus={(label) => handleCopyText(label)}
+              />
+              <span className="text-xs text-neutral-400 ml-auto">
                 {copied}
               </span>
             </div>
