@@ -197,9 +197,13 @@ export async function POST(request: Request) {
       profileUsed = { name: record.name };
     }
 
-    // Dispatch by action
     if (action === "regen") {
-      return await handleRegen(rawText, body.context ?? "", voiceBlock, profileUsed);
+      return await handleRegen(
+        rawText,
+        body.context ?? "",
+        voiceBlock,
+        profileUsed
+      );
     }
 
     if (action === "selection") {
@@ -211,7 +215,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Full rewrite — record usage on success
     const response = await handleFullRewrite(
       rawText,
       intensity,
@@ -219,10 +222,23 @@ export async function POST(request: Request) {
       profileUsed
     );
 
-    // Record usage only if the rewrite succeeded
     if (response.status === 200) {
       if (session?.user?.id) {
         await recordUserWords(session.user.id, wordCount);
+
+        prisma.usageEvent
+          .create({
+            data: {
+              userId: session.user.id,
+              kind: action,
+              words: wordCount,
+              provider: null,
+              day: new Date().toISOString().slice(0, 10),
+            },
+          })
+          .catch(() => {
+            // usage logging is best-effort
+          });
       } else if (anonIp) {
         await recordAnonRun(anonIp);
       }
@@ -430,26 +446,15 @@ Return JSON: { "text": "..." }`;
   }
 
   const restored = restore(parsed.text, spans);
-      // Record usage only if the rewrite succeeded
-    if (response.status === 200) {
-      if (session?.user?.id) {
-        await recordUserWords(session.user.id, wordCount);
 
-        // Persist a durable usage event for analytics
-        prisma.usageEvent
-          .create({
-            data: {
-              userId: session.user.id,
-              kind: action,
-              words: wordCount,
-              provider: null,
-              day: new Date().toISOString().slice(0, 10),
-            },
-          })
-          .catch(() => {
-            // usage logging is best-effort
-          });
-      } else if (anonIp) {
-        await recordAnonRun(anonIp);
-      }
-    }
+  return NextResponse.json({
+    ok: true,
+    action: "selection",
+    original: selection,
+    rewritten: restored,
+    provider: result.provider,
+    model: result.model,
+    spansProtected: spans.length,
+    profileUsed,
+  });
+}
