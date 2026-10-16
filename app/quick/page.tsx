@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ProfilePicker } from "./ProfilePicker";
+import { DiffView } from "./DiffView";
 
 type Intensity = "light" | "balanced" | "strong";
 
@@ -57,9 +58,8 @@ export default function QuickPage() {
     }
   }
 
-  async function handleCopy() {
-    if (!result) return;
-    await navigator.clipboard.writeText(result.rewritten);
+  async function handleCopyText(value: string) {
+    await navigator.clipboard.writeText(value);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
@@ -103,112 +103,114 @@ export default function QuickPage() {
           protected before the AI sees it.
         </p>
 
-        {/* Controls */}
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-6">
-          <div className="flex gap-1 bg-neutral-100 rounded-lg p-1">
-            {(["light", "balanced", "strong"] as const).map((level) => (
+        {!result && (
+          <>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-6">
+              <div className="flex gap-1 bg-neutral-100 rounded-lg p-1">
+                {(["light", "balanced", "strong"] as const).map((level) => (
+                  <button
+                    key={level}
+                    type="button"
+                    onClick={() => setIntensity(level)}
+                    className={`h-8 px-3 rounded-md text-xs font-medium capitalize transition-colors ${
+                      intensity === level
+                        ? "bg-white text-black shadow-sm"
+                        : "text-neutral-500 hover:text-black"
+                    }`}
+                  >
+                    {level}
+                  </button>
+                ))}
+              </div>
+
+              <ProfilePicker value={profileId} onChange={setProfileId} />
+
               <button
-                key={level}
                 type="button"
-                onClick={() => setIntensity(level)}
-                className={`h-8 px-3 rounded-md text-xs font-medium capitalize transition-colors ${
-                  intensity === level
-                    ? "bg-white text-black shadow-sm"
-                    : "text-neutral-500 hover:text-black"
-                }`}
+                onClick={handleRewrite}
+                disabled={loading || !text.trim()}
+                className="h-10 px-5 rounded-lg bg-black text-white text-sm font-medium hover:bg-neutral-800 disabled:bg-neutral-300 disabled:cursor-not-allowed transition-colors"
               >
-                {level}
+                {loading ? "Rewriting..." : "Rewrite"}
               </button>
-            ))}
-          </div>
 
-          <ProfilePicker value={profileId} onChange={setProfileId} />
-
-          <button
-            type="button"
-            onClick={handleRewrite}
-            disabled={loading || !text.trim()}
-            className="h-10 px-5 rounded-lg bg-black text-white text-sm font-medium hover:bg-neutral-800 disabled:bg-neutral-300 disabled:cursor-not-allowed transition-colors"
-          >
-            {loading ? "Rewriting..." : "Rewrite"}
-          </button>
-
-          {(text || result) && (
-            <button
-              type="button"
-              onClick={handleReset}
-              className="h-10 px-4 rounded-lg border border-neutral-200 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition-colors"
-            >
-              Reset
-            </button>
-          )}
-        </div>
-
-        {/* Editor / Result */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mt-6">
-          <div>
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-medium text-neutral-500 uppercase tracking-wide">
-                Your draft
-              </label>
-              <span className="text-xs text-neutral-400">
-                {wordCount} / 300 words without sign-in
-              </span>
-            </div>
-            <textarea
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="Paste a draft from ChatGPT, Claude, or your own writing..."
-              className="mt-2 w-full h-64 sm:h-80 lg:h-[500px] p-4 rounded-lg border border-neutral-200 text-sm text-black placeholder:text-neutral-400 focus:outline-none focus:border-neutral-400 resize-none"
-            />
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-medium text-neutral-500 uppercase tracking-wide">
-                Rewritten
-              </label>
-              {result && (
+              {text && (
                 <button
                   type="button"
-                  onClick={handleCopy}
-                  className="text-xs text-neutral-500 hover:text-black transition-colors"
+                  onClick={handleReset}
+                  className="h-10 px-4 rounded-lg border border-neutral-200 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition-colors"
                 >
-                  {copied ? "Copied" : "Copy"}
+                  Reset
                 </button>
               )}
             </div>
 
-            <div className="mt-2 w-full h-64 sm:h-80 lg:h-[500px] p-4 rounded-lg border border-neutral-200 bg-neutral-50 overflow-auto">
-              {loading && (
-                <div className="text-sm text-neutral-400">
-                  Rewriting{profileId ? " in your voice" : ""}...
-                </div>
-              )}
-
-              {!loading && !result && !error && (
-                <div className="text-sm text-neutral-400">
-                  Your rewrite will appear here.
-                </div>
-              )}
-
-              {error && <div className="text-sm text-red-600">{error}</div>}
-
-              {result && (
-                <div className="text-sm text-black whitespace-pre-wrap leading-relaxed">
-                  {result.rewritten}
-                </div>
-              )}
+            <div className="mt-6">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-medium text-neutral-500 uppercase tracking-wide">
+                  Your draft
+                </label>
+                <span className="text-xs text-neutral-400">
+                  {wordCount} / 300 words without sign-in
+                </span>
+              </div>
+              <textarea
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder="Paste a draft from ChatGPT, Claude, or your own writing..."
+                className="mt-2 w-full h-64 sm:h-80 lg:h-[500px] p-4 rounded-lg border border-neutral-200 text-sm text-black placeholder:text-neutral-400 focus:outline-none focus:border-neutral-400 resize-none"
+              />
             </div>
 
-            {result && (
-              <div className="mt-3 text-xs text-neutral-400">
-                Protected {result.spansProtected} facts · via {result.provider}
-                {result.profileUsed && ` · voice: ${result.profileUsed.name}`}
-              </div>
+            {loading && (
+              <p className="mt-4 text-sm text-neutral-400">
+                Rewriting{profileId ? " in your voice" : ""}...
+              </p>
             )}
 
-            {result && !result.profileUsed && (
+            {error && (
+              <p className="mt-4 text-sm text-red-600">{error}</p>
+            )}
+
+            {!loading && !error && (
+              <p className="text-xs text-neutral-400 mt-6">
+                No account needed for short drafts. Sign in to rewrite up to
+                1,500 words per run.
+              </p>
+            )}
+          </>
+        )}
+
+        {result && (
+          <>
+            <div className="flex flex-wrap items-center gap-2 mt-6">
+              <button
+                type="button"
+                onClick={handleReset}
+                className="h-10 px-4 rounded-lg border border-neutral-200 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition-colors"
+              >
+                New rewrite
+              </button>
+              <span className="text-xs text-neutral-400 ml-auto">
+                {copied ? "Copied" : ""}
+              </span>
+            </div>
+
+            <div className="mt-6">
+              <DiffView
+                original={result.original}
+                rewritten={result.rewritten}
+                onCopyAccepted={handleCopyText}
+              />
+            </div>
+
+            <div className="mt-6 flex flex-wrap items-center gap-4 text-xs text-neutral-400">
+              <span>Protected {result.spansProtected} facts</span>
+              <span>via {result.provider}</span>
+              {result.profileUsed && <span>voice: {result.profileUsed.name}</span>}
+            </div>
+
+            {!result.profileUsed && (
               <Link
                 href="/profiles"
                 className="inline-block mt-3 text-xs text-neutral-500 hover:text-black transition-colors"
@@ -216,14 +218,7 @@ export default function QuickPage() {
                 Make it sound like you →
               </Link>
             )}
-          </div>
-        </div>
-
-        {!result && !loading && (
-          <p className="text-xs text-neutral-400 mt-6">
-            No account needed for short drafts. Sign in to rewrite up to 1,500
-            words per run.
-          </p>
+          </>
         )}
       </div>
     </main>
