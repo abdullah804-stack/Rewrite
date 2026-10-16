@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ProfilePicker } from "./ProfilePicker";
 import { DiffView } from "./DiffView";
 import { StyleReport } from "./StyleReport";
+import { Editor } from "./Editor";
 import type { Metrics } from "@/lib/pipeline/metrics";
 
 type Intensity = "light" | "balanced" | "strong";
@@ -15,8 +16,8 @@ type RewriteResponse = {
   rewritten: string;
   provider: string;
   model: string;
-  before: { wordCount: number; readingGrade: number; sentenceLenMean: number };
-  after: { wordCount: number; readingGrade: number; sentenceLenMean: number };
+  before: Metrics;
+  after: Metrics;
   spansProtected: number;
   profileUsed: { name: string } | null;
   error?: string;
@@ -30,8 +31,6 @@ export default function QuickPage() {
   const [result, setResult] = useState<RewriteResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-
-  const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
 
   async function handleRewrite() {
     setLoading(true);
@@ -101,8 +100,8 @@ export default function QuickPage() {
           Quick rewrite
         </h1>
         <p className="text-sm text-neutral-500 mt-2 max-w-xl">
-          Paste a draft. Get it back natural. Every number, URL, and quote is
-          protected before the AI sees it.
+          Paste a draft. Get it back natural. Highlight any sentence to
+          rewrite just that part.
         </p>
 
         {!result && (
@@ -148,19 +147,11 @@ export default function QuickPage() {
             </div>
 
             <div className="mt-6">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-medium text-neutral-500 uppercase tracking-wide">
-                  Your draft
-                </label>
-                <span className="text-xs text-neutral-400">
-                  {wordCount} / 300 words without sign-in
-                </span>
-              </div>
-              <textarea
+              <Editor
                 value={text}
-                onChange={(e) => setText(e.target.value)}
-                placeholder="Paste a draft from ChatGPT, Claude, or your own writing..."
-                className="mt-2 w-full h-64 sm:h-80 lg:h-[500px] p-4 rounded-lg border border-neutral-200 text-sm text-black placeholder:text-neutral-400 focus:outline-none focus:border-neutral-400 resize-none"
+                onChange={setText}
+                profileId={profileId}
+                onError={setError}
               />
             </div>
 
@@ -170,9 +161,7 @@ export default function QuickPage() {
               </p>
             )}
 
-            {error && (
-              <p className="mt-4 text-sm text-red-600">{error}</p>
-            )}
+            {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
 
             {!loading && !error && (
               <p className="text-xs text-neutral-400 mt-6">
@@ -198,9 +187,9 @@ export default function QuickPage() {
               </span>
             </div>
 
-                        <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6 mt-6">
+            <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6 mt-6">
               <div>
-                                <DiffView
+                <DiffView
                   original={result.original}
                   rewritten={result.rewritten}
                   context={result.original}
@@ -209,10 +198,7 @@ export default function QuickPage() {
                 />
               </div>
               <div>
-                <StyleReport
-                  before={result.before as unknown as Metrics}
-                  after={result.after as unknown as Metrics}
-                />
+                <StyleReport before={result.before} after={result.after} />
               </div>
             </div>
 
