@@ -6,6 +6,7 @@ import {
   assembleAccepted,
   type DiffResult,
 } from "@/lib/pipeline/diff";
+import { ExportMenu } from "./ExportMenu";
 
 export function DiffView({
   original,
@@ -87,20 +88,16 @@ export function DiffView({
     unchangedCount: segments.filter((s) => !s.changed).length,
   };
 
-  function handleCopy() {
-    onCopyAccepted(assembleAccepted(diff));
-  }
+  
 
   return (
     <div>
-      <div className="flex flex-wrap items-center gap-2 mb-4">
-        <button
-          type="button"
-          onClick={handleCopy}
-          className="h-9 px-4 rounded-lg bg-black text-white text-xs font-medium hover:bg-neutral-800 transition-colors"
-        >
-          Copy accepted
-        </button>
+            <div className="flex flex-wrap items-center gap-2 mb-4">
+        <ExportMenu
+          text={assembleAccepted(diff)}
+          title="Rewrite"
+          onCopied={(label) => onCopyAccepted(label)}
+        />
         <button
           type="button"
           onClick={acceptAll}

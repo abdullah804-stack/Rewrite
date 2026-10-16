@@ -31,7 +31,7 @@ export default function QuickPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<RewriteResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState("");
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
 
   async function handleRewrite() {
@@ -81,10 +81,9 @@ export default function QuickPage() {
     }
   }
 
-  async function handleCopyText(value: string) {
-    await navigator.clipboard.writeText(value);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    function handleCopyText(label: string) {
+    setCopied(label);
+    setTimeout(() => setCopied(""), 2000);
   }
 
   function handleReset() {
@@ -204,8 +203,8 @@ export default function QuickPage() {
               >
                 New rewrite
               </button>
-              <span className="text-xs text-neutral-400 ml-auto">
-                {copied ? "Copied" : ""}
+                            <span className="text-xs text-neutral-400 ml-auto">
+                {copied}
               </span>
             </div>
 
