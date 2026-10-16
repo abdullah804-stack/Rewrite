@@ -430,15 +430,26 @@ Return JSON: { "text": "..." }`;
   }
 
   const restored = restore(parsed.text, spans);
+      // Record usage only if the rewrite succeeded
+    if (response.status === 200) {
+      if (session?.user?.id) {
+        await recordUserWords(session.user.id, wordCount);
 
-  return NextResponse.json({
-    ok: true,
-    action: "selection",
-    original: selection,
-    rewritten: restored,
-    provider: result.provider,
-    model: result.model,
-    spansProtected: spans.length,
-    profileUsed,
-  });
-}
+        // Persist a durable usage event for analytics
+        prisma.usageEvent
+          .create({
+            data: {
+              userId: session.user.id,
+              kind: action,
+              words: wordCount,
+              provider: null,
+              day: new Date().toISOString().slice(0, 10),
+            },
+          })
+          .catch(() => {
+            // usage logging is best-effort
+          });
+      } else if (anonIp) {
+        await recordAnonRun(anonIp);
+      }
+    }
