@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { ProfilePicker } from "./ProfilePicker";
 
 type Intensity = "light" | "balanced" | "strong";
 
@@ -14,12 +15,14 @@ type RewriteResponse = {
   before: { wordCount: number; readingGrade: number; sentenceLenMean: number };
   after: { wordCount: number; readingGrade: number; sentenceLenMean: number };
   spansProtected: number;
+  profileUsed: { name: string } | null;
   error?: string;
 };
 
 export default function QuickPage() {
   const [text, setText] = useState("");
   const [intensity, setIntensity] = useState<Intensity>("balanced");
+  const [profileId, setProfileId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<RewriteResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +39,7 @@ export default function QuickPage() {
       const res = await fetch("/api/rewrite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, intensity }),
+        body: JSON.stringify({ text, intensity, profileId }),
       });
 
       const data = (await res.json()) as RewriteResponse;
@@ -74,12 +77,20 @@ export default function QuickPage() {
           <Link href="/" className="text-sm font-medium text-black">
             Rewrite
           </Link>
-          <Link
-            href="/tools"
-            className="text-sm text-neutral-500 hover:text-black transition-colors"
-          >
-            Free tools
-          </Link>
+          <div className="flex items-center gap-3 sm:gap-4">
+            <Link
+              href="/profiles"
+              className="text-sm text-neutral-500 hover:text-black transition-colors"
+            >
+              Voices
+            </Link>
+            <Link
+              href="/tools"
+              className="text-sm text-neutral-500 hover:text-black transition-colors hidden sm:inline"
+            >
+              Free tools
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -93,7 +104,7 @@ export default function QuickPage() {
         </p>
 
         {/* Controls */}
-        <div className="flex flex-wrap items-center gap-2 mt-6">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-6">
           <div className="flex gap-1 bg-neutral-100 rounded-lg p-1">
             {(["light", "balanced", "strong"] as const).map((level) => (
               <button
@@ -110,6 +121,8 @@ export default function QuickPage() {
               </button>
             ))}
           </div>
+
+          <ProfilePicker value={profileId} onChange={setProfileId} />
 
           <button
             type="button"
@@ -133,7 +146,6 @@ export default function QuickPage() {
 
         {/* Editor / Result */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mt-6">
-          {/* Input */}
           <div>
             <div className="flex items-center justify-between">
               <label className="text-xs font-medium text-neutral-500 uppercase tracking-wide">
@@ -151,7 +163,6 @@ export default function QuickPage() {
             />
           </div>
 
-          {/* Output */}
           <div>
             <div className="flex items-center justify-between">
               <label className="text-xs font-medium text-neutral-500 uppercase tracking-wide">
@@ -171,7 +182,7 @@ export default function QuickPage() {
             <div className="mt-2 w-full h-64 sm:h-80 lg:h-[500px] p-4 rounded-lg border border-neutral-200 bg-neutral-50 overflow-auto">
               {loading && (
                 <div className="text-sm text-neutral-400">
-                  Rewriting in your voice...
+                  Rewriting{profileId ? " in your voice" : ""}...
                 </div>
               )}
 
@@ -181,9 +192,7 @@ export default function QuickPage() {
                 </div>
               )}
 
-              {error && (
-                <div className="text-sm text-red-600">{error}</div>
-              )}
+              {error && <div className="text-sm text-red-600">{error}</div>}
 
               {result && (
                 <div className="text-sm text-black whitespace-pre-wrap leading-relaxed">
@@ -195,7 +204,17 @@ export default function QuickPage() {
             {result && (
               <div className="mt-3 text-xs text-neutral-400">
                 Protected {result.spansProtected} facts · via {result.provider}
+                {result.profileUsed && ` · voice: ${result.profileUsed.name}`}
               </div>
+            )}
+
+            {result && !result.profileUsed && (
+              <Link
+                href="/profiles"
+                className="inline-block mt-3 text-xs text-neutral-500 hover:text-black transition-colors"
+              >
+                Make it sound like you →
+              </Link>
             )}
           </div>
         </div>
