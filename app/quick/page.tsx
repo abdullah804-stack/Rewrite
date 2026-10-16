@@ -4,6 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { ProfilePicker } from "./ProfilePicker";
 import { DiffView } from "./DiffView";
+import { StyleReport } from "./StyleReport";
+import type { Metrics } from "@/lib/pipeline/metrics";
 
 type Intensity = "light" | "balanced" | "strong";
 
@@ -196,12 +198,20 @@ export default function QuickPage() {
               </span>
             </div>
 
-            <div className="mt-6">
-              <DiffView
-                original={result.original}
-                rewritten={result.rewritten}
-                onCopyAccepted={handleCopyText}
-              />
+                        <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6 mt-6">
+              <div>
+                <DiffView
+                  original={result.original}
+                  rewritten={result.rewritten}
+                  onCopyAccepted={handleCopyText}
+                />
+              </div>
+              <div>
+                <StyleReport
+                  before={result.before as unknown as Metrics}
+                  after={result.after as unknown as Metrics}
+                />
+              </div>
             </div>
 
             <div className="mt-6 flex flex-wrap items-center gap-4 text-xs text-neutral-400">
