@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useCallback } from "react";
+import { ImportMenu } from "./ImportMenu";
 
 type SelectionInfo = {
   start: number;
@@ -97,13 +98,19 @@ export function Editor({
 
   return (
     <div>
-      <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
         <label className="text-xs font-medium text-neutral-500 uppercase tracking-wide">
           Your draft
         </label>
-        <span className="text-xs text-neutral-400">
-          {wordCount} / 300 words without sign-in
-        </span>
+        <div className="flex items-center gap-3">
+          <ImportMenu
+            onImported={(imported) => onChange(imported)}
+            onError={onError}
+          />
+          <span className="text-xs text-neutral-400 hidden sm:inline">
+            {wordCount} / 300 words without sign-in
+          </span>
+        </div>
       </div>
 
       <div className="relative mt-2">
