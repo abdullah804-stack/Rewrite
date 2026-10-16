@@ -123,10 +123,8 @@ function extractCloudflareText(data: unknown): string | null {
   if (result && typeof result === "object") {
     const r = result as Record<string, unknown>;
 
-    // Chat-style
     if (typeof r.response === "string" && r.response.length > 0) return r.response;
 
-    // OpenAI-compatible
     const choices = r.choices;
     if (Array.isArray(choices) && choices.length > 0) {
       const first = choices[0] as Record<string, unknown>;
@@ -135,7 +133,6 @@ function extractCloudflareText(data: unknown): string | null {
       if (typeof first?.text === "string") return first.text;
     }
 
-    // Older text-completion shape
     if (typeof r.text === "string" && r.text.length > 0) return r.text;
   }
 
@@ -149,8 +146,6 @@ async function chatOpenAICompatible(
 ): Promise<ChatResult> {
   const url = `${provider.baseUrl}/chat/completions`;
 
-  // Retry up to 2 times on empty body or empty content.
-  // Some free-tier routes return empty transiently.
   for (let attempt = 1; attempt <= 2; attempt++) {
     const response = await fetch(url, {
       method: "POST",
@@ -171,7 +166,6 @@ async function chatOpenAICompatible(
 
     if (!response.ok) {
       const error = await response.text();
-      // Retry on 5xx; fail fast on 4xx
       if (response.status >= 500 && attempt < 2) {
         await sleep(800);
         continue;
@@ -219,16 +213,17 @@ function sleep(ms: number): Promise<void> {
 }
 
 // Provider chain is fixed by evaluation results, not guesses.
-// - groq: fast (2.4s) and preserves protected spans 2/2
-// - google: strong backup, but currently 503s under load; kept as second
-// - openrouter: slow (20s) but safe; the last-resort safety net
+// Eval (9 fixtures, 2026-10-16):
+//   - groq: 7/9 success, 3.1s avg, protected spans 7/7. PRIMARY.
+//   - openrouter: 9/9 success, 31s avg, protected spans 9/9. SAFETY NET.
+//   - google: free tier is 5 req/min per model — unusable at real traffic.
+//   - cloudflare: dropped protected spans 7/9 times — unsafe.
 //
-// Cloudflare is deliberately NOT in the chain: it dropped protected spans
-// 0/2 in eval. A provider that cannot preserve ⟦Pn⟧ tokens cannot be trusted
-// with user data. It stays in the registry for future testing only.
+// The chain falls through on ANY thrown error. That includes 429 rate
+// limits, 5xx server errors, empty responses, and JSON parse failures.
 export async function chatWithFallback(
   opts: Omit<ChatOptions, "providerId">,
-  order: ProviderId[] = ["groq", "google", "openrouter"]
+  order: ProviderId[] = ["groq", "openrouter"]
 ): Promise<ChatResult> {
   let lastError: Error | null = null;
 

@@ -1,0 +1,15 @@
+# Quick notes
+
+Some **bold** thoughts and *italic* asides. Here's a [link](https://example.com).
+
+## Things I tried
+
+- Attempt one: worked
+- Attempt two: didn't
+- Attempt three: still thinking
+
+## Code snippet
+
+```js
+const x = 42;
+console.log(x);
