@@ -7,6 +7,7 @@ import { DiffView } from "./DiffView";
 import { StyleReport } from "./StyleReport";
 import { Editor } from "./Editor";
 import type { Metrics } from "@/lib/pipeline/metrics";
+import { HistorySidebar } from "./HistorySidebar";
 
 type Intensity = "light" | "balanced" | "strong";
 
@@ -31,6 +32,7 @@ export default function QuickPage() {
   const [result, setResult] = useState<RewriteResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
 
   async function handleRewrite() {
     setLoading(true);
@@ -51,7 +53,27 @@ export default function QuickPage() {
         return;
       }
 
-      setResult(data);
+            setResult(data);
+
+      // Save the rewrite to the database if signed in
+      if (typeof window !== "undefined") {
+        fetch("/api/documents", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            original: data.original,
+            rewritten: data.rewritten,
+            provider: data.provider,
+            mode: "standard",
+            profileId: profileId ?? undefined,
+            styleReport: data.after,
+          }),
+        })
+          .then(() => setHistoryRefreshKey((k) => k + 1))
+          .catch(() => {
+            // history save is best-effort; never block the user
+          });
+      }
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -187,8 +209,8 @@ export default function QuickPage() {
               </span>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6 mt-6">
-              <div>
+                        <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr_1fr] gap-6 mt-6">
+              <div className="lg:col-span-1">
                 <DiffView
                   original={result.original}
                   rewritten={result.rewritten}
@@ -199,6 +221,15 @@ export default function QuickPage() {
               </div>
               <div>
                 <StyleReport before={result.before} after={result.after} />
+              </div>
+              <div>
+                <HistorySidebar
+                  onRestore={(text) => {
+                    setResult(null);
+                    setText(text);
+                  }}
+                  refreshKey={historyRefreshKey}
+                />
               </div>
             </div>
 
