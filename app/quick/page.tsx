@@ -200,9 +200,11 @@ export default function QuickPage() {
 
                         <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6 mt-6">
               <div>
-                <DiffView
+                                <DiffView
                   original={result.original}
                   rewritten={result.rewritten}
+                  context={result.original}
+                  profileId={profileId}
                   onCopyAccepted={handleCopyText}
                 />
               </div>

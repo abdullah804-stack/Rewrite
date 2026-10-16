@@ -10,10 +10,14 @@ import {
 export function DiffView({
   original,
   rewritten,
+  context,
+  profileId,
   onCopyAccepted,
 }: {
   original: string;
   rewritten: string;
+  context?: string;
+  profileId?: string | null;
   onCopyAccepted: (text: string) => void;
 }) {
   const initial: DiffResult = useMemo(
@@ -22,6 +26,8 @@ export function DiffView({
   );
 
   const [segments, setSegments] = useState(initial.segments);
+  const [regenIndex, setRegenIndex] = useState<number | null>(null);
+  const [regenError, setRegenError] = useState<string | null>(null);
 
   function toggle(index: number) {
     setSegments((prev) =>
@@ -35,6 +41,44 @@ export function DiffView({
 
   function rejectAll() {
     setSegments((prev) => prev.map((s) => ({ ...s, accepted: false })));
+  }
+
+  async function regenerate(index: number) {
+    const seg = segments[index];
+    setRegenIndex(index);
+    setRegenError(null);
+
+    try {
+      const res = await fetch("/api/rewrite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "regen",
+          text: seg.original || seg.rewritten,
+          context: context ?? original,
+          profileId,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.ok) {
+        setRegenError(data.error ?? "Regenerate failed.");
+        return;
+      }
+
+      setSegments((prev) =>
+        prev.map((s, i) =>
+          i === index
+            ? { ...s, rewritten: data.rewritten, accepted: true, changed: true, reason: "Regenerated" }
+            : s
+        )
+      );
+    } catch (err) {
+      setRegenError((err as Error).message);
+    } finally {
+      setRegenIndex(null);
+    }
   }
 
   const diff: DiffResult = {
@@ -76,8 +120,14 @@ export function DiffView({
         </span>
       </div>
 
+      {regenError && (
+        <div className="text-xs text-red-600 mb-3">{regenError}</div>
+      )}
+
       <div className="space-y-3">
         {segments.map((seg, i) => {
+          const isRegenerating = regenIndex === i;
+
           if (!seg.changed) {
             return (
               <div
@@ -105,21 +155,31 @@ export function DiffView({
                   : "border-neutral-200 bg-neutral-50 opacity-60"
               }`}
             >
-              <div className="flex items-start justify-between gap-3 mb-2">
+              <div className="flex items-center justify-between gap-3 mb-2">
                 <span className="text-xs text-neutral-400 uppercase tracking-wide">
                   {seg.original ? "Change" : "Added"}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => toggle(i)}
-                  className={`text-xs font-medium transition-colors ${
-                    seg.accepted
-                      ? "text-neutral-500 hover:text-black"
-                      : "text-neutral-400 hover:text-black"
-                  }`}
-                >
-                  {seg.accepted ? "Reject" : "Accept"}
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => regenerate(i)}
+                    disabled={isRegenerating}
+                    className="text-xs font-medium text-neutral-500 hover:text-black disabled:text-neutral-300 transition-colors"
+                  >
+                    {isRegenerating ? "…" : "Regenerate"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => toggle(i)}
+                    className={`text-xs font-medium transition-colors ${
+                      seg.accepted
+                        ? "text-neutral-500 hover:text-black"
+                        : "text-neutral-400 hover:text-black"
+                    }`}
+                  >
+                    {seg.accepted ? "Reject" : "Accept"}
+                  </button>
+                </div>
               </div>
 
               {seg.original && (
