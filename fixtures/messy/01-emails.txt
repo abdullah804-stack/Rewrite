@@ -1,0 +1,18 @@
+Hi team 👋
+
+Quick update on the Q4 project:
+
+- **Status:** on track (barely 😅)
+- **Blockers:** waiting on legal since Nov 3
+- **Next steps:** 1. ping legal 2. prep demo 3. run through with @alex
+
+| Item | Owner | ETA |
+|------|-------|-----|
+| Draft | me | Nov 15 |
+| Review | @alex | Nov 20 |
+
+Also — the client said "we're excited but let's be careful with scope." Noted.
+
+> Old note: don't forget the migration.
+
+Thanks!

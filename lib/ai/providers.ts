@@ -8,6 +8,7 @@ export type ProviderConfig = {
   envKey: string;
   trainsOnPrompts: boolean | "unknown";
   needsAccountId?: boolean;
+  apiShape: "openai" | "google" | "cloudflare";
 };
 
 export const providers: ProviderConfig[] = [
@@ -15,17 +16,19 @@ export const providers: ProviderConfig[] = [
     id: "google",
     name: "Google AI Studio",
     baseUrl: "https://generativelanguage.googleapis.com/v1beta",
-    model: "gemini-2.0-flash",
+    model: "gemini-3.8-flash",
     envKey: "GOOGLE_AI_KEY",
     trainsOnPrompts: true,
+    apiShape: "google",
   },
   {
     id: "groq",
     name: "Groq",
     baseUrl: "https://api.groq.com/openai/v1",
-    model: "llama-3.3-70b-versatile",
+    model: "openai/gpt-oss-120b",
     envKey: "GROQ_API_KEY",
     trainsOnPrompts: false,
+    apiShape: "openai",
   },
   {
     id: "openrouter",
@@ -34,6 +37,7 @@ export const providers: ProviderConfig[] = [
     model: "openrouter/free",
     envKey: "OPENROUTER_API_KEY",
     trainsOnPrompts: "unknown",
+    apiShape: "openai",
   },
   {
     id: "cloudflare",
@@ -43,6 +47,7 @@ export const providers: ProviderConfig[] = [
     envKey: "CLOUDFLARE_AI_TOKEN",
     trainsOnPrompts: false,
     needsAccountId: true,
+    apiShape: "cloudflare",
   },
 ];
 

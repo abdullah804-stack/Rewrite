@@ -1,4 +1,4 @@
-import { providers, getProvider, type ProviderId } from "./providers";
+import { getProvider, type ProviderId, type ProviderConfig } from "./providers";
 
 export type ChatOptions = {
   providerId: ProviderId;
@@ -22,16 +22,19 @@ export async function chat(opts: ChatOptions): Promise<ChatResult> {
     throw new Error(`Missing API key for ${provider.name} (${provider.envKey})`);
   }
 
-  if (provider.id === "google") {
+  if (provider.apiShape === "google") {
     return chatGoogle(provider, apiKey, opts);
   }
 
-  // Groq and OpenRouter use OpenAI-compatible format
+  if (provider.apiShape === "cloudflare") {
+    return chatCloudflare(provider, apiKey, opts);
+  }
+
   return chatOpenAICompatible(provider, apiKey, opts);
 }
 
 async function chatGoogle(
-  provider: ReturnType<typeof getProvider>,
+  provider: ProviderConfig,
   apiKey: string,
   opts: ChatOptions
 ): Promise<ChatResult> {
@@ -56,17 +59,26 @@ async function chatGoogle(
   }
 
   const data = await response.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+  if (typeof text !== "string" || text.length === 0) {
+    throw new Error("Google AI returned an empty response.");
+  }
 
   return { text, provider: provider.name, model: provider.model };
 }
 
-async function chatOpenAICompatible(
-  provider: ReturnType<typeof getProvider>,
+async function chatCloudflare(
+  provider: ProviderConfig,
   apiKey: string,
   opts: ChatOptions
 ): Promise<ChatResult> {
-  const url = `${provider.baseUrl}/chat/completions`;
+  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+  if (!accountId) {
+    throw new Error("Missing CLOUDFLARE_ACCOUNT_ID");
+  }
+
+  const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${provider.model}`;
 
   const response = await fetch(url, {
     method: "POST",
@@ -75,7 +87,6 @@ async function chatOpenAICompatible(
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: provider.model,
       messages: [
         { role: "system", content: opts.system },
         { role: "user", content: opts.user },
@@ -87,15 +98,134 @@ async function chatOpenAICompatible(
 
   if (!response.ok) {
     const error = await response.text();
-    throw new Error(`${provider.name} error: ${response.status} ${error}`);
+    throw new Error(`Cloudflare Workers AI error: ${response.status} ${error}`);
   }
 
   const data = await response.json();
-  const text = data.choices?.[0]?.message?.content ?? "";
+
+  const text = extractCloudflareText(data);
+  if (!text) {
+    throw new Error(
+      `Cloudflare returned an unrecognized shape: ${JSON.stringify(data).slice(0, 300)}`
+    );
+  }
 
   return { text, provider: provider.name, model: provider.model };
 }
 
+function extractCloudflareText(data: unknown): string | null {
+  if (!data || typeof data !== "object") return null;
+  const obj = data as Record<string, unknown>;
+
+  const result = obj.result;
+  if (typeof result === "string" && result.length > 0) return result;
+
+  if (result && typeof result === "object") {
+    const r = result as Record<string, unknown>;
+
+    // Chat-style
+    if (typeof r.response === "string" && r.response.length > 0) return r.response;
+
+    // OpenAI-compatible
+    const choices = r.choices;
+    if (Array.isArray(choices) && choices.length > 0) {
+      const first = choices[0] as Record<string, unknown>;
+      const message = first?.message as Record<string, unknown> | undefined;
+      if (message && typeof message.content === "string") return message.content;
+      if (typeof first?.text === "string") return first.text;
+    }
+
+    // Older text-completion shape
+    if (typeof r.text === "string" && r.text.length > 0) return r.text;
+  }
+
+  return null;
+}
+
+async function chatOpenAICompatible(
+  provider: ProviderConfig,
+  apiKey: string,
+  opts: ChatOptions
+): Promise<ChatResult> {
+  const url = `${provider.baseUrl}/chat/completions`;
+
+  // Retry up to 2 times on empty body or empty content.
+  // Some free-tier routes return empty transiently.
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: provider.model,
+        messages: [
+          { role: "system", content: opts.system },
+          { role: "user", content: opts.user },
+        ],
+        max_tokens: opts.maxTokens ?? 2000,
+        temperature: opts.temperature ?? 0.7,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      // Retry on 5xx; fail fast on 4xx
+      if (response.status >= 500 && attempt < 2) {
+        await sleep(800);
+        continue;
+      }
+      throw new Error(`${provider.name} error: ${response.status} ${error}`);
+    }
+
+    const raw = await response.text();
+
+    if (!raw || raw.trim().length === 0) {
+      if (attempt < 2) {
+        await sleep(800);
+        continue;
+      }
+      throw new Error(`${provider.name} returned an empty response body.`);
+    }
+
+    let data: { choices?: { message?: { content?: string } }[] };
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      throw new Error(
+        `${provider.name} returned non-JSON response: ${raw.slice(0, 200)}`
+      );
+    }
+
+    const text = data?.choices?.[0]?.message?.content;
+
+    if (typeof text !== "string" || text.length === 0) {
+      if (attempt < 2) {
+        await sleep(800);
+        continue;
+      }
+      throw new Error(`${provider.name} returned an empty response.`);
+    }
+
+    return { text, provider: provider.name, model: provider.model };
+  }
+
+  throw new Error(`${provider.name} failed after retries.`);
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Provider chain is fixed by evaluation results, not guesses.
+// - groq: fast (2.4s) and preserves protected spans 2/2
+// - google: strong backup, but currently 503s under load; kept as second
+// - openrouter: slow (20s) but safe; the last-resort safety net
+//
+// Cloudflare is deliberately NOT in the chain: it dropped protected spans
+// 0/2 in eval. A provider that cannot preserve ⟦Pn⟧ tokens cannot be trusted
+// with user data. It stays in the registry for future testing only.
 export async function chatWithFallback(
   opts: Omit<ChatOptions, "providerId">,
   order: ProviderId[] = ["groq", "google", "openrouter"]
