@@ -5,6 +5,14 @@ import { protect, restore, verifySpans } from "../../../lib/pipeline/protect";
 import { chatWithFallback } from "../../../lib/ai/chat";
 import { computeMetrics } from "../../../lib/pipeline/metrics";
 import type { VoiceProfile } from "../../../lib/ai/schemas";
+import {
+  checkUserWordBudget,
+  recordUserWords,
+  checkAnonRunBudget,
+  recordAnonRun,
+  clientIp,
+} from "../../../lib/pipeline/guard";
+import { getLimits } from "../../../config/plans";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -14,9 +22,7 @@ type Action = "rewrite" | "regen" | "selection";
 type Body = {
   action?: Action;
   text: string;
-  /** context for regen and selection: the surrounding text */
   context?: string;
-  /** for regen: which sentence index to regenerate */
   sentenceIndex?: number;
   intensity?: "light" | "balanced" | "strong";
   profileId?: string;
@@ -122,24 +128,48 @@ export async function POST(request: Request) {
     }
 
     const wordCount = rawText.trim().split(/\s+/).length;
-    if (wordCount > 1500) {
+    const limits = getLimits(session?.user?.id ?? null);
+
+    if (wordCount > limits.maxWordsPerRun) {
       return NextResponse.json(
-        { error: "Text exceeds 1,500 word limit per run." },
+        { error: `Text exceeds ${limits.maxWordsPerRun} word limit per run.` },
         { status: 400 }
       );
     }
 
-    if (!session?.user && wordCount > 300) {
+    if (!session?.user && wordCount > limits.anonymousWordsPerRun) {
       return NextResponse.json(
         {
-          error:
-            "Sign in to rewrite more than 300 words. Free tools are unlimited.",
+          error: `Sign in to rewrite more than ${limits.anonymousWordsPerRun} words. Free tools are unlimited.`,
         },
         { status: 401 }
       );
     }
 
-    // Load voice profile if requested
+    const anonIp = session?.user?.id ? null : clientIp(request);
+
+    if (session?.user?.id) {
+      const budget = await checkUserWordBudget(
+        session.user.id,
+        wordCount,
+        limits.rewriteWordsPerDay
+      );
+      if (!budget.ok) {
+        return NextResponse.json({ error: budget.reason }, { status: 429 });
+      }
+    } else if (anonIp) {
+      const anonBudget = await checkAnonRunBudget(
+        anonIp,
+        limits.anonymousRunsPerDay
+      );
+      if (!anonBudget.ok) {
+        return NextResponse.json(
+          { error: anonBudget.reason },
+          { status: 429 }
+        );
+      }
+    }
+
     let voiceBlock = "";
     let profileUsed: { name: string } | null = null;
 
@@ -167,18 +197,38 @@ export async function POST(request: Request) {
       profileUsed = { name: record.name };
     }
 
-    // Action: regenerate a single sentence
+    // Dispatch by action
     if (action === "regen") {
-      return handleRegen(rawText, body.context ?? "", voiceBlock, profileUsed);
+      return await handleRegen(rawText, body.context ?? "", voiceBlock, profileUsed);
     }
 
-    // Action: rewrite a selected passage
     if (action === "selection") {
-      return handleSelection(rawText, body.context ?? "", voiceBlock, profileUsed);
+      return await handleSelection(
+        rawText,
+        body.context ?? "",
+        voiceBlock,
+        profileUsed
+      );
     }
 
-    // Default: full rewrite
-    return handleFullRewrite(rawText, intensity, voiceBlock, profileUsed);
+    // Full rewrite — record usage on success
+    const response = await handleFullRewrite(
+      rawText,
+      intensity,
+      voiceBlock,
+      profileUsed
+    );
+
+    // Record usage only if the rewrite succeeded
+    if (response.status === 200) {
+      if (session?.user?.id) {
+        await recordUserWords(session.user.id, wordCount);
+      } else if (anonIp) {
+        await recordAnonRun(anonIp);
+      }
+    }
+
+    return response;
   } catch (err) {
     return NextResponse.json(
       { error: (err as Error).message },

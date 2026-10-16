@@ -17,6 +17,7 @@
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
     "@prisma/client-runtime-utils": "7.10.0",
+    "@upstash/redis": "^1.39.0",
     "docx": "^9.11.0",
     "file-saver": "^2.0.5",
     "mammoth": "^1.13.0",
