@@ -26,7 +26,6 @@ export function Editor({
   const [selection, setSelection] = useState<SelectionInfo | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Keyboard shortcut: Cmd/Ctrl + Enter to trigger rewrite
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
@@ -112,15 +111,15 @@ export function Editor({
   return (
     <div className="h-full flex flex-col">
       <div className="flex items-center justify-between gap-2 mb-2 shrink-0">
-        <label className="text-xs font-medium text-neutral-500 uppercase tracking-wide hidden sm:block">
-          Your draft <span className="text-neutral-300 ml-1 font-normal normal-case">(Cmd+Enter to rewrite)</span>
+        <label className="text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wide hidden sm:block">
+          Your draft <span className="text-neutral-300 dark:text-neutral-600 ml-1 font-normal normal-case">(Cmd+Enter to rewrite)</span>
         </label>
         <div className="flex items-center gap-3">
           <ImportMenu
             onImported={(imported) => onChange(imported)}
             onError={onError}
           />
-          <span className="text-xs text-neutral-400 hidden sm:inline">
+          <span className="text-xs text-neutral-400 dark:text-neutral-500 hidden sm:inline">
             {wordCount} / 300 words without sign-in
           </span>
         </div>
@@ -135,7 +134,7 @@ export function Editor({
           onKeyUp={captureSelection}
           onSelect={captureSelection}
           placeholder="Paste a draft from ChatGPT, Claude, or your own writing..."
-          className="w-full h-full p-4 rounded-lg border border-neutral-200 text-sm text-black placeholder:text-neutral-400 focus:outline-none focus:border-neutral-400 resize-none"
+          className="w-full h-full p-4 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-sm text-black dark:text-white placeholder:text-neutral-400 dark:placeholder:text-neutral-500 focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-500 resize-none"
         />
 
         {selection && !loading && (
@@ -143,7 +142,7 @@ export function Editor({
             <button
               type="button"
               onClick={handleRewriteSelection}
-              className="h-9 px-3 rounded-lg bg-black text-white text-xs font-medium hover:bg-neutral-800 transition-colors shadow-sm"
+              className="h-9 px-3 rounded-lg bg-black dark:bg-white text-white dark:text-black text-xs font-medium hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-colors shadow-sm"
             >
               Rewrite selection
             </button>
@@ -151,14 +150,14 @@ export function Editor({
         )}
 
         {loading && (
-          <div className="absolute bottom-3 right-3 text-xs text-neutral-400">
+          <div className="absolute bottom-3 right-3 text-xs text-neutral-400 dark:text-neutral-500">
             Rewriting selection…
           </div>
         )}
       </div>
 
       {selection && (
-        <p className="text-xs text-neutral-400 mt-2 shrink-0">
+        <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-2 shrink-0">
           {selection.text.trim().split(/\s+/).length} words selected
         </p>
       )}
