@@ -7,6 +7,7 @@ import { DiffView } from "./DiffView";
 import { StyleReport } from "./StyleReport";
 import { Editor } from "./Editor";
 import type { Metrics } from "@/lib/pipeline/metrics";
+import { PRESETS, type PresetId } from "@/config/presets";
 
 type Intensity = "light" | "balanced" | "strong";
 
@@ -27,6 +28,9 @@ export default function QuickPage() {
   const [text, setText] = useState("");
   const [intensity, setIntensity] = useState<Intensity>("balanced");
   const [profileId, setProfileId] = useState<string | null>(null);
+  const [preset, setPreset] = useState<PresetId>("custom");
+  const [seoSafe, setSeoSafe] = useState(false);
+  
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<RewriteResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +49,7 @@ export default function QuickPage() {
       const res = await fetch("/api/rewrite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, intensity, profileId }),
+        body: JSON.stringify({ text, intensity, profileId, preset, seoSafe }),
       });
 
       const data = (await res.json()) as RewriteResponse;
@@ -74,6 +78,7 @@ export default function QuickPage() {
             mode: "standard",
             profileId: profileId ?? undefined,
             styleReport: data.after,
+            preset: preset,
           }),
         })
           .then((res) => res.json())
@@ -160,13 +165,37 @@ export default function QuickPage() {
                 ))}
               </div>
 
+              <div className="h-8 border-l border-neutral-200 mx-1 hidden sm:block"></div>
+
+              <select
+                value={preset}
+                onChange={(e) => setPreset(e.target.value as PresetId)}
+                className="h-8 px-2 pr-8 rounded-md border border-neutral-200 text-xs text-black bg-white focus:outline-none focus:border-neutral-400"
+              >
+                {Object.entries(PRESETS).map(([id, p]) => (
+                  <option key={id} value={id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+
               <ProfilePicker value={profileId} onChange={setProfileId} />
+
+              <label className="flex items-center gap-2 ml-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={seoSafe}
+                  onChange={(e) => setSeoSafe(e.target.checked)}
+                  className="w-4 h-4 rounded border-neutral-300 text-black focus:ring-black"
+                />
+                <span className="text-xs font-medium text-neutral-700">SEO-safe</span>
+              </label>
 
               <button
                 type="button"
                 onClick={handleRewrite}
                 disabled={loading || !text.trim()}
-                className="h-10 px-5 rounded-lg bg-black text-white text-sm font-medium hover:bg-neutral-800 disabled:bg-neutral-300 disabled:cursor-not-allowed transition-colors"
+                className="h-10 px-5 rounded-lg bg-black text-white text-sm font-medium hover:bg-neutral-800 disabled:bg-neutral-300 disabled:cursor-not-allowed transition-colors ml-auto"
               >
                 {loading ? "Rewriting..." : "Rewrite"}
               </button>

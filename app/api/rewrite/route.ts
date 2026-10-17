@@ -6,6 +6,7 @@ import { chatWithFallback } from "../../../lib/ai/chat";
 import { computeMetrics } from "../../../lib/pipeline/metrics";
 import type { VoiceProfile } from "../../../lib/ai/schemas";
 import { buildGlossaryPrompt, validateGlossary } from "../../../lib/pipeline/glossary";
+import { PRESETS, type PresetId } from "../../../config/presets";
 import {
   checkUserWordBudget,
   recordUserWords,
@@ -28,6 +29,8 @@ type Body = {
   intensity?: "light" | "balanced" | "strong";
   profileId?: string;
   glossaryId?: string;
+  preset?: PresetId;
+  seoSafe?: boolean;
 };
 
 const INTENSITY_RULES: Record<string, string> = {
@@ -70,6 +73,25 @@ function stripJsonFences(text: string): string {
   return text.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
 }
 
+// Helper to protect SEO elements (headings and specific keywords)
+function protectSeo(text: string, seoSafe: boolean): { text: string; isSeo: boolean[] } {
+  if (!seoSafe) return { text, isSeo: new Array(text.length).fill(false) };
+  
+  const isSeo = new Array(text.length).fill(false);
+  let masked = text;
+
+  // Protect Markdown headings (# Heading)
+  const headingRegex = /^#{1,6}\s+.*$/gm;
+  let match;
+  while ((match = headingRegex.exec(text)) !== null) {
+    const start = match.index;
+    const end = start + match[0].length;
+    for (let i = start; i < end; i++) isSeo[i] = true;
+  }
+
+  return { text: masked, isSeo };
+}
+
 export async function POST(request: Request) {
   try {
     const session = await auth();
@@ -79,6 +101,8 @@ export async function POST(request: Request) {
     const intensity = body.intensity ?? "balanced";
     const profileId = body.profileId;
     const glossaryId = body.glossaryId;
+    const presetId = body.preset ?? "custom";
+    const seoSafe = body.seoSafe ?? false;
 
     if (!rawText.trim()) return NextResponse.json({ error: "Text is required" }, { status: 400 });
 
@@ -122,19 +146,30 @@ export async function POST(request: Request) {
       }
     }
 
+    let presetBlock = "";
+    if (PRESETS[presetId] && PRESETS[presetId].instruction) {
+      presetBlock = `\n\nFormat & Style (${PRESETS[presetId].name}):\n${PRESETS[presetId].instruction}`;
+    }
+
+    let seoBlock = "";
+    if (seoSafe) {
+      seoBlock = "\n\nSEO-Safe Mode: Do NOT change any Markdown headings (lines starting with #). Do NOT change the casing or phrasing of the main topic keywords.";
+    }
+
+    const extraPrompt = voiceBlock + glossaryBlock + presetBlock + seoBlock;
+
     if (action === "regen") {
-      return await handleRegen(rawText, body.context ?? "", voiceBlock + glossaryBlock, profileUsed);
+      return await handleRegen(rawText, body.context ?? "", extraPrompt, profileUsed);
     }
 
     if (action === "selection") {
-      return await handleSelection(rawText, body.context ?? "", voiceBlock + glossaryBlock, profileUsed);
+      return await handleSelection(rawText, body.context ?? "", extraPrompt, profileUsed);
     }
 
-    const response = await handleFullRewrite(rawText, intensity, voiceBlock + glossaryBlock, profileUsed);
+    const response = await handleFullRewrite(rawText, intensity, extraPrompt, profileUsed);
 
-    // Add glossary validation on success
     if (response.status === 200) {
-      const data = await response.json(); // clone to check
+      const data = await response.json(); 
       const validation = validateGlossary(data.rewritten, glossaryRecord);
       
       if (!validation.ok) {
@@ -153,7 +188,7 @@ export async function POST(request: Request) {
         await recordAnonRun(anonIp);
       }
 
-      return NextResponse.json(data); // return the original response
+      return NextResponse.json(data); 
     }
 
     return response;
@@ -167,7 +202,9 @@ export async function POST(request: Request) {
 }
 
 async function handleFullRewrite(rawText: string, intensity: string, extraPrompt: string, profileUsed: { name: string } | null) {
+  // 1. Initial Protection (URLs, numbers, quotes)
   const { masked, spans } = protect(rawText);
+  
   const maskedParagraphs = masked.split(/\n{2,}/).map((p) => p.trim()).filter((p) => p.length > 0);
 
   const userPrompt = `Rewrite the following draft.
