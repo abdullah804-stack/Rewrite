@@ -83,15 +83,16 @@ model VoiceProfile {
 }
 
 model Glossary {
-  id        String   @id @default(cuid())
+  id        String     @id @default(cuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   name      String
   alwaysUse String[]
   neverUse  String[]
   keepAsIs  String[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  documents Document[]
 
   @@index([userId])
 }
@@ -110,6 +111,9 @@ model Document {
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
   revisions Revision[]
+
+  glossaryId String?
+  glossary   Glossary? @relation(fields: [glossaryId], references: [id], onDelete: SetNull)
 
   @@index([userId, updatedAt])
   @@index([expiresAt])

@@ -1756,6 +1756,37 @@ export namespace Prisma {
 
 
   /**
+   * Count Type GlossaryCountOutputType
+   */
+
+  export type GlossaryCountOutputType = {
+    documents: number
+  }
+
+  export type GlossaryCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    documents?: boolean | GlossaryCountOutputTypeCountDocumentsArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * GlossaryCountOutputType without action
+   */
+  export type GlossaryCountOutputTypeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the GlossaryCountOutputType
+     */
+    select?: GlossaryCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * GlossaryCountOutputType without action
+   */
+  export type GlossaryCountOutputTypeCountDocumentsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: DocumentWhereInput
+  }
+
+
+  /**
    * Count Type DocumentCountOutputType
    */
 
@@ -7616,6 +7647,8 @@ export namespace Prisma {
     createdAt?: boolean
     updatedAt?: boolean
     user?: boolean | UserDefaultArgs<ExtArgs>
+    documents?: boolean | Glossary$documentsArgs<ExtArgs>
+    _count?: boolean | GlossaryCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["glossary"]>
 
   export type GlossarySelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
@@ -7656,6 +7689,8 @@ export namespace Prisma {
   export type GlossaryOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "name" | "alwaysUse" | "neverUse" | "keepAsIs" | "createdAt" | "updatedAt", ExtArgs["result"]["glossary"]>
   export type GlossaryInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     user?: boolean | UserDefaultArgs<ExtArgs>
+    documents?: boolean | Glossary$documentsArgs<ExtArgs>
+    _count?: boolean | GlossaryCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type GlossaryIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     user?: boolean | UserDefaultArgs<ExtArgs>
@@ -7668,6 +7703,7 @@ export namespace Prisma {
     name: "Glossary"
     objects: {
       user: Prisma.$UserPayload<ExtArgs>
+      documents: Prisma.$DocumentPayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
@@ -8073,6 +8109,7 @@ export namespace Prisma {
   export interface Prisma__GlossaryClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
     user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    documents<T extends Glossary$documentsArgs<ExtArgs> = {}>(args?: Subset<T, Glossary$documentsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$DocumentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -8511,6 +8548,30 @@ export namespace Prisma {
   }
 
   /**
+   * Glossary.documents
+   */
+  export type Glossary$documentsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Document
+     */
+    select?: DocumentSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Document
+     */
+    omit?: DocumentOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: DocumentInclude<ExtArgs> | null
+    where?: DocumentWhereInput
+    orderBy?: DocumentOrderByWithRelationInput | DocumentOrderByWithRelationInput[]
+    cursor?: DocumentWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: DocumentScalarFieldEnum | DocumentScalarFieldEnum[]
+  }
+
+  /**
    * Glossary without action
    */
   export type GlossaryDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -8550,6 +8611,7 @@ export namespace Prisma {
     expiresAt: Date | null
     createdAt: Date | null
     updatedAt: Date | null
+    glossaryId: string | null
   }
 
   export type DocumentMaxAggregateOutputType = {
@@ -8563,6 +8625,7 @@ export namespace Prisma {
     expiresAt: Date | null
     createdAt: Date | null
     updatedAt: Date | null
+    glossaryId: string | null
   }
 
   export type DocumentCountAggregateOutputType = {
@@ -8576,6 +8639,7 @@ export namespace Prisma {
     expiresAt: number
     createdAt: number
     updatedAt: number
+    glossaryId: number
     _all: number
   }
 
@@ -8591,6 +8655,7 @@ export namespace Prisma {
     expiresAt?: true
     createdAt?: true
     updatedAt?: true
+    glossaryId?: true
   }
 
   export type DocumentMaxAggregateInputType = {
@@ -8604,6 +8669,7 @@ export namespace Prisma {
     expiresAt?: true
     createdAt?: true
     updatedAt?: true
+    glossaryId?: true
   }
 
   export type DocumentCountAggregateInputType = {
@@ -8617,6 +8683,7 @@ export namespace Prisma {
     expiresAt?: true
     createdAt?: true
     updatedAt?: true
+    glossaryId?: true
     _all?: true
   }
 
@@ -8703,6 +8770,7 @@ export namespace Prisma {
     expiresAt: Date
     createdAt: Date
     updatedAt: Date
+    glossaryId: string | null
     _count: DocumentCountAggregateOutputType | null
     _min: DocumentMinAggregateOutputType | null
     _max: DocumentMaxAggregateOutputType | null
@@ -8733,9 +8801,11 @@ export namespace Prisma {
     expiresAt?: boolean
     createdAt?: boolean
     updatedAt?: boolean
+    glossaryId?: boolean
     user?: boolean | UserDefaultArgs<ExtArgs>
     profile?: boolean | Document$profileArgs<ExtArgs>
     revisions?: boolean | Document$revisionsArgs<ExtArgs>
+    glossary?: boolean | Document$glossaryArgs<ExtArgs>
     _count?: boolean | DocumentCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["document"]>
 
@@ -8750,8 +8820,10 @@ export namespace Prisma {
     expiresAt?: boolean
     createdAt?: boolean
     updatedAt?: boolean
+    glossaryId?: boolean
     user?: boolean | UserDefaultArgs<ExtArgs>
     profile?: boolean | Document$profileArgs<ExtArgs>
+    glossary?: boolean | Document$glossaryArgs<ExtArgs>
   }, ExtArgs["result"]["document"]>
 
   export type DocumentSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
@@ -8765,8 +8837,10 @@ export namespace Prisma {
     expiresAt?: boolean
     createdAt?: boolean
     updatedAt?: boolean
+    glossaryId?: boolean
     user?: boolean | UserDefaultArgs<ExtArgs>
     profile?: boolean | Document$profileArgs<ExtArgs>
+    glossary?: boolean | Document$glossaryArgs<ExtArgs>
   }, ExtArgs["result"]["document"]>
 
   export type DocumentSelectScalar = {
@@ -8780,22 +8854,26 @@ export namespace Prisma {
     expiresAt?: boolean
     createdAt?: boolean
     updatedAt?: boolean
+    glossaryId?: boolean
   }
 
-  export type DocumentOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "profileId" | "title" | "preset" | "slug" | "isPublic" | "expiresAt" | "createdAt" | "updatedAt", ExtArgs["result"]["document"]>
+  export type DocumentOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "profileId" | "title" | "preset" | "slug" | "isPublic" | "expiresAt" | "createdAt" | "updatedAt" | "glossaryId", ExtArgs["result"]["document"]>
   export type DocumentInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     user?: boolean | UserDefaultArgs<ExtArgs>
     profile?: boolean | Document$profileArgs<ExtArgs>
     revisions?: boolean | Document$revisionsArgs<ExtArgs>
+    glossary?: boolean | Document$glossaryArgs<ExtArgs>
     _count?: boolean | DocumentCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type DocumentIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     user?: boolean | UserDefaultArgs<ExtArgs>
     profile?: boolean | Document$profileArgs<ExtArgs>
+    glossary?: boolean | Document$glossaryArgs<ExtArgs>
   }
   export type DocumentIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     user?: boolean | UserDefaultArgs<ExtArgs>
     profile?: boolean | Document$profileArgs<ExtArgs>
+    glossary?: boolean | Document$glossaryArgs<ExtArgs>
   }
 
   export type $DocumentPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -8804,6 +8882,7 @@ export namespace Prisma {
       user: Prisma.$UserPayload<ExtArgs>
       profile: Prisma.$VoiceProfilePayload<ExtArgs> | null
       revisions: Prisma.$RevisionPayload<ExtArgs>[]
+      glossary: Prisma.$GlossaryPayload<ExtArgs> | null
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
@@ -8816,6 +8895,7 @@ export namespace Prisma {
       expiresAt: Date
       createdAt: Date
       updatedAt: Date
+      glossaryId: string | null
     }, ExtArgs["result"]["document"]>
     composites: {}
   }
@@ -9213,6 +9293,7 @@ export namespace Prisma {
     user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
     profile<T extends Document$profileArgs<ExtArgs> = {}>(args?: Subset<T, Document$profileArgs<ExtArgs>>): Prisma__VoiceProfileClient<$Result.GetResult<Prisma.$VoiceProfilePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
     revisions<T extends Document$revisionsArgs<ExtArgs> = {}>(args?: Subset<T, Document$revisionsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$RevisionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    glossary<T extends Document$glossaryArgs<ExtArgs> = {}>(args?: Subset<T, Document$glossaryArgs<ExtArgs>>): Prisma__GlossaryClient<$Result.GetResult<Prisma.$GlossaryPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -9252,6 +9333,7 @@ export namespace Prisma {
     readonly expiresAt: FieldRef<"Document", 'DateTime'>
     readonly createdAt: FieldRef<"Document", 'DateTime'>
     readonly updatedAt: FieldRef<"Document", 'DateTime'>
+    readonly glossaryId: FieldRef<"Document", 'String'>
   }
     
 
@@ -9693,6 +9775,25 @@ export namespace Prisma {
     take?: number
     skip?: number
     distinct?: RevisionScalarFieldEnum | RevisionScalarFieldEnum[]
+  }
+
+  /**
+   * Document.glossary
+   */
+  export type Document$glossaryArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Glossary
+     */
+    select?: GlossarySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Glossary
+     */
+    omit?: GlossaryOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: GlossaryInclude<ExtArgs> | null
+    where?: GlossaryWhereInput
   }
 
   /**
@@ -12108,7 +12209,8 @@ export namespace Prisma {
     isPublic: 'isPublic',
     expiresAt: 'expiresAt',
     createdAt: 'createdAt',
-    updatedAt: 'updatedAt'
+    updatedAt: 'updatedAt',
+    glossaryId: 'glossaryId'
   };
 
   export type DocumentScalarFieldEnum = (typeof DocumentScalarFieldEnum)[keyof typeof DocumentScalarFieldEnum]
@@ -12669,6 +12771,7 @@ export namespace Prisma {
     createdAt?: DateTimeFilter<"Glossary"> | Date | string
     updatedAt?: DateTimeFilter<"Glossary"> | Date | string
     user?: XOR<UserScalarRelationFilter, UserWhereInput>
+    documents?: DocumentListRelationFilter
   }
 
   export type GlossaryOrderByWithRelationInput = {
@@ -12681,6 +12784,7 @@ export namespace Prisma {
     createdAt?: SortOrder
     updatedAt?: SortOrder
     user?: UserOrderByWithRelationInput
+    documents?: DocumentOrderByRelationAggregateInput
   }
 
   export type GlossaryWhereUniqueInput = Prisma.AtLeast<{
@@ -12696,6 +12800,7 @@ export namespace Prisma {
     createdAt?: DateTimeFilter<"Glossary"> | Date | string
     updatedAt?: DateTimeFilter<"Glossary"> | Date | string
     user?: XOR<UserScalarRelationFilter, UserWhereInput>
+    documents?: DocumentListRelationFilter
   }, "id">
 
   export type GlossaryOrderByWithAggregationInput = {
@@ -12740,9 +12845,11 @@ export namespace Prisma {
     expiresAt?: DateTimeFilter<"Document"> | Date | string
     createdAt?: DateTimeFilter<"Document"> | Date | string
     updatedAt?: DateTimeFilter<"Document"> | Date | string
+    glossaryId?: StringNullableFilter<"Document"> | string | null
     user?: XOR<UserScalarRelationFilter, UserWhereInput>
     profile?: XOR<VoiceProfileNullableScalarRelationFilter, VoiceProfileWhereInput> | null
     revisions?: RevisionListRelationFilter
+    glossary?: XOR<GlossaryNullableScalarRelationFilter, GlossaryWhereInput> | null
   }
 
   export type DocumentOrderByWithRelationInput = {
@@ -12756,9 +12863,11 @@ export namespace Prisma {
     expiresAt?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    glossaryId?: SortOrderInput | SortOrder
     user?: UserOrderByWithRelationInput
     profile?: VoiceProfileOrderByWithRelationInput
     revisions?: RevisionOrderByRelationAggregateInput
+    glossary?: GlossaryOrderByWithRelationInput
   }
 
   export type DocumentWhereUniqueInput = Prisma.AtLeast<{
@@ -12775,9 +12884,11 @@ export namespace Prisma {
     expiresAt?: DateTimeFilter<"Document"> | Date | string
     createdAt?: DateTimeFilter<"Document"> | Date | string
     updatedAt?: DateTimeFilter<"Document"> | Date | string
+    glossaryId?: StringNullableFilter<"Document"> | string | null
     user?: XOR<UserScalarRelationFilter, UserWhereInput>
     profile?: XOR<VoiceProfileNullableScalarRelationFilter, VoiceProfileWhereInput> | null
     revisions?: RevisionListRelationFilter
+    glossary?: XOR<GlossaryNullableScalarRelationFilter, GlossaryWhereInput> | null
   }, "id" | "slug">
 
   export type DocumentOrderByWithAggregationInput = {
@@ -12791,6 +12902,7 @@ export namespace Prisma {
     expiresAt?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    glossaryId?: SortOrderInput | SortOrder
     _count?: DocumentCountOrderByAggregateInput
     _max?: DocumentMaxOrderByAggregateInput
     _min?: DocumentMinOrderByAggregateInput
@@ -12810,6 +12922,7 @@ export namespace Prisma {
     expiresAt?: DateTimeWithAggregatesFilter<"Document"> | Date | string
     createdAt?: DateTimeWithAggregatesFilter<"Document"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Document"> | Date | string
+    glossaryId?: StringNullableWithAggregatesFilter<"Document"> | string | null
   }
 
   export type RevisionWhereInput = {
@@ -13357,6 +13470,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     user: UserCreateNestedOneWithoutGlossariesInput
+    documents?: DocumentCreateNestedManyWithoutGlossaryInput
   }
 
   export type GlossaryUncheckedCreateInput = {
@@ -13368,6 +13482,7 @@ export namespace Prisma {
     keepAsIs?: GlossaryCreatekeepAsIsInput | string[]
     createdAt?: Date | string
     updatedAt?: Date | string
+    documents?: DocumentUncheckedCreateNestedManyWithoutGlossaryInput
   }
 
   export type GlossaryUpdateInput = {
@@ -13379,6 +13494,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     user?: UserUpdateOneRequiredWithoutGlossariesNestedInput
+    documents?: DocumentUpdateManyWithoutGlossaryNestedInput
   }
 
   export type GlossaryUncheckedUpdateInput = {
@@ -13390,6 +13506,7 @@ export namespace Prisma {
     keepAsIs?: GlossaryUpdatekeepAsIsInput | string[]
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    documents?: DocumentUncheckedUpdateManyWithoutGlossaryNestedInput
   }
 
   export type GlossaryCreateManyInput = {
@@ -13436,6 +13553,7 @@ export namespace Prisma {
     user: UserCreateNestedOneWithoutDocumentsInput
     profile?: VoiceProfileCreateNestedOneWithoutDocumentsInput
     revisions?: RevisionCreateNestedManyWithoutDocumentInput
+    glossary?: GlossaryCreateNestedOneWithoutDocumentsInput
   }
 
   export type DocumentUncheckedCreateInput = {
@@ -13449,6 +13567,7 @@ export namespace Prisma {
     expiresAt: Date | string
     createdAt?: Date | string
     updatedAt?: Date | string
+    glossaryId?: string | null
     revisions?: RevisionUncheckedCreateNestedManyWithoutDocumentInput
   }
 
@@ -13464,6 +13583,7 @@ export namespace Prisma {
     user?: UserUpdateOneRequiredWithoutDocumentsNestedInput
     profile?: VoiceProfileUpdateOneWithoutDocumentsNestedInput
     revisions?: RevisionUpdateManyWithoutDocumentNestedInput
+    glossary?: GlossaryUpdateOneWithoutDocumentsNestedInput
   }
 
   export type DocumentUncheckedUpdateInput = {
@@ -13477,6 +13597,7 @@ export namespace Prisma {
     expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    glossaryId?: NullableStringFieldUpdateOperationsInput | string | null
     revisions?: RevisionUncheckedUpdateManyWithoutDocumentNestedInput
   }
 
@@ -13491,6 +13612,7 @@ export namespace Prisma {
     expiresAt: Date | string
     createdAt?: Date | string
     updatedAt?: Date | string
+    glossaryId?: string | null
   }
 
   export type DocumentUpdateManyMutationInput = {
@@ -13515,6 +13637,7 @@ export namespace Prisma {
     expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    glossaryId?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type RevisionCreateInput = {
@@ -14204,6 +14327,11 @@ export namespace Prisma {
     none?: RevisionWhereInput
   }
 
+  export type GlossaryNullableScalarRelationFilter = {
+    is?: GlossaryWhereInput | null
+    isNot?: GlossaryWhereInput | null
+  }
+
   export type RevisionOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
@@ -14219,6 +14347,7 @@ export namespace Prisma {
     expiresAt?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    glossaryId?: SortOrder
   }
 
   export type DocumentMaxOrderByAggregateInput = {
@@ -14232,6 +14361,7 @@ export namespace Prisma {
     expiresAt?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    glossaryId?: SortOrder
   }
 
   export type DocumentMinOrderByAggregateInput = {
@@ -14245,6 +14375,7 @@ export namespace Prisma {
     expiresAt?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    glossaryId?: SortOrder
   }
 
   export type BoolWithAggregatesFilter<$PrismaModel = never> = {
@@ -14813,6 +14944,20 @@ export namespace Prisma {
     connect?: UserWhereUniqueInput
   }
 
+  export type DocumentCreateNestedManyWithoutGlossaryInput = {
+    create?: XOR<DocumentCreateWithoutGlossaryInput, DocumentUncheckedCreateWithoutGlossaryInput> | DocumentCreateWithoutGlossaryInput[] | DocumentUncheckedCreateWithoutGlossaryInput[]
+    connectOrCreate?: DocumentCreateOrConnectWithoutGlossaryInput | DocumentCreateOrConnectWithoutGlossaryInput[]
+    createMany?: DocumentCreateManyGlossaryInputEnvelope
+    connect?: DocumentWhereUniqueInput | DocumentWhereUniqueInput[]
+  }
+
+  export type DocumentUncheckedCreateNestedManyWithoutGlossaryInput = {
+    create?: XOR<DocumentCreateWithoutGlossaryInput, DocumentUncheckedCreateWithoutGlossaryInput> | DocumentCreateWithoutGlossaryInput[] | DocumentUncheckedCreateWithoutGlossaryInput[]
+    connectOrCreate?: DocumentCreateOrConnectWithoutGlossaryInput | DocumentCreateOrConnectWithoutGlossaryInput[]
+    createMany?: DocumentCreateManyGlossaryInputEnvelope
+    connect?: DocumentWhereUniqueInput | DocumentWhereUniqueInput[]
+  }
+
   export type GlossaryUpdatealwaysUseInput = {
     set?: string[]
     push?: string | string[]
@@ -14836,6 +14981,34 @@ export namespace Prisma {
     update?: XOR<XOR<UserUpdateToOneWithWhereWithoutGlossariesInput, UserUpdateWithoutGlossariesInput>, UserUncheckedUpdateWithoutGlossariesInput>
   }
 
+  export type DocumentUpdateManyWithoutGlossaryNestedInput = {
+    create?: XOR<DocumentCreateWithoutGlossaryInput, DocumentUncheckedCreateWithoutGlossaryInput> | DocumentCreateWithoutGlossaryInput[] | DocumentUncheckedCreateWithoutGlossaryInput[]
+    connectOrCreate?: DocumentCreateOrConnectWithoutGlossaryInput | DocumentCreateOrConnectWithoutGlossaryInput[]
+    upsert?: DocumentUpsertWithWhereUniqueWithoutGlossaryInput | DocumentUpsertWithWhereUniqueWithoutGlossaryInput[]
+    createMany?: DocumentCreateManyGlossaryInputEnvelope
+    set?: DocumentWhereUniqueInput | DocumentWhereUniqueInput[]
+    disconnect?: DocumentWhereUniqueInput | DocumentWhereUniqueInput[]
+    delete?: DocumentWhereUniqueInput | DocumentWhereUniqueInput[]
+    connect?: DocumentWhereUniqueInput | DocumentWhereUniqueInput[]
+    update?: DocumentUpdateWithWhereUniqueWithoutGlossaryInput | DocumentUpdateWithWhereUniqueWithoutGlossaryInput[]
+    updateMany?: DocumentUpdateManyWithWhereWithoutGlossaryInput | DocumentUpdateManyWithWhereWithoutGlossaryInput[]
+    deleteMany?: DocumentScalarWhereInput | DocumentScalarWhereInput[]
+  }
+
+  export type DocumentUncheckedUpdateManyWithoutGlossaryNestedInput = {
+    create?: XOR<DocumentCreateWithoutGlossaryInput, DocumentUncheckedCreateWithoutGlossaryInput> | DocumentCreateWithoutGlossaryInput[] | DocumentUncheckedCreateWithoutGlossaryInput[]
+    connectOrCreate?: DocumentCreateOrConnectWithoutGlossaryInput | DocumentCreateOrConnectWithoutGlossaryInput[]
+    upsert?: DocumentUpsertWithWhereUniqueWithoutGlossaryInput | DocumentUpsertWithWhereUniqueWithoutGlossaryInput[]
+    createMany?: DocumentCreateManyGlossaryInputEnvelope
+    set?: DocumentWhereUniqueInput | DocumentWhereUniqueInput[]
+    disconnect?: DocumentWhereUniqueInput | DocumentWhereUniqueInput[]
+    delete?: DocumentWhereUniqueInput | DocumentWhereUniqueInput[]
+    connect?: DocumentWhereUniqueInput | DocumentWhereUniqueInput[]
+    update?: DocumentUpdateWithWhereUniqueWithoutGlossaryInput | DocumentUpdateWithWhereUniqueWithoutGlossaryInput[]
+    updateMany?: DocumentUpdateManyWithWhereWithoutGlossaryInput | DocumentUpdateManyWithWhereWithoutGlossaryInput[]
+    deleteMany?: DocumentScalarWhereInput | DocumentScalarWhereInput[]
+  }
+
   export type UserCreateNestedOneWithoutDocumentsInput = {
     create?: XOR<UserCreateWithoutDocumentsInput, UserUncheckedCreateWithoutDocumentsInput>
     connectOrCreate?: UserCreateOrConnectWithoutDocumentsInput
@@ -14853,6 +15026,12 @@ export namespace Prisma {
     connectOrCreate?: RevisionCreateOrConnectWithoutDocumentInput | RevisionCreateOrConnectWithoutDocumentInput[]
     createMany?: RevisionCreateManyDocumentInputEnvelope
     connect?: RevisionWhereUniqueInput | RevisionWhereUniqueInput[]
+  }
+
+  export type GlossaryCreateNestedOneWithoutDocumentsInput = {
+    create?: XOR<GlossaryCreateWithoutDocumentsInput, GlossaryUncheckedCreateWithoutDocumentsInput>
+    connectOrCreate?: GlossaryCreateOrConnectWithoutDocumentsInput
+    connect?: GlossaryWhereUniqueInput
   }
 
   export type RevisionUncheckedCreateNestedManyWithoutDocumentInput = {
@@ -14896,6 +15075,16 @@ export namespace Prisma {
     update?: RevisionUpdateWithWhereUniqueWithoutDocumentInput | RevisionUpdateWithWhereUniqueWithoutDocumentInput[]
     updateMany?: RevisionUpdateManyWithWhereWithoutDocumentInput | RevisionUpdateManyWithWhereWithoutDocumentInput[]
     deleteMany?: RevisionScalarWhereInput | RevisionScalarWhereInput[]
+  }
+
+  export type GlossaryUpdateOneWithoutDocumentsNestedInput = {
+    create?: XOR<GlossaryCreateWithoutDocumentsInput, GlossaryUncheckedCreateWithoutDocumentsInput>
+    connectOrCreate?: GlossaryCreateOrConnectWithoutDocumentsInput
+    upsert?: GlossaryUpsertWithoutDocumentsInput
+    disconnect?: GlossaryWhereInput | boolean
+    delete?: GlossaryWhereInput | boolean
+    connect?: GlossaryWhereUniqueInput
+    update?: XOR<XOR<GlossaryUpdateToOneWithWhereWithoutDocumentsInput, GlossaryUpdateWithoutDocumentsInput>, GlossaryUncheckedUpdateWithoutDocumentsInput>
   }
 
   export type RevisionUncheckedUpdateManyWithoutDocumentNestedInput = {
@@ -15333,6 +15522,7 @@ export namespace Prisma {
     keepAsIs?: GlossaryCreatekeepAsIsInput | string[]
     createdAt?: Date | string
     updatedAt?: Date | string
+    documents?: DocumentCreateNestedManyWithoutGlossaryInput
   }
 
   export type GlossaryUncheckedCreateWithoutUserInput = {
@@ -15343,6 +15533,7 @@ export namespace Prisma {
     keepAsIs?: GlossaryCreatekeepAsIsInput | string[]
     createdAt?: Date | string
     updatedAt?: Date | string
+    documents?: DocumentUncheckedCreateNestedManyWithoutGlossaryInput
   }
 
   export type GlossaryCreateOrConnectWithoutUserInput = {
@@ -15366,6 +15557,7 @@ export namespace Prisma {
     updatedAt?: Date | string
     profile?: VoiceProfileCreateNestedOneWithoutDocumentsInput
     revisions?: RevisionCreateNestedManyWithoutDocumentInput
+    glossary?: GlossaryCreateNestedOneWithoutDocumentsInput
   }
 
   export type DocumentUncheckedCreateWithoutUserInput = {
@@ -15378,6 +15570,7 @@ export namespace Prisma {
     expiresAt: Date | string
     createdAt?: Date | string
     updatedAt?: Date | string
+    glossaryId?: string | null
     revisions?: RevisionUncheckedCreateNestedManyWithoutDocumentInput
   }
 
@@ -15571,6 +15764,7 @@ export namespace Prisma {
     expiresAt?: DateTimeFilter<"Document"> | Date | string
     createdAt?: DateTimeFilter<"Document"> | Date | string
     updatedAt?: DateTimeFilter<"Document"> | Date | string
+    glossaryId?: StringNullableFilter<"Document"> | string | null
   }
 
   export type UsageEventUpsertWithWhereUniqueWithoutUserInput = {
@@ -15800,6 +15994,7 @@ export namespace Prisma {
     updatedAt?: Date | string
     user: UserCreateNestedOneWithoutDocumentsInput
     revisions?: RevisionCreateNestedManyWithoutDocumentInput
+    glossary?: GlossaryCreateNestedOneWithoutDocumentsInput
   }
 
   export type DocumentUncheckedCreateWithoutProfileInput = {
@@ -15812,6 +16007,7 @@ export namespace Prisma {
     expiresAt: Date | string
     createdAt?: Date | string
     updatedAt?: Date | string
+    glossaryId?: string | null
     revisions?: RevisionUncheckedCreateNestedManyWithoutDocumentInput
   }
 
@@ -15917,6 +16113,44 @@ export namespace Prisma {
     create: XOR<UserCreateWithoutGlossariesInput, UserUncheckedCreateWithoutGlossariesInput>
   }
 
+  export type DocumentCreateWithoutGlossaryInput = {
+    id?: string
+    title: string
+    preset?: string
+    slug?: string | null
+    isPublic?: boolean
+    expiresAt: Date | string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    user: UserCreateNestedOneWithoutDocumentsInput
+    profile?: VoiceProfileCreateNestedOneWithoutDocumentsInput
+    revisions?: RevisionCreateNestedManyWithoutDocumentInput
+  }
+
+  export type DocumentUncheckedCreateWithoutGlossaryInput = {
+    id?: string
+    userId: string
+    profileId?: string | null
+    title: string
+    preset?: string
+    slug?: string | null
+    isPublic?: boolean
+    expiresAt: Date | string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    revisions?: RevisionUncheckedCreateNestedManyWithoutDocumentInput
+  }
+
+  export type DocumentCreateOrConnectWithoutGlossaryInput = {
+    where: DocumentWhereUniqueInput
+    create: XOR<DocumentCreateWithoutGlossaryInput, DocumentUncheckedCreateWithoutGlossaryInput>
+  }
+
+  export type DocumentCreateManyGlossaryInputEnvelope = {
+    data: DocumentCreateManyGlossaryInput | DocumentCreateManyGlossaryInput[]
+    skipDuplicates?: boolean
+  }
+
   export type UserUpsertWithoutGlossariesInput = {
     update: XOR<UserUpdateWithoutGlossariesInput, UserUncheckedUpdateWithoutGlossariesInput>
     create: XOR<UserCreateWithoutGlossariesInput, UserUncheckedCreateWithoutGlossariesInput>
@@ -15956,6 +16190,22 @@ export namespace Prisma {
     profiles?: VoiceProfileUncheckedUpdateManyWithoutUserNestedInput
     documents?: DocumentUncheckedUpdateManyWithoutUserNestedInput
     usage?: UsageEventUncheckedUpdateManyWithoutUserNestedInput
+  }
+
+  export type DocumentUpsertWithWhereUniqueWithoutGlossaryInput = {
+    where: DocumentWhereUniqueInput
+    update: XOR<DocumentUpdateWithoutGlossaryInput, DocumentUncheckedUpdateWithoutGlossaryInput>
+    create: XOR<DocumentCreateWithoutGlossaryInput, DocumentUncheckedCreateWithoutGlossaryInput>
+  }
+
+  export type DocumentUpdateWithWhereUniqueWithoutGlossaryInput = {
+    where: DocumentWhereUniqueInput
+    data: XOR<DocumentUpdateWithoutGlossaryInput, DocumentUncheckedUpdateWithoutGlossaryInput>
+  }
+
+  export type DocumentUpdateManyWithWhereWithoutGlossaryInput = {
+    where: DocumentScalarWhereInput
+    data: XOR<DocumentUpdateManyMutationInput, DocumentUncheckedUpdateManyWithoutGlossaryInput>
   }
 
   export type UserCreateWithoutDocumentsInput = {
@@ -16058,6 +16308,33 @@ export namespace Prisma {
   export type RevisionCreateManyDocumentInputEnvelope = {
     data: RevisionCreateManyDocumentInput | RevisionCreateManyDocumentInput[]
     skipDuplicates?: boolean
+  }
+
+  export type GlossaryCreateWithoutDocumentsInput = {
+    id?: string
+    name: string
+    alwaysUse?: GlossaryCreatealwaysUseInput | string[]
+    neverUse?: GlossaryCreateneverUseInput | string[]
+    keepAsIs?: GlossaryCreatekeepAsIsInput | string[]
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    user: UserCreateNestedOneWithoutGlossariesInput
+  }
+
+  export type GlossaryUncheckedCreateWithoutDocumentsInput = {
+    id?: string
+    userId: string
+    name: string
+    alwaysUse?: GlossaryCreatealwaysUseInput | string[]
+    neverUse?: GlossaryCreateneverUseInput | string[]
+    keepAsIs?: GlossaryCreatekeepAsIsInput | string[]
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type GlossaryCreateOrConnectWithoutDocumentsInput = {
+    where: GlossaryWhereUniqueInput
+    create: XOR<GlossaryCreateWithoutDocumentsInput, GlossaryUncheckedCreateWithoutDocumentsInput>
   }
 
   export type UserUpsertWithoutDocumentsInput = {
@@ -16171,6 +16448,39 @@ export namespace Prisma {
     createdAt?: DateTimeFilter<"Revision"> | Date | string
   }
 
+  export type GlossaryUpsertWithoutDocumentsInput = {
+    update: XOR<GlossaryUpdateWithoutDocumentsInput, GlossaryUncheckedUpdateWithoutDocumentsInput>
+    create: XOR<GlossaryCreateWithoutDocumentsInput, GlossaryUncheckedCreateWithoutDocumentsInput>
+    where?: GlossaryWhereInput
+  }
+
+  export type GlossaryUpdateToOneWithWhereWithoutDocumentsInput = {
+    where?: GlossaryWhereInput
+    data: XOR<GlossaryUpdateWithoutDocumentsInput, GlossaryUncheckedUpdateWithoutDocumentsInput>
+  }
+
+  export type GlossaryUpdateWithoutDocumentsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    alwaysUse?: GlossaryUpdatealwaysUseInput | string[]
+    neverUse?: GlossaryUpdateneverUseInput | string[]
+    keepAsIs?: GlossaryUpdatekeepAsIsInput | string[]
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutGlossariesNestedInput
+  }
+
+  export type GlossaryUncheckedUpdateWithoutDocumentsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    alwaysUse?: GlossaryUpdatealwaysUseInput | string[]
+    neverUse?: GlossaryUpdateneverUseInput | string[]
+    keepAsIs?: GlossaryUpdatekeepAsIsInput | string[]
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
   export type DocumentCreateWithoutRevisionsInput = {
     id?: string
     title: string
@@ -16182,6 +16492,7 @@ export namespace Prisma {
     updatedAt?: Date | string
     user: UserCreateNestedOneWithoutDocumentsInput
     profile?: VoiceProfileCreateNestedOneWithoutDocumentsInput
+    glossary?: GlossaryCreateNestedOneWithoutDocumentsInput
   }
 
   export type DocumentUncheckedCreateWithoutRevisionsInput = {
@@ -16195,6 +16506,7 @@ export namespace Prisma {
     expiresAt: Date | string
     createdAt?: Date | string
     updatedAt?: Date | string
+    glossaryId?: string | null
   }
 
   export type DocumentCreateOrConnectWithoutRevisionsInput = {
@@ -16224,6 +16536,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     user?: UserUpdateOneRequiredWithoutDocumentsNestedInput
     profile?: VoiceProfileUpdateOneWithoutDocumentsNestedInput
+    glossary?: GlossaryUpdateOneWithoutDocumentsNestedInput
   }
 
   export type DocumentUncheckedUpdateWithoutRevisionsInput = {
@@ -16237,6 +16550,7 @@ export namespace Prisma {
     expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    glossaryId?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type UserCreateWithoutUsageInput = {
@@ -16367,6 +16681,7 @@ export namespace Prisma {
     expiresAt: Date | string
     createdAt?: Date | string
     updatedAt?: Date | string
+    glossaryId?: string | null
   }
 
   export type UsageEventCreateManyUserInput = {
@@ -16484,6 +16799,7 @@ export namespace Prisma {
     keepAsIs?: GlossaryUpdatekeepAsIsInput | string[]
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    documents?: DocumentUpdateManyWithoutGlossaryNestedInput
   }
 
   export type GlossaryUncheckedUpdateWithoutUserInput = {
@@ -16494,6 +16810,7 @@ export namespace Prisma {
     keepAsIs?: GlossaryUpdatekeepAsIsInput | string[]
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    documents?: DocumentUncheckedUpdateManyWithoutGlossaryNestedInput
   }
 
   export type GlossaryUncheckedUpdateManyWithoutUserInput = {
@@ -16517,6 +16834,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     profile?: VoiceProfileUpdateOneWithoutDocumentsNestedInput
     revisions?: RevisionUpdateManyWithoutDocumentNestedInput
+    glossary?: GlossaryUpdateOneWithoutDocumentsNestedInput
   }
 
   export type DocumentUncheckedUpdateWithoutUserInput = {
@@ -16529,6 +16847,7 @@ export namespace Prisma {
     expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    glossaryId?: NullableStringFieldUpdateOperationsInput | string | null
     revisions?: RevisionUncheckedUpdateManyWithoutDocumentNestedInput
   }
 
@@ -16542,6 +16861,7 @@ export namespace Prisma {
     expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    glossaryId?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type UsageEventUpdateWithoutUserInput = {
@@ -16581,6 +16901,7 @@ export namespace Prisma {
     expiresAt: Date | string
     createdAt?: Date | string
     updatedAt?: Date | string
+    glossaryId?: string | null
   }
 
   export type DocumentUpdateWithoutProfileInput = {
@@ -16594,6 +16915,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     user?: UserUpdateOneRequiredWithoutDocumentsNestedInput
     revisions?: RevisionUpdateManyWithoutDocumentNestedInput
+    glossary?: GlossaryUpdateOneWithoutDocumentsNestedInput
   }
 
   export type DocumentUncheckedUpdateWithoutProfileInput = {
@@ -16606,12 +16928,68 @@ export namespace Prisma {
     expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    glossaryId?: NullableStringFieldUpdateOperationsInput | string | null
     revisions?: RevisionUncheckedUpdateManyWithoutDocumentNestedInput
   }
 
   export type DocumentUncheckedUpdateManyWithoutProfileInput = {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
+    preset?: StringFieldUpdateOperationsInput | string
+    slug?: NullableStringFieldUpdateOperationsInput | string | null
+    isPublic?: BoolFieldUpdateOperationsInput | boolean
+    expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    glossaryId?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
+  export type DocumentCreateManyGlossaryInput = {
+    id?: string
+    userId: string
+    profileId?: string | null
+    title: string
+    preset?: string
+    slug?: string | null
+    isPublic?: boolean
+    expiresAt: Date | string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type DocumentUpdateWithoutGlossaryInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
+    preset?: StringFieldUpdateOperationsInput | string
+    slug?: NullableStringFieldUpdateOperationsInput | string | null
+    isPublic?: BoolFieldUpdateOperationsInput | boolean
+    expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutDocumentsNestedInput
+    profile?: VoiceProfileUpdateOneWithoutDocumentsNestedInput
+    revisions?: RevisionUpdateManyWithoutDocumentNestedInput
+  }
+
+  export type DocumentUncheckedUpdateWithoutGlossaryInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    profileId?: NullableStringFieldUpdateOperationsInput | string | null
+    title?: StringFieldUpdateOperationsInput | string
+    preset?: StringFieldUpdateOperationsInput | string
+    slug?: NullableStringFieldUpdateOperationsInput | string | null
+    isPublic?: BoolFieldUpdateOperationsInput | boolean
+    expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    revisions?: RevisionUncheckedUpdateManyWithoutDocumentNestedInput
+  }
+
+  export type DocumentUncheckedUpdateManyWithoutGlossaryInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    profileId?: NullableStringFieldUpdateOperationsInput | string | null
     title?: StringFieldUpdateOperationsInput | string
     preset?: StringFieldUpdateOperationsInput | string
     slug?: NullableStringFieldUpdateOperationsInput | string | null

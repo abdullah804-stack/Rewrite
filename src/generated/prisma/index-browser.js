@@ -192,7 +192,8 @@ exports.Prisma.DocumentScalarFieldEnum = {
   isPublic: 'isPublic',
   expiresAt: 'expiresAt',
   createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
+  updatedAt: 'updatedAt',
+  glossaryId: 'glossaryId'
 };
 
 exports.Prisma.RevisionScalarFieldEnum = {
