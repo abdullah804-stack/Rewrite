@@ -1,13 +1,36 @@
 import { auth, signOut } from "@/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { prisma } from "@/lib/prisma";
+import { getLimits } from "@/config/plans";
 
 export default async function DashboardPage() {
   const session = await auth();
 
-  if (!session?.user) {
+  if (!session?.user?.id) {
     redirect("/login");
   }
+
+  // Fetch stats
+  const today = new Date().toISOString().slice(0, 10);
+  
+  const [documentsCount, usageToday, totalWordsResult] = await Promise.all([
+    prisma.document.count({ where: { userId: session.user.id } }),
+    prisma.usageEvent.aggregate({
+      where: { userId: session.user.id, day: today },
+      _sum: { words: true },
+    }),
+    prisma.usageEvent.aggregate({
+      where: { userId: session.user.id },
+      _sum: { words: true },
+    }),
+  ]);
+
+  const limits = getLimits(session.user.id);
+  const wordsUsedToday = usageToday._sum.words ?? 0;
+  const totalWordsAllTime = totalWordsResult._sum.words ?? 0;
+  const dailyLimit = limits.rewriteWordsPerDay;
+  const quotaPercent = Math.min(100, Math.round((wordsUsedToday / dailyLimit) * 100));
 
   return (
     <main className="min-h-screen bg-white">
@@ -19,7 +42,7 @@ export default async function DashboardPage() {
           <div className="flex items-center gap-3 sm:gap-4">
             <Link
               href="/workspace"
-              className="text-sm text-neutral-500 hover:text-black transition-colors font-medium"
+              className="text-sm text-neutral-500 hover:text-black transition-colors"
             >
               Workspace
             </Link>
@@ -48,47 +71,65 @@ export default async function DashboardPage() {
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
         <h1 className="text-2xl sm:text-3xl font-semibold text-black">
-          Welcome, {session.user.name ?? "writer"}
+          Welcome, {session.user.name?.split(" ")[0] ?? "writer"}
         </h1>
         <p className="text-sm text-neutral-500 mt-2">
-          Your workspace is ready. Start with Quick rewrite or build a voice
-          profile.
+          Here is your writing activity.
         </p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8">
+        {/* Stats Row */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-8">
+          <div className="p-5 rounded-lg border border-neutral-200 bg-white">
+            <div className="text-sm text-neutral-500">Words rewritten</div>
+            <div className="text-2xl font-semibold text-black mt-1">
+              {totalWordsAllTime.toLocaleString()}
+            </div>
+          </div>
+          <div className="p-5 rounded-lg border border-neutral-200 bg-white">
+            <div className="text-sm text-neutral-500">Documents saved</div>
+            <div className="text-2xl font-semibold text-black mt-1">
+              {documentsCount}
+            </div>
+          </div>
+          <div className="p-5 rounded-lg border border-neutral-200 bg-white">
+            <div className="text-sm text-neutral-500">Daily quota</div>
+            <div className="text-2xl font-semibold text-black mt-1">
+              {wordsUsedToday} <span className="text-sm font-normal text-neutral-400">/ {dailyLimit}</span>
+            </div>
+            <div className="h-1.5 w-full bg-neutral-100 rounded-full mt-3 overflow-hidden">
+              <div
+                className={`h-full rounded-full ${quotaPercent >= 90 ? 'bg-red-500' : 'bg-black'}`}
+                style={{ width: `${quotaPercent}%` }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Navigation Cards */}
+        <h2 className="text-lg font-medium text-black mt-12 mb-4">Quick actions</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Link
             href="/quick"
-            className="p-5 rounded-lg border border-neutral-200 hover:border-neutral-400 transition-colors"
+            className="p-5 rounded-lg border border-neutral-200 hover:border-neutral-400 transition-colors group"
           >
-            <div className="text-sm font-medium text-black">
-              Quick rewrite
+            <div className="text-sm font-medium text-black flex items-center justify-between">
+              <span>Quick rewrite</span>
+              <span className="text-neutral-300 group-hover:text-black transition-colors">→</span>
             </div>
-            <p className="text-xs text-neutral-500 mt-1.5 leading-relaxed">
-              Paste a draft. Get it back natural in about 15 seconds. Facts
-              protected.
+            <p className="text-xs text-neutral-500 mt-2 leading-relaxed">
+              Paste a draft. Get it back natural in about 15 seconds. Facts protected.
             </p>
           </Link>
           <Link
             href="/profiles"
-            className="p-5 rounded-lg border border-neutral-200 hover:border-neutral-400 transition-colors"
+            className="p-5 rounded-lg border border-neutral-200 hover:border-neutral-400 transition-colors group"
           >
-            <div className="text-sm font-medium text-black">
-              Your voice profiles
+            <div className="text-sm font-medium text-black flex items-center justify-between">
+              <span>Voice profiles</span>
+              <span className="text-neutral-300 group-hover:text-black transition-colors">→</span>
             </div>
-            <p className="text-xs text-neutral-500 mt-1.5 leading-relaxed">
-              Teach the tool how you write. Every rewrite then matches your own
-              voice.
-            </p>
-          </Link>
-          <Link
-            href="/workspace"
-            className="p-5 rounded-lg border border-neutral-200 hover:border-neutral-400 transition-colors"
-          >
-            <div className="text-sm font-medium text-black">
-              Workspace
-            </div>
-            <p className="text-xs text-neutral-500 mt-1.5 leading-relaxed">
-              Organize your drafts into projects and folders.
+            <p className="text-xs text-neutral-500 mt-2 leading-relaxed">
+              Teach the tool how you write so every rewrite matches your own voice.
             </p>
           </Link>
         </div>
