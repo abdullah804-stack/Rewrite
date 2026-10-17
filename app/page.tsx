@@ -52,7 +52,7 @@ export default async function Home() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 mt-8">
-                        <Link
+            <Link
               href="/quick"
               className="h-11 px-6 rounded-lg bg-black text-white text-sm font-medium leading-[44px] text-center hover:bg-neutral-800 transition-colors"
             >
@@ -210,7 +210,7 @@ export default async function Home() {
         </div>
       </section>
 
-            {/* Footer */}
+      {/* Footer */}
       <footer className="border-t border-neutral-200">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <span className="text-xs text-neutral-400">
@@ -232,3 +232,6 @@ export default async function Home() {
           </div>
         </div>
       </footer>
+    </main>
+  );
+}
