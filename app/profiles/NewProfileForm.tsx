@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { analyzeSample } from "@/lib/pipeline/coach";
 
 export function NewProfileForm({ disabled }: { disabled: boolean }) {
   const [name, setName] = useState("");
@@ -11,7 +12,11 @@ export function NewProfileForm({ disabled }: { disabled: boolean }) {
   const [success, setSuccess] = useState(false);
   const router = useRouter();
 
-  const totalWords = samples.join(" ").trim().split(/\s+/).filter(Boolean).length;
+  const combinedText = samples.join("\n\n");
+  const totalWords = combinedText.trim().split(/\s+/).filter(Boolean).length;
+  
+  // Live coach analysis
+  const coach = useMemo(() => analyzeSample(combinedText), [combinedText]);
 
   function updateSample(index: number, value: string) {
     setSamples((prev) => prev.map((s, i) => (i === index ? value : s)));
@@ -86,48 +91,77 @@ export function NewProfileForm({ disabled }: { disabled: boolean }) {
         />
       </div>
 
-      <div>
-        <div className="flex items-center justify-between">
-          <label className="text-xs font-medium text-neutral-500 uppercase tracking-wide">
-            Writing samples
-          </label>
-          <span className="text-xs text-neutral-400">
-            {totalWords} words · min 100
-          </span>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left: Inputs */}
+        <div className="lg:col-span-2">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-medium text-neutral-500 uppercase tracking-wide">
+              Writing samples
+            </label>
+            <span className="text-xs text-neutral-400">
+              {totalWords} words
+            </span>
+          </div>
+
+          <div className="mt-2 space-y-2">
+            {samples.map((sample, i) => (
+              <div key={i} className="relative">
+                <textarea
+                  value={sample}
+                  onChange={(e) => updateSample(i, e.target.value)}
+                  placeholder={`Sample ${i + 1} — paste 150+ words you wrote`}
+                  rows={5}
+                  className="w-full p-3 rounded-lg border border-neutral-200 text-sm text-black placeholder:text-neutral-400 focus:outline-none focus:border-neutral-400 resize-none"
+                />
+                {samples.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeSample(i)}
+                    className="absolute top-2 right-2 text-xs text-neutral-400 hover:text-black transition-colors"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {samples.length < 5 && (
+            <button
+              type="button"
+              onClick={addSample}
+              className="mt-2 text-xs text-neutral-500 hover:text-black transition-colors"
+            >
+              + Add another sample
+            </button>
+          )}
         </div>
 
-        <div className="mt-2 space-y-2">
-          {samples.map((sample, i) => (
-            <div key={i} className="relative">
-              <textarea
-                value={sample}
-                onChange={(e) => updateSample(i, e.target.value)}
-                placeholder={`Sample ${i + 1} — paste 150+ words you wrote`}
-                rows={4}
-                className="w-full p-3 rounded-lg border border-neutral-200 text-sm text-black placeholder:text-neutral-400 focus:outline-none focus:border-neutral-400 resize-none"
-              />
-              {samples.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => removeSample(i)}
-                  className="absolute top-2 right-2 text-xs text-neutral-400 hover:text-black transition-colors"
-                >
-                  Remove
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
+        {/* Right: Voice Coach */}
+        <div className="bg-neutral-50 rounded-lg border border-neutral-200 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-medium text-black">Voice Coach</span>
+            <span className={`text-xs font-medium ${coach.score >= 80 ? 'text-green-700' : coach.score >= 50 ? 'text-yellow-700' : 'text-red-700'}`}>
+              {coach.score}/100
+            </span>
+          </div>
+          
+          <div className="h-1.5 w-full bg-neutral-200 rounded-full overflow-hidden mb-4">
+            <div
+              className={`h-full rounded-full transition-all duration-300 ${coach.score >= 80 ? 'bg-green-600' : coach.score >= 50 ? 'bg-yellow-600' : 'bg-red-600'}`}
+              style={{ width: `${coach.score}%` }}
+            />
+          </div>
 
-        {samples.length < 5 && (
-          <button
-            type="button"
-            onClick={addSample}
-            className="mt-2 text-xs text-neutral-500 hover:text-black transition-colors"
-          >
-            + Add another sample
-          </button>
-        )}
+          <ul className="space-y-2 text-xs text-neutral-600">
+            {coach.feedback.map((f, i) => (
+              <li key={i} className="leading-relaxed flex gap-2">
+                <span className="text-neutral-400 shrink-0">•</span>
+                <span>{f}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
 
       {error && (
@@ -140,17 +174,15 @@ export function NewProfileForm({ disabled }: { disabled: boolean }) {
         </div>
       )}
 
-      <button
-        type="submit"
-        disabled={loading || !name.trim() || totalWords < 100}
-        className="h-11 px-6 rounded-lg bg-black text-white text-sm font-medium hover:bg-neutral-800 disabled:bg-neutral-300 disabled:cursor-not-allowed transition-colors"
-      >
-        {loading ? "Analyzing your voice..." : "Create voice profile"}
-      </button>
-
-      <p className="text-xs text-neutral-400">
-        Samples stay in your account and can be deleted any time.
-      </p>
+      <div className="pt-4">
+        <button
+          type="submit"
+          disabled={loading || !name.trim() || totalWords < 100}
+          className="h-11 px-6 rounded-lg bg-black text-white text-sm font-medium hover:bg-neutral-800 disabled:bg-neutral-300 disabled:cursor-not-allowed transition-colors"
+        >
+          {loading ? "Analyzing your voice..." : "Create voice profile"}
+        </button>
+      </div>
     </form>
   );
 }
