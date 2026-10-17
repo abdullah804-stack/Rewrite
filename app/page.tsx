@@ -216,9 +216,15 @@ export default async function Home() {
           <span className="text-xs text-neutral-400">
             Rewrite — a free writing workspace.
           </span>
-          <div className="flex items-center gap-4 text-xs text-neutral-400">
+                    <div className="flex items-center gap-4 text-xs text-neutral-400">
             <Link href="/tools" className="hover:text-black transition-colors">
               Tools
+            </Link>
+            <Link href="/examples" className="hover:text-black transition-colors">
+              Examples
+            </Link>
+            <Link href="/phrases" className="hover:text-black transition-colors">
+              Phrase dictionary
             </Link>
             <Link href="/clipper" className="hover:text-black transition-colors">
               Web Clipper
