@@ -12,7 +12,6 @@ function expiresAt(): Date {
   return d;
 }
 
-/** GET /api/documents — list recent documents for the signed-in user */
 export async function GET() {
   const session = await auth();
   if (!session?.user?.id) {
@@ -22,12 +21,9 @@ export async function GET() {
   const documents = await prisma.document.findMany({
     where: { userId: session.user.id },
     orderBy: { updatedAt: "desc" },
-    take: 20,
+    take: 50,
     include: {
-      revisions: {
-        orderBy: { createdAt: "desc" },
-        take: 1,
-      },
+      revisions: { orderBy: { createdAt: "desc" }, take: 1 },
     },
   });
 
@@ -36,6 +32,7 @@ export async function GET() {
       id: d.id,
       title: d.title,
       preset: d.preset,
+      projectId: d.projectId,
       updatedAt: d.updatedAt,
       revisionCount: d.revisions.length,
       latestRevisionId: d.revisions[0]?.id ?? null,
@@ -51,17 +48,14 @@ type CreateBody = {
   provider?: string;
   mode?: string;
   profileId?: string;
+  projectId?: string;
   styleReport?: unknown;
 };
 
-/** POST /api/documents — create a document + first revision */
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json(
-      { error: "Sign in to save revisions." },
-      { status: 401 }
-    );
+    return NextResponse.json({ error: "Sign in to save revisions." }, { status: 401 });
   }
 
   const body = (await request.json()) as CreateBody;
@@ -69,10 +63,7 @@ export async function POST(request: Request) {
   const rewritten = (body.rewritten ?? "").trim();
 
   if (!original || !rewritten) {
-    return NextResponse.json(
-      { error: "Original and rewritten text are required." },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Original and rewritten text are required." }, { status: 400 });
   }
 
   const wordCount = rewritten.split(/\s+/).length;
@@ -82,24 +73,14 @@ export async function POST(request: Request) {
     data: {
       userId: session.user.id,
       profileId: body.profileId ?? null,
+      projectId: body.projectId ?? null,
       title,
       preset: body.preset ?? "blog",
       expiresAt: expiresAt(),
       revisions: {
         create: [
-          {
-            kind: "ORIGINAL",
-            content: original,
-            wordCount: original.split(/\s+/).length,
-          },
-          {
-            kind: "REWRITE",
-            content: rewritten,
-            wordCount,
-            provider: body.provider ?? null,
-            mode: body.mode ?? null,
-            styleReport: (body.styleReport as object) ?? undefined,
-          },
+          { kind: "ORIGINAL", content: original, wordCount: original.split(/\s+/).length },
+          { kind: "REWRITE", content: rewritten, wordCount, provider: body.provider ?? null, mode: body.mode ?? null, styleReport: (body.styleReport as object) ?? undefined },
         ],
       },
     },

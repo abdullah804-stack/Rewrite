@@ -18,14 +18,17 @@ export default async function DashboardPage() {
           </Link>
           <div className="flex items-center gap-3 sm:gap-4">
             <Link
+              href="/workspace"
+              className="text-sm text-neutral-500 hover:text-black transition-colors font-medium"
+            >
+              Workspace
+            </Link>
+            <Link
               href="/settings"
               className="text-sm text-neutral-500 hover:text-black transition-colors hidden sm:inline"
             >
               Settings
             </Link>
-            <span className="text-sm text-neutral-500 hidden md:inline">
-              {session.user.email}
-            </span>
             <form
               action={async () => {
                 "use server";
@@ -48,7 +51,7 @@ export default async function DashboardPage() {
           Welcome, {session.user.name ?? "writer"}
         </h1>
         <p className="text-sm text-neutral-500 mt-2">
-          Your workspace is empty. Start with Quick rewrite or build a voice
+          Your workspace is ready. Start with Quick rewrite or build a voice
           profile.
         </p>
 
@@ -75,6 +78,17 @@ export default async function DashboardPage() {
             <p className="text-xs text-neutral-500 mt-1.5 leading-relaxed">
               Teach the tool how you write. Every rewrite then matches your own
               voice.
+            </p>
+          </Link>
+          <Link
+            href="/workspace"
+            className="p-5 rounded-lg border border-neutral-200 hover:border-neutral-400 transition-colors"
+          >
+            <div className="text-sm font-medium text-black">
+              Workspace
+            </div>
+            <p className="text-xs text-neutral-500 mt-1.5 leading-relaxed">
+              Organize your drafts into projects and folders.
             </p>
           </Link>
         </div>

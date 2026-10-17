@@ -25,6 +25,7 @@ model User {
   glossaries    Glossary[]
   documents     Document[]
   usage         UsageEvent[]
+  projects      Project[]
 }
 
 model Account {
@@ -109,6 +110,8 @@ model Document {
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
   revisions Revision[]
+  projectId   String?
+  project     Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
   glossaryId String?
   glossary   Glossary? @relation(fields: [glossaryId], references: [id], onDelete: SetNull)
@@ -159,4 +162,16 @@ enum Intensity {
   LIGHT
   BALANCED
   STRONG
+}
+
+model Project {
+  id        String     @id @default(cuid())
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  documents Document[]
+
+  @@index([userId])
 }
