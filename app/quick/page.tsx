@@ -6,6 +6,7 @@ import { ProfilePicker } from "./ProfilePicker";
 import { DiffView } from "./DiffView";
 import { StyleReport } from "./StyleReport";
 import { Editor } from "./Editor";
+import { ProjectPicker } from "./ProjectPicker";
 import { analyzeText } from "@/lib/analyze-client";
 import type { Metrics } from "@/lib/pipeline/metrics";
 import { PRESETS, type PresetId } from "@/config/presets";
@@ -29,6 +30,7 @@ export default function QuickPage() {
   const [text, setText] = useState("");
   const [intensity, setIntensity] = useState<Intensity>("balanced");
   const [profileId, setProfileId] = useState<string | null>(null);
+  const [projectId, setProjectId] = useState<string | null>(null);
   const [preset, setPreset] = useState<PresetId>("custom");
   const [seoSafe, setSeoSafe] = useState(false);
   
@@ -42,7 +44,6 @@ export default function QuickPage() {
 
   const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
 
-  // Live analysis of the input text
   const analysis = useMemo(() => {
     if (!text.trim()) return null;
     return analyzeText(text, "general");
@@ -75,7 +76,6 @@ export default function QuickPage() {
 
       setResult(data);
 
-      // Save the rewrite to the database if signed in
       if (typeof window !== "undefined") {
         fetch("/api/documents", {
           method: "POST",
@@ -86,6 +86,7 @@ export default function QuickPage() {
             provider: data.provider,
             mode: "standard",
             profileId: profileId ?? undefined,
+            projectId: projectId ?? undefined,
             styleReport: data.after,
             preset: preset,
           }),
@@ -121,7 +122,6 @@ export default function QuickPage() {
 
   return (
     <main className="h-screen flex flex-col bg-white overflow-hidden">
-      {/* Header */}
       <header className="border-b border-neutral-200 shrink-0">
         <div className="px-4 sm:px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -129,7 +129,9 @@ export default function QuickPage() {
               Rewrite
             </Link>
             <span className="text-neutral-300">/</span>
-            <span className="text-sm text-neutral-500">Workspace</span>
+            <Link href="/workspace" className="text-sm text-neutral-500 hover:text-black transition-colors">
+              Workspace
+            </Link>
           </div>
           <div className="flex items-center gap-3 sm:gap-4">
             <Link
@@ -148,7 +150,6 @@ export default function QuickPage() {
         </div>
       </header>
 
-      {/* Toolbar */}
       <div className="border-b border-neutral-200 bg-neutral-50 shrink-0 px-4 sm:px-6 py-2 flex flex-wrap items-center gap-3">
         <div className="flex gap-1 bg-neutral-200/50 rounded-lg p-1">
           {(["light", "balanced", "strong"] as const).map((level) => (
@@ -182,6 +183,7 @@ export default function QuickPage() {
         </select>
 
         <ProfilePicker value={profileId} onChange={setProfileId} />
+        <ProjectPicker value={projectId} onChange={setProjectId} />
 
         <label className="flex items-center gap-2 cursor-pointer select-none">
           <input
@@ -214,9 +216,7 @@ export default function QuickPage() {
         </div>
       </div>
 
-      {/* Main Workspace */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Pane: Editor */}
         <div className="flex-1 min-w-[300px] border-r border-neutral-200 flex flex-col overflow-hidden">
           <div className="px-4 py-2 border-b border-neutral-200 flex justify-between items-center shrink-0 bg-white">
             <span className="text-xs font-medium text-neutral-500 uppercase tracking-wide">
@@ -237,7 +237,6 @@ export default function QuickPage() {
           </div>
         </div>
 
-        {/* Middle Pane: Output */}
         <div className="flex-1 min-w-[300px] border-r border-neutral-200 flex flex-col overflow-hidden bg-neutral-50">
           <div className="px-4 py-2 border-b border-neutral-200 flex justify-between items-center shrink-0 bg-neutral-50">
             <span className="text-xs font-medium text-neutral-500 uppercase tracking-wide">
@@ -282,7 +281,6 @@ export default function QuickPage() {
           </div>
         </div>
 
-        {/* Right Pane: Live Stats & Analysis */}
         <div className="w-80 shrink-0 flex flex-col overflow-hidden bg-white hidden xl:flex">
           <div className="px-4 py-2 border-b border-neutral-200 shrink-0">
             <span className="text-xs font-medium text-neutral-500 uppercase tracking-wide">
@@ -298,7 +296,6 @@ export default function QuickPage() {
 
             {analysis && (
               <>
-                {/* Lint Score */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium text-black">AI-isms</span>
@@ -317,7 +314,6 @@ export default function QuickPage() {
                   )}
                 </div>
 
-                {/* Claims */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium text-black">Claims</span>
@@ -337,7 +333,6 @@ export default function QuickPage() {
                   )}
                 </div>
 
-                {/* Readability */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium text-black">Readability</span>
@@ -348,7 +343,6 @@ export default function QuickPage() {
                   </div>
                 </div>
 
-                {/* Stats Report (After result is generated) */}
                 {result && (
                   <div className="pt-4 border-t border-neutral-200">
                     <StyleReport before={result.before} after={result.after} />
