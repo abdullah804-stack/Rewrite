@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import { ImportMenu } from "./ImportMenu";
 
 type SelectionInfo = {
@@ -14,15 +14,29 @@ export function Editor({
   onChange,
   profileId,
   onError,
+  onRewrite,
 }: {
   value: string;
   onChange: (next: string) => void;
   profileId: string | null;
   onError: (message: string | null) => void;
+  onRewrite?: () => void;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [selection, setSelection] = useState<SelectionInfo | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Keyboard shortcut: Cmd/Ctrl + Enter to trigger rewrite
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        e.preventDefault();
+        if (onRewrite) onRewrite();
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [onRewrite]);
 
   const captureSelection = useCallback(() => {
     const el = textareaRef.current;
@@ -79,7 +93,6 @@ export function Editor({
 
       onChange(next);
 
-      // clear selection highlight in the textarea
       requestAnimationFrame(() => {
         const el = textareaRef.current;
         if (!el) return;
@@ -97,10 +110,10 @@ export function Editor({
   const wordCount = value.trim() ? value.trim().split(/\s+/).length : 0;
 
   return (
-    <div>
-            <div className="flex items-center justify-between gap-2">
-        <label className="text-xs font-medium text-neutral-500 uppercase tracking-wide">
-          Your draft
+    <div className="h-full flex flex-col">
+      <div className="flex items-center justify-between gap-2 mb-2 shrink-0">
+        <label className="text-xs font-medium text-neutral-500 uppercase tracking-wide hidden sm:block">
+          Your draft <span className="text-neutral-300 ml-1 font-normal normal-case">(Cmd+Enter to rewrite)</span>
         </label>
         <div className="flex items-center gap-3">
           <ImportMenu
@@ -113,7 +126,7 @@ export function Editor({
         </div>
       </div>
 
-      <div className="relative mt-2">
+      <div className="relative flex-1">
         <textarea
           ref={textareaRef}
           value={value}
@@ -122,7 +135,7 @@ export function Editor({
           onKeyUp={captureSelection}
           onSelect={captureSelection}
           placeholder="Paste a draft from ChatGPT, Claude, or your own writing..."
-          className="w-full h-64 sm:h-80 lg:h-[500px] p-4 rounded-lg border border-neutral-200 text-sm text-black placeholder:text-neutral-400 focus:outline-none focus:border-neutral-400 resize-none"
+          className="w-full h-full p-4 rounded-lg border border-neutral-200 text-sm text-black placeholder:text-neutral-400 focus:outline-none focus:border-neutral-400 resize-none"
         />
 
         {selection && !loading && (
@@ -145,7 +158,7 @@ export function Editor({
       </div>
 
       {selection && (
-        <p className="text-xs text-neutral-400 mt-2">
+        <p className="text-xs text-neutral-400 mt-2 shrink-0">
           {selection.text.trim().split(/\s+/).length} words selected
         </p>
       )}

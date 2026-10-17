@@ -240,11 +240,12 @@ export default function QuickPage() {
             </span>
           </div>
           <div className="flex-1 overflow-auto p-4">
-            <Editor
+                        <Editor
               value={text}
               onChange={setText}
               profileId={profileId}
               onError={setError}
+              onRewrite={handleRewrite}
             />
             {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
           </div>
