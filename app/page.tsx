@@ -220,6 +220,9 @@ export default async function Home() {
             <Link href="/tools" className="hover:text-black transition-colors">
               Tools
             </Link>
+            <Link href="/clipper" className="hover:text-black transition-colors">
+              Web Clipper
+            </Link>
             <Link href="/terms" className="hover:text-black transition-colors">
               Terms
             </Link>

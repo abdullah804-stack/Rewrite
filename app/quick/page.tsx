@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { ProfilePicker } from "./ProfilePicker";
 import { DiffView } from "./DiffView";
@@ -41,6 +41,19 @@ export default function QuickPage() {
   const [copied, setCopied] = useState("");
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
   const [documentId, setDocumentId] = useState<string | null>(null);
+
+  // Read text from URL query param (used by the Web Clipper)
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const urlText = params.get("text");
+      if (urlText) {
+        setText(urlText);
+        // Clean up the URL so a refresh doesn't re-paste it
+        window.history.replaceState({}, "", "/quick");
+      }
+    }
+  }, []);
 
   const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
 
