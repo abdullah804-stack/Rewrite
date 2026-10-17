@@ -6,9 +6,7 @@ import { ProfilePicker } from "./ProfilePicker";
 import { DiffView } from "./DiffView";
 import { StyleReport } from "./StyleReport";
 import { Editor } from "./Editor";
-import { ShareButton } from "./ShareButton";
 import type { Metrics } from "@/lib/pipeline/metrics";
-import { HistorySidebar } from "./HistorySidebar";
 
 type Intensity = "light" | "balanced" | "strong";
 
@@ -32,14 +30,15 @@ export default function QuickPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<RewriteResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [capacityReached, setCapacityReached] = useState(false);
   const [copied, setCopied] = useState("");
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
   const [documentId, setDocumentId] = useState<string | null>(null);
 
-
   async function handleRewrite() {
     setLoading(true);
     setError(null);
+    setCapacityReached(false);
     setResult(null);
 
     try {
@@ -51,16 +50,21 @@ export default function QuickPage() {
 
       const data = (await res.json()) as RewriteResponse;
 
+      if (res.status === 503) {
+        setCapacityReached(true);
+        return;
+      }
+
       if (!res.ok || !data.ok) {
         setError(data.error ?? "Rewrite failed.");
         return;
       }
 
-            setResult(data);
+      setResult(data);
 
       // Save the rewrite to the database if signed in
       if (typeof window !== "undefined") {
-                fetch("/api/documents", {
+        fetch("/api/documents", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -90,15 +94,16 @@ export default function QuickPage() {
     }
   }
 
-    function handleCopyText(label: string) {
+  function handleCopyText(label: string) {
     setCopied(label);
     setTimeout(() => setCopied(""), 2000);
   }
 
-    function handleReset() {
+  function handleReset() {
     setText("");
     setResult(null);
     setError(null);
+    setCapacityReached(false);
     setDocumentId(null);
   }
 
@@ -135,7 +140,7 @@ export default function QuickPage() {
           rewrite just that part.
         </p>
 
-        {!result && (
+        {!result && !capacityReached && (
           <>
             <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-6">
               <div className="flex gap-1 bg-neutral-100 rounded-lg p-1">
@@ -203,9 +208,39 @@ export default function QuickPage() {
           </>
         )}
 
+        {/* Capacity Reached State */}
+        {capacityReached && (
+          <div className="mt-8 p-6 sm:p-8 rounded-lg border border-neutral-200 bg-neutral-50">
+            <h2 className="text-lg font-semibold text-black">
+              Daily capacity reached
+            </h2>
+            <p className="text-sm text-neutral-600 mt-2 max-w-lg leading-relaxed">
+              All free AI providers are currently at capacity. This usually clears up within a few minutes.
+            </p>
+            <div className="flex flex-wrap items-center gap-3 mt-6">
+              <button
+                type="button"
+                onClick={() => {
+                  setCapacityReached(false);
+                  handleRewrite();
+                }}
+                className="h-10 px-5 rounded-lg bg-black text-white text-sm font-medium hover:bg-neutral-800 transition-colors"
+              >
+                Try again
+              </button>
+              <Link
+                href="/tools"
+                className="h-10 px-5 rounded-lg border border-neutral-200 bg-white text-black text-sm font-medium leading-[38px] hover:bg-neutral-50 transition-colors"
+              >
+                Use the free tools instead
+              </Link>
+            </div>
+          </div>
+        )}
+
         {result && (
           <>
-                        <div className="flex flex-wrap items-center gap-2 mt-6">
+            <div className="flex flex-wrap items-center gap-2 mt-6">
               <button
                 type="button"
                 onClick={handleReset}
@@ -213,17 +248,13 @@ export default function QuickPage() {
               >
                 New rewrite
               </button>
-              <ShareButton
-                documentId={documentId}
-                onStatus={(label) => handleCopyText(label)}
-              />
               <span className="text-xs text-neutral-400 ml-auto">
                 {copied}
               </span>
             </div>
 
-                        <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr_1fr] gap-6 mt-6">
-              <div className="lg:col-span-1">
+            <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6 mt-6">
+              <div>
                 <DiffView
                   original={result.original}
                   rewritten={result.rewritten}
@@ -234,15 +265,6 @@ export default function QuickPage() {
               </div>
               <div>
                 <StyleReport before={result.before} after={result.after} />
-              </div>
-              <div>
-                <HistorySidebar
-                  onRestore={(text) => {
-                    setResult(null);
-                    setText(text);
-                  }}
-                  refreshKey={historyRefreshKey}
-                />
               </div>
             </div>
 

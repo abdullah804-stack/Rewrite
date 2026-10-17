@@ -246,8 +246,19 @@ export async function POST(request: Request) {
 
     return response;
   } catch (err) {
+    const msg = (err as Error).message;
+    
+    // If all providers failed, return a 503 instead of a 500.
+    // This tells the UI it's a capacity issue, not a code bug.
+    if (msg.includes("All providers failed") || msg.includes("429") || msg.includes("503")) {
+      return NextResponse.json(
+        { error: "All providers are currently at capacity. Please try again in a minute." },
+        { status: 503 }
+      );
+    }
+
     return NextResponse.json(
-      { error: (err as Error).message },
+      { error: msg },
       { status: 500 }
     );
   }
