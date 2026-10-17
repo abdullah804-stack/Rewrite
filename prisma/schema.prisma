@@ -90,6 +90,7 @@ model Glossary {
   keepAsIs  String[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  documents  Document[]
 
   @@index([userId])
 }
@@ -109,8 +110,13 @@ model Document {
   updatedAt DateTime     @updatedAt
   revisions Revision[]
 
+  glossaryId String?
+  glossary   Glossary? @relation(fields: [glossaryId], references: [id], onDelete: SetNull)
+
   @@index([userId, updatedAt])
   @@index([expiresAt])
+
+  
 }
 
 model Revision {
