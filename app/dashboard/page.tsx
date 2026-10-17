@@ -17,7 +17,13 @@ export default async function DashboardPage() {
             Rewrite
           </Link>
           <div className="flex items-center gap-3 sm:gap-4">
-            <span className="text-sm text-neutral-500 hidden sm:inline">
+            <Link
+              href="/settings"
+              className="text-sm text-neutral-500 hover:text-black transition-colors hidden sm:inline"
+            >
+              Settings
+            </Link>
+            <span className="text-sm text-neutral-500 hidden md:inline">
               {session.user.email}
             </span>
             <form
