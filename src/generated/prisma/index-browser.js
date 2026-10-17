@@ -193,6 +193,7 @@ exports.Prisma.DocumentScalarFieldEnum = {
   expiresAt: 'expiresAt',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
+  projectId: 'projectId',
   glossaryId: 'glossaryId'
 };
 
@@ -218,6 +219,14 @@ exports.Prisma.UsageEventScalarFieldEnum = {
   provider: 'provider',
   day: 'day',
   createdAt: 'createdAt'
+};
+
+exports.Prisma.ProjectScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  name: 'name',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
 };
 
 exports.Prisma.SortOrder = {
@@ -270,7 +279,8 @@ exports.Prisma.ModelName = {
   Glossary: 'Glossary',
   Document: 'Document',
   Revision: 'Revision',
-  UsageEvent: 'UsageEvent'
+  UsageEvent: 'UsageEvent',
+  Project: 'Project'
 };
 
 /**

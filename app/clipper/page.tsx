@@ -24,14 +24,13 @@ export default function ClipperPage() {
           Web Clipper
         </h1>
         <p className="text-base text-neutral-500 mb-8 max-w-xl leading-relaxed">
-          Rewrite text on any website without copy-pasting. Drag the button below to your browser's bookmarks bar. 
+          Rewrite text on any website without copy-pasting. Drag the button below to your browser&apos;s bookmarks bar. 
           Then, just highlight text anywhere on the web and click the bookmark.
         </p>
 
         <div className="p-8 rounded-xl border border-neutral-200 bg-neutral-50 flex flex-col items-center justify-center text-center">
           <a
             href={BOOKMARKLET_CODE}
-            onClick={(e) => e.preventDefault()}
             className="inline-block px-6 py-3 rounded-lg bg-black text-white font-medium shadow-sm hover:bg-neutral-800 transition-colors cursor-grab active:cursor-grabbing"
             title="Drag me to your bookmarks bar"
           >
@@ -52,12 +51,12 @@ export default function ClipperPage() {
 
           <div>
             <strong className="text-black block mb-1">2. Drag the button</strong>
-            <p>Click and hold the black "Rewrite This Text" button above, drag it up to your bookmarks bar, and release.</p>
+            <p>Click and hold the black &quot;Rewrite This Text&quot; button above, drag it up to your bookmarks bar, and release.</p>
           </div>
 
           <div>
             <strong className="text-black block mb-1">3. Use it anywhere</strong>
-            <p>Go to LinkedIn, Twitter, or any blog. Highlight a paragraph of text, then click the "Rewrite This Text" bookmark. It will open a new tab with your text pre-loaded in the workspace.</p>
+            <p>Go to LinkedIn, Twitter, or any blog. Highlight a paragraph of text, then click the &quot;Rewrite This Text&quot; bookmark. It will open a new tab with your text pre-loaded in the workspace.</p>
           </div>
         </div>
       </div>
