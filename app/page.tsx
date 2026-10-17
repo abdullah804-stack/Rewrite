@@ -210,7 +210,7 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Footer */}
+            {/* Footer */}
       <footer className="border-t border-neutral-200">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <span className="text-xs text-neutral-400">
@@ -220,12 +220,15 @@ export default async function Home() {
             <Link href="/tools" className="hover:text-black transition-colors">
               Tools
             </Link>
+            <Link href="/terms" className="hover:text-black transition-colors">
+              Terms
+            </Link>
+            <Link href="/privacy" className="hover:text-black transition-colors">
+              Privacy
+            </Link>
             <Link href="/login" className="hover:text-black transition-colors">
               Sign in
             </Link>
           </div>
         </div>
       </footer>
-    </main>
-  );
-}
