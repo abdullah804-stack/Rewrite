@@ -32,6 +32,8 @@ type Body = {
   projectId?: string;
   preset?: PresetId;
   seoSafe?: boolean;
+  toneFormality?: number;
+  toneDirectness?: number;
 };
 
 const INTENSITY_RULES: Record<string, string> = {
@@ -67,6 +69,20 @@ function buildVoiceBlock(profile: VoiceProfile): string {
     `- Tone: ${i.tone.join(", ")}`,
     `- Sentence length: ${m.sentenceLenMean} words`,
   ];
+  return lines.join("\n");
+}
+
+function buildToneBlock(formality: number = 5, directness: number = 5): string {
+  const lines = ["", "Target Tone (override preset/voice if they conflict):"];
+  
+  if (formality <= 3) lines.push("- Formality: Casual and conversational. Use contractions and everyday language.");
+  else if (formality >= 8) lines.push("- Formality: Professional and polished. Avoid slang and heavy contractions.");
+  else lines.push("- Formality: Balanced and natural.");
+
+  if (directness <= 3) lines.push("- Directness: Soft and diplomatic. Use hedges and gentle phrasing.");
+  else if (directness >= 8) lines.push("- Directness: Blunt and direct. Get straight to the point with no fluff.");
+  else lines.push("- Directness: Confident and clear.");
+
   return lines.join("\n");
 }
 
@@ -122,18 +138,11 @@ export async function POST(request: Request) {
     let glossaryBlock = "";
     let glossaryRecord = null;
     
-    // 1. Check global glossary first
     if (glossaryId && session?.user?.id) {
       glossaryRecord = await prisma.glossary.findFirst({ where: { id: glossaryId, userId: session.user.id } });
-      if (glossaryRecord) {
-        glossaryBlock = buildGlossaryPrompt(glossaryRecord);
-      }
-    } 
-    // 2. If no global glossary, check for a project-specific glossary
-    else if (body.projectId && session?.user?.id) {
-      const project = await prisma.project.findUnique({
-        where: { id: body.projectId, userId: session.user.id }
-      });
+      if (glossaryRecord) glossaryBlock = buildGlossaryPrompt(glossaryRecord);
+    } else if (body.projectId && session?.user?.id) {
+      const project = await prisma.project.findUnique({ where: { id: body.projectId, userId: session.user.id } });
       if (project?.glossary) {
         glossaryRecord = project.glossary as any;
         glossaryBlock = buildGlossaryPrompt(glossaryRecord);
@@ -150,7 +159,10 @@ export async function POST(request: Request) {
       seoBlock = "\n\nSEO-Safe Mode: Do NOT change any Markdown headings (lines starting with #). Do NOT change the casing or phrasing of the main topic keywords.";
     }
 
-    const extraPrompt = voiceBlock + glossaryBlock + presetBlock + seoBlock;
+    // Build tone block
+    const toneBlock = buildToneBlock(body.toneFormality, body.toneDirectness);
+
+    const extraPrompt = voiceBlock + glossaryBlock + presetBlock + seoBlock + toneBlock;
 
     if (action === "regen") {
       return await handleRegen(rawText, body.context ?? "", extraPrompt, profileUsed);
@@ -167,10 +179,7 @@ export async function POST(request: Request) {
       const validation = validateGlossary(data.rewritten, glossaryRecord);
       
       if (!validation.ok) {
-        return NextResponse.json(
-          { error: `Validation failed: ${validation.error}` },
-          { status: 502 }
-        );
+        return NextResponse.json({ error: `Validation failed: ${validation.error}` }, { status: 502 });
       }
 
       if (session?.user?.id) {

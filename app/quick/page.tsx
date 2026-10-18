@@ -27,7 +27,6 @@ type RewriteResponse = {
   error?: string;
 };
 
-// Splits text into chunks of ~800 words, breaking at paragraph boundaries
 function chunkText(text: string, maxWords = 800): string[] {
   const paragraphs = text.split(/\n{2,}/);
   const chunks: string[] = [];
@@ -58,6 +57,10 @@ export default function QuickPage() {
   const [preset, setPreset] = useState<PresetId>("custom");
   const [seoSafe, setSeoSafe] = useState(false);
   
+  // Tone dials
+  const [formality, setFormality] = useState(5);
+  const [directness, setDirectness] = useState(5);
+
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
   const [result, setResult] = useState<RewriteResponse | null>(null);
@@ -110,7 +113,16 @@ export default function QuickPage() {
         const res = await fetch("/api/rewrite", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: chunks[i], intensity, profileId, preset, seoSafe, projectId }),
+          body: JSON.stringify({ 
+            text: chunks[i], 
+            intensity, 
+            profileId, 
+            preset, 
+            seoSafe, 
+            projectId,
+            toneFormality: formality,
+            toneDirectness: directness
+          }),
         });
 
         const data = await res.json();
@@ -254,15 +266,32 @@ export default function QuickPage() {
         <ProfilePicker value={profileId} onChange={setProfileId} />
         <ProjectPicker value={projectId} onChange={setProjectId} />
 
-        <label className="flex items-center gap-2 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={seoSafe}
-            onChange={(e) => setSeoSafe(e.target.checked)}
-            className="w-4 h-4 rounded border-neutral-300 dark:border-neutral-600 text-black focus:ring-black dark:bg-neutral-800"
-          />
-          <span className="text-xs font-medium text-neutral-700 dark:text-neutral-300">SEO-safe</span>
-        </label>
+        {/* Tone Dials */}
+        <div className="flex items-center gap-4 ml-2 bg-white dark:bg-neutral-800 px-3 py-1 rounded-md border border-neutral-200 dark:border-neutral-700">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] uppercase tracking-wide text-neutral-400 dark:text-neutral-500">Formal</span>
+            <input
+              type="range"
+              min="1"
+              max="10"
+              value={formality}
+              onChange={(e) => setFormality(Number(e.target.value))}
+              className="w-16 accent-black dark:accent-white cursor-pointer"
+            />
+          </div>
+          <div className="w-px h-4 bg-neutral-200 dark:bg-neutral-700"></div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] uppercase tracking-wide text-neutral-400 dark:text-neutral-500">Direct</span>
+            <input
+              type="range"
+              min="1"
+              max="10"
+              value={directness}
+              onChange={(e) => setDirectness(Number(e.target.value))}
+              className="w-16 accent-black dark:accent-white cursor-pointer"
+            />
+          </div>
+        </div>
 
         <div className="ml-auto flex items-center gap-2">
           <button
