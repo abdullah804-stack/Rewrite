@@ -8,6 +8,52 @@ import {
 } from "@/lib/pipeline/diff";
 import { ExportMenu } from "./ExportMenu";
 
+// Helper to map reasons to educational explanations
+function getExplanation(reason: string): string | null {
+  if (!reason) return null;
+  if (reason.includes("Shortened")) return "AI tends to pad sentences with filler words. Shorter sentences are easier to read and sound more confident.";
+  if (reason.includes("Expanded")) return "The rewrite added details or connected ideas to improve flow.";
+  if (reason.includes("contraction")) return "Contractions (like 'don't' or 'it's') make writing sound conversational and human. AI often avoids them.";
+  if (reason.includes("em dash")) return "AI models overuse em dashes. Removing them makes the text feel less like an LLM wrote it.";
+  if (reason.includes("rhythm")) return "AI often writes sentences with identical lengths. Varying sentence length creates a natural rhythm.";
+  if (reason.includes("Added sentence")) return "The AI split a long thought into two sentences for better readability.";
+  return "This change improves the natural flow and readability of the text.";
+}
+
+function ChangeReason({ reason }: { reason: string }) {
+  const [show, setShow] = useState(false);
+  const explanation = getExplanation(reason);
+
+  if (!reason) return null;
+
+  return (
+    <div className="flex items-center gap-1.5 mt-2">
+      <p className="text-xs text-neutral-400 dark:text-neutral-500">{reason}</p>
+      {explanation && (
+        <div 
+          className="relative flex items-center"
+          onMouseEnter={() => setShow(true)}
+          onMouseLeave={() => setShow(false)}
+        >
+          <button
+            type="button"
+            className="w-4 h-4 rounded-full flex items-center justify-center bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
+          >
+            <span className="text-[10px] font-bold">?</span>
+          </button>
+          
+          {show && (
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 p-2.5 rounded-lg bg-black dark:bg-white text-white dark:text-black text-xs leading-relaxed shadow-lg z-50 pointer-events-none">
+              {explanation}
+              <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-black dark:border-t-white"></div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function DiffView({
   original,
   rewritten,
@@ -116,7 +162,6 @@ export function DiffView({
     onCopyAccepted(assembleAccepted(diff));
   }
 
-  // Text-to-Speech logic
   function handleSpeak() {
     if (!("speechSynthesis" in window)) {
       alert("Your browser doesn't support text-to-speech.");
@@ -133,7 +178,6 @@ export function DiffView({
     if (!textToRead.trim()) return;
 
     const utterance = new SpeechSynthesisUtterance(textToRead);
-    // Slightly slower than default reads more naturally for editing
     utterance.rate = 0.95;
     
     utterance.onend = () => setSpeaking(false);
@@ -282,7 +326,7 @@ export function DiffView({
               )}
 
               {seg.reason && (
-                <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-2">{seg.reason}</p>
+                <ChangeReason reason={seg.reason} />
               )}
             </div>
           );
