@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo } from "react";
 import {
   diffSentences,
   assembleAccepted,
@@ -30,6 +30,7 @@ export function DiffView({
   const [regenIndex, setRegenIndex] = useState<number | null>(null);
   const [regenError, setRegenError] = useState<string | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [speaking, setSpeaking] = useState(false);
 
   function toggle(index: number) {
     setSegments((prev) =>
@@ -85,7 +86,6 @@ export function DiffView({
 
   function handleDragStart(e: React.DragEvent, index: number) {
     setDraggedIndex(index);
-    // Set a drag image that isn't the whole div with buttons
     e.dataTransfer.effectAllowed = "move";
   }
 
@@ -116,6 +116,33 @@ export function DiffView({
     onCopyAccepted(assembleAccepted(diff));
   }
 
+  // Text-to-Speech logic
+  function handleSpeak() {
+    if (!("speechSynthesis" in window)) {
+      alert("Your browser doesn't support text-to-speech.");
+      return;
+    }
+
+    if (speaking) {
+      window.speechSynthesis.cancel();
+      setSpeaking(false);
+      return;
+    }
+
+    const textToRead = assembleAccepted(diff);
+    if (!textToRead.trim()) return;
+
+    const utterance = new SpeechSynthesisUtterance(textToRead);
+    // Slightly slower than default reads more naturally for editing
+    utterance.rate = 0.95;
+    
+    utterance.onend = () => setSpeaking(false);
+    utterance.onerror = () => setSpeaking(false);
+
+    setSpeaking(true);
+    window.speechSynthesis.speak(utterance);
+  }
+
   return (
     <div>
       <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -124,6 +151,31 @@ export function DiffView({
           title="Rewrite"
           onCopied={(label) => onCopyAccepted(label)}
         />
+        
+        <button
+          type="button"
+          onClick={handleSpeak}
+          className={`h-9 px-3 rounded-lg border text-xs font-medium transition-colors flex items-center gap-2 ${
+            speaking
+              ? "border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400"
+              : "border-neutral-200 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800"
+          }`}
+        >
+          {speaking ? (
+            <>
+              <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+              Stop
+            </>
+          ) : (
+            <>
+              <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+              Read aloud
+            </>
+          )}
+        </button>
+
+        <div className="h-6 border-l border-neutral-200 dark:border-neutral-800 mx-1"></div>
+
         <button
           type="button"
           onClick={acceptAll}
@@ -167,7 +219,6 @@ export function DiffView({
                   : "border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/50 opacity-60"
               }`}
             >
-              {/* Drag Handle */}
               <div 
                 className="absolute left-3 top-3 bottom-3 w-4 flex items-center justify-center cursor-grab active:cursor-grabbing text-neutral-300 dark:text-neutral-600 hover:text-black dark:hover:text-white"
                 title="Drag to reorder"
