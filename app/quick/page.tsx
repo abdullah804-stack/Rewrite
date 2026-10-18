@@ -49,6 +49,8 @@ function chunkText(text: string, maxWords = 800): string[] {
   return chunks;
 }
 
+const AUTOSAVE_KEY = "rewrite_autosave";
+
 export default function QuickPage() {
   const [text, setText] = useState("");
   const [intensity, setIntensity] = useState<Intensity>("balanced");
@@ -57,7 +59,6 @@ export default function QuickPage() {
   const [preset, setPreset] = useState<PresetId>("custom");
   const [seoSafe, setSeoSafe] = useState(false);
   
-  // Tone dials
   const [formality, setFormality] = useState(5);
   const [directness, setDirectness] = useState(5);
 
@@ -69,17 +70,49 @@ export default function QuickPage() {
   const [copied, setCopied] = useState("");
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
   const [documentId, setDocumentId] = useState<string | null>(null);
+  
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
 
+  // Load from localStorage on mount
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const urlText = params.get("text");
+      
       if (urlText) {
         setText(urlText);
         window.history.replaceState({}, "", "/quick");
+        return; // URL text takes priority
+      }
+
+      const saved = localStorage.getItem(AUTOSAVE_KEY);
+      if (saved) {
+        setText(saved);
+        // Show a quick toast or status
+        setSaveStatus("saved");
+        setTimeout(() => setSaveStatus("idle"), 3000);
       }
     }
   }, []);
+
+  // Save to localStorage on change (debounced)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    
+    // Don't save if it's empty
+    if (!text) {
+      localStorage.removeItem(AUTOSAVE_KEY);
+      return;
+    }
+
+    setSaveStatus("saving");
+    const timer = setTimeout(() => {
+      localStorage.setItem(AUTOSAVE_KEY, text);
+      setSaveStatus("saved");
+    }, 800);
+
+    return () => clearTimeout(timer);
+  }, [text]);
 
   const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
 
@@ -198,6 +231,8 @@ export default function QuickPage() {
     setError(null);
     setCapacityReached(false);
     setDocumentId(null);
+    localStorage.removeItem(AUTOSAVE_KEY);
+    setSaveStatus("idle");
   }
 
   return (
@@ -212,6 +247,21 @@ export default function QuickPage() {
             <Link href="/workspace" className="text-sm text-neutral-500 dark:text-neutral-400 hover:text-black dark:hover:text-white transition-colors">
               Workspace
             </Link>
+            {saveStatus !== "idle" && (
+              <span className="text-xs text-neutral-400 dark:text-neutral-500 flex items-center gap-1.5 ml-2">
+                {saveStatus === "saving" ? (
+                  <>
+                    <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-3 h-3 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+                    Saved
+                  </>
+                )}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-3 sm:gap-4">
             <ThemeToggle />
@@ -266,7 +316,6 @@ export default function QuickPage() {
         <ProfilePicker value={profileId} onChange={setProfileId} />
         <ProjectPicker value={projectId} onChange={setProjectId} />
 
-        {/* Tone Dials */}
         <div className="flex items-center gap-4 ml-2 bg-white dark:bg-neutral-800 px-3 py-1 rounded-md border border-neutral-200 dark:border-neutral-700">
           <div className="flex items-center gap-2">
             <span className="text-[10px] uppercase tracking-wide text-neutral-400 dark:text-neutral-500">Formal</span>
