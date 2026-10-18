@@ -2,6 +2,7 @@
 
 import { useRef, useState, useCallback, useEffect } from "react";
 import { ImportMenu } from "./ImportMenu";
+import { HeatmapEditor } from "./HeatmapEditor";
 
 type SelectionInfo = {
   start: number;
@@ -25,6 +26,7 @@ export function Editor({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [selection, setSelection] = useState<SelectionInfo | null>(null);
   const [loading, setLoading] = useState(false);
+  const [heatmapOn, setHeatmapOn] = useState(false);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -111,9 +113,24 @@ export function Editor({
   return (
     <div className="h-full flex flex-col">
       <div className="flex items-center justify-between gap-2 mb-2 shrink-0">
-        <label className="text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wide hidden sm:block">
-          Your draft <span className="text-neutral-300 dark:text-neutral-600 ml-1 font-normal normal-case">(Cmd+Enter to rewrite)</span>
-        </label>
+        <div className="flex items-center gap-3">
+          <label className="text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wide hidden sm:block">
+            Your draft <span className="text-neutral-300 dark:text-neutral-600 ml-1 font-normal normal-case">(Cmd+Enter to rewrite)</span>
+          </label>
+          
+          <button
+            type="button"
+            onClick={() => setHeatmapOn(!heatmapOn)}
+            className={`text-[10px] px-2 py-0.5 rounded uppercase tracking-wide font-medium transition-colors ${
+              heatmapOn 
+                ? "bg-black dark:bg-white text-white dark:text-black" 
+                : "bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 hover:text-black dark:hover:text-white"
+            }`}
+          >
+            Heatmap
+          </button>
+        </div>
+
         <div className="flex items-center gap-3">
           <ImportMenu
             onImported={(imported) => onChange(imported)}
@@ -125,19 +142,27 @@ export function Editor({
         </div>
       </div>
 
-      <div className="relative flex-1">
-        <textarea
-          ref={textareaRef}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onMouseUp={captureSelection}
-          onKeyUp={captureSelection}
-          onSelect={captureSelection}
-          placeholder="Paste a draft from ChatGPT, Claude, or your own writing..."
-          className="w-full h-full p-4 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-sm text-black dark:text-white placeholder:text-neutral-400 dark:placeholder:text-neutral-500 focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-500 resize-none"
-        />
+      <div className="relative flex-1 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 overflow-hidden focus-within:border-neutral-400 dark:focus-within:border-neutral-500 transition-colors">
+        {heatmapOn ? (
+          <HeatmapEditor
+            text={value}
+            onChange={onChange}
+            placeholder="Paste a draft from ChatGPT, Claude, or your own writing..."
+          />
+        ) : (
+          <textarea
+            ref={textareaRef}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            onMouseUp={captureSelection}
+            onKeyUp={captureSelection}
+            onSelect={captureSelection}
+            placeholder="Paste a draft from ChatGPT, Claude, or your own writing..."
+            className="w-full h-full p-4 text-sm text-black dark:text-white placeholder:text-neutral-400 dark:placeholder:text-neutral-500 focus:outline-none resize-none bg-transparent"
+          />
+        )}
 
-        {selection && !loading && (
+        {selection && !loading && !heatmapOn && (
           <div className="absolute bottom-3 right-3">
             <button
               type="button"
