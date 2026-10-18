@@ -13,8 +13,8 @@
 export const PLANS = {
   FREE: {
     name: "Free",
-    rewriteWordsPerDay: 1500,
-    maxWordsPerRun: 1500,
+    rewriteWordsPerDay: 10000, // Increased to support long-form
+    maxWordsPerRun: 5000,
     maxVoiceProfiles: 3,
     historyRetentionDays: 14,
     anonymousWordsPerRun: 300,

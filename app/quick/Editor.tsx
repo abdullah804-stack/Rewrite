@@ -136,8 +136,8 @@ export function Editor({
             onImported={(imported) => onChange(imported)}
             onError={onError}
           />
-          <span className="text-xs text-neutral-400 dark:text-neutral-500 hidden sm:inline">
-            {wordCount} / 300 words without sign-in
+          <span className={`text-xs hidden sm:inline ${wordCount > 5000 ? 'text-red-500 font-medium' : 'text-neutral-400 dark:text-neutral-500'}`}>
+            {wordCount} / 5,000 words
           </span>
         </div>
       </div>

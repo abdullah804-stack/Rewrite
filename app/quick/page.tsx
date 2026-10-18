@@ -4,7 +4,6 @@ import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { ProfilePicker } from "./ProfilePicker";
 import { DiffView } from "./DiffView";
-import { ShareButton } from "./ShareButton";
 import { StyleReport } from "./StyleReport";
 import { Editor } from "./Editor";
 import { ProjectPicker } from "./ProjectPicker";
@@ -28,6 +27,29 @@ type RewriteResponse = {
   error?: string;
 };
 
+// Splits text into chunks of ~800 words, breaking at paragraph boundaries
+function chunkText(text: string, maxWords = 800): string[] {
+  const paragraphs = text.split(/\n{2,}/);
+  const chunks: string[] = [];
+  let currentChunk: string[] = [];
+  let currentWords = 0;
+
+  for (const p of paragraphs) {
+    const words = p.trim().split(/\s+/).length;
+    if (currentWords + words > maxWords && currentChunk.length > 0) {
+      chunks.push(currentChunk.join("\n\n"));
+      currentChunk = [];
+      currentWords = 0;
+    }
+    currentChunk.push(p);
+    currentWords += words;
+  }
+  if (currentChunk.length > 0) {
+    chunks.push(currentChunk.join("\n\n"));
+  }
+  return chunks;
+}
+
 export default function QuickPage() {
   const [text, setText] = useState("");
   const [intensity, setIntensity] = useState<Intensity>("balanced");
@@ -37,6 +59,7 @@ export default function QuickPage() {
   const [seoSafe, setSeoSafe] = useState(false);
   
   const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
   const [result, setResult] = useState<RewriteResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [capacityReached, setCapacityReached] = useState(false);
@@ -63,52 +86,83 @@ export default function QuickPage() {
   }, [text]);
 
   async function handleRewrite() {
+    if (wordCount > 5000) {
+      setError("Text exceeds the 5,000 word limit for long-form mode.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setCapacityReached(false);
     setResult(null);
+    setProgress(null);
 
     try {
-      const res = await fetch("/api/rewrite", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, intensity, profileId, preset, seoSafe }),
-      });
+      const chunks = chunkText(text, 800);
+      let fullRewritten = "";
+      let lastProvider = "";
+      let lastModel = "";
+      let totalSpans = 0;
 
-      const data = (await res.json()) as RewriteResponse;
+      for (let i = 0; i < chunks.length; i++) {
+        if (chunks.length > 1) setProgress({ current: i + 1, total: chunks.length });
 
-      if (res.status === 503) {
-        setCapacityReached(true);
-        return;
+        const res = await fetch("/api/rewrite", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: chunks[i], intensity, profileId, preset, seoSafe, projectId }),
+        });
+
+        const data = await res.json();
+
+        if (res.status === 503) {
+          setCapacityReached(true);
+          return;
+        }
+
+        if (!res.ok || !data.ok) {
+          setError(data.error ?? `Rewrite failed on section ${i + 1}.`);
+          return;
+        }
+
+        fullRewritten += (i > 0 ? "\n\n" : "") + data.rewritten;
+        lastProvider = data.provider;
+        lastModel = data.model;
+        totalSpans += data.spansProtected;
       }
 
-      if (!res.ok || !data.ok) {
-        setError(data.error ?? "Rewrite failed.");
-        return;
-      }
+      const finalData: RewriteResponse = {
+        ok: true,
+        original: text,
+        rewritten: fullRewritten,
+        provider: lastProvider,
+        model: lastModel,
+        before: analyzeText(text, "general").metrics,
+        after: analyzeText(fullRewritten, "general").metrics,
+        spansProtected: totalSpans,
+        profileUsed: profileId ? { name: "Custom Voice" } : null,
+      };
 
-      setResult(data);
+      setResult(finalData);
 
       if (typeof window !== "undefined") {
         fetch("/api/documents", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            original: data.original,
-            rewritten: data.rewritten,
-            provider: data.provider,
+            original: finalData.original,
+            rewritten: finalData.rewritten,
+            provider: finalData.provider,
             mode: "standard",
             profileId: profileId ?? undefined,
             projectId: projectId ?? undefined,
-            styleReport: data.after,
+            styleReport: finalData.after,
             preset: preset,
           }),
         })
           .then((res) => res.json())
           .then((saved) => {
-            if (saved?.document?.id) {
-              setDocumentId(saved.document.id);
-            }
+            if (saved?.document?.id) setDocumentId(saved.document.id);
             setHistoryRefreshKey((k) => k + 1);
           })
           .catch(() => {});
@@ -117,6 +171,7 @@ export default function QuickPage() {
       setError((err as Error).message);
     } finally {
       setLoading(false);
+      setProgress(null);
     }
   }
 
@@ -213,10 +268,18 @@ export default function QuickPage() {
           <button
             type="button"
             onClick={handleRewrite}
-            disabled={loading || !text.trim()}
-            className="h-8 px-4 rounded-lg bg-black dark:bg-white text-white dark:text-black text-xs font-medium hover:bg-neutral-800 dark:hover:bg-neutral-200 disabled:bg-neutral-300 dark:disabled:bg-neutral-700 disabled:cursor-not-allowed transition-colors"
+            disabled={loading || !text.trim() || wordCount > 5000}
+            className="h-8 px-4 rounded-lg bg-black dark:bg-white text-white dark:text-black text-xs font-medium hover:bg-neutral-800 dark:hover:bg-neutral-200 disabled:bg-neutral-300 dark:disabled:bg-neutral-700 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
           >
-            {loading ? "Rewriting..." : "Rewrite"}
+            {loading ? (
+              <>
+                <svg className="animate-spin h-3 w-3 text-current" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                {progress ? `Section ${progress.current}/${progress.total}...` : "Rewriting..."}
+              </>
+            ) : "Rewrite"}
           </button>
           {(text || result) && (
             <button
@@ -279,30 +342,15 @@ export default function QuickPage() {
             )}
 
             {loading && (
-              <div className="h-full flex items-center justify-center text-sm text-neutral-400 dark:text-neutral-500">
-                Rewriting{profileId ? " in your voice" : ""}...
+              <div className="h-full flex flex-col items-center justify-center text-sm text-neutral-400 dark:text-neutral-500 gap-2">
+                <svg className="animate-spin h-6 w-6 text-black dark:text-white" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                {progress ? `Rewriting section ${progress.current} of ${progress.total}...` : "Rewriting..."}
               </div>
             )}
 
-	            {result && (
-              <>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-medium text-black dark:text-white">Results</h3>
-                  <ShareButton 
-                    documentId={documentId} 
-                    textToShare={result.rewritten} 
-                    onStatus={handleCopyText} 
-                  />
-                </div>
-                <DiffView
-                  original={result.original}
-                  rewritten={result.rewritten}
-                  context={result.original}
-                  profileId={profileId}
-                  onCopyAccepted={handleCopyText}
-                />
-              </>
-            )}
             {result && (
               <DiffView
                 original={result.original}
