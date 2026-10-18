@@ -29,6 +29,7 @@ type Body = {
   intensity?: "light" | "balanced" | "strong";
   profileId?: string;
   glossaryId?: string;
+  projectId?: string;
   preset?: PresetId;
   seoSafe?: boolean;
 };
@@ -71,25 +72,6 @@ function buildVoiceBlock(profile: VoiceProfile): string {
 
 function stripJsonFences(text: string): string {
   return text.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
-}
-
-// Helper to protect SEO elements (headings and specific keywords)
-function protectSeo(text: string, seoSafe: boolean): { text: string; isSeo: boolean[] } {
-  if (!seoSafe) return { text, isSeo: new Array(text.length).fill(false) };
-  
-  const isSeo = new Array(text.length).fill(false);
-  let masked = text;
-
-  // Protect Markdown headings (# Heading)
-  const headingRegex = /^#{1,6}\s+.*$/gm;
-  let match;
-  while ((match = headingRegex.exec(text)) !== null) {
-    const start = match.index;
-    const end = start + match[0].length;
-    for (let i = start; i < end; i++) isSeo[i] = true;
-  }
-
-  return { text: masked, isSeo };
 }
 
 export async function POST(request: Request) {
@@ -139,9 +121,21 @@ export async function POST(request: Request) {
 
     let glossaryBlock = "";
     let glossaryRecord = null;
+    
+    // 1. Check global glossary first
     if (glossaryId && session?.user?.id) {
       glossaryRecord = await prisma.glossary.findFirst({ where: { id: glossaryId, userId: session.user.id } });
       if (glossaryRecord) {
+        glossaryBlock = buildGlossaryPrompt(glossaryRecord);
+      }
+    } 
+    // 2. If no global glossary, check for a project-specific glossary
+    else if (body.projectId && session?.user?.id) {
+      const project = await prisma.project.findUnique({
+        where: { id: body.projectId, userId: session.user.id }
+      });
+      if (project?.glossary) {
+        glossaryRecord = project.glossary as any;
         glossaryBlock = buildGlossaryPrompt(glossaryRecord);
       }
     }
@@ -202,9 +196,7 @@ export async function POST(request: Request) {
 }
 
 async function handleFullRewrite(rawText: string, intensity: string, extraPrompt: string, profileUsed: { name: string } | null) {
-  // 1. Initial Protection (URLs, numbers, quotes)
   const { masked, spans } = protect(rawText);
-  
   const maskedParagraphs = masked.split(/\n{2,}/).map((p) => p.trim()).filter((p) => p.length > 0);
 
   const userPrompt = `Rewrite the following draft.
