@@ -3,6 +3,7 @@
 import { useRef, useState, useCallback, useEffect } from "react";
 import { ImportMenu } from "./ImportMenu";
 import { HeatmapEditor } from "./HeatmapEditor";
+import { applyAllFixes } from "@/lib/pipeline/fixes";
 
 type SelectionInfo = {
   start: number;
@@ -108,16 +109,32 @@ export function Editor({
     }
   }
 
+  function handleFixAll() {
+    const { result, appliedCount } = applyAllFixes(value);
+    if (appliedCount > 0) {
+      onChange(result);
+    }
+  }
+
   const wordCount = value.trim() ? value.trim().split(/\s+/).length : 0;
 
   return (
     <div className="h-full flex flex-col">
       <div className="flex items-center justify-between gap-2 mb-2 shrink-0">
-        <div className="flex items-center gap-3">
-          <label className="text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wide hidden sm:block">
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wide hidden sm:block mr-1">
             Your draft <span className="text-neutral-300 dark:text-neutral-600 ml-1 font-normal normal-case">(Cmd+Enter to rewrite)</span>
           </label>
           
+          <button
+            type="button"
+            onClick={handleFixAll}
+            className="text-[10px] px-2 py-0.5 rounded uppercase tracking-wide font-medium transition-colors bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 hover:text-black dark:hover:text-white"
+            title="Remove obvious AI-isms instantly without using AI"
+          >
+            Fix AI-isms
+          </button>
+
           <button
             type="button"
             onClick={() => setHeatmapOn(!heatmapOn)}
