@@ -7,6 +7,7 @@ import { computeMetrics } from "../../../lib/pipeline/metrics";
 import type { VoiceProfile } from "../../../lib/ai/schemas";
 import { buildGlossaryPrompt, validateGlossary } from "../../../lib/pipeline/glossary";
 import { PRESETS, type PresetId } from "../../../config/presets";
+import { hashRequest, getCachedResponse, setCachedResponse } from "../../../lib/ai/cache";
 import {
   checkUserWordBudget,
   recordUserWords,
@@ -101,6 +102,8 @@ export async function POST(request: Request) {
     const glossaryId = body.glossaryId;
     const presetId = body.preset ?? "custom";
     const seoSafe = body.seoSafe ?? false;
+    const formality = body.toneFormality ?? 5;
+    const directness = body.toneDirectness ?? 5;
 
     if (!rawText.trim()) return NextResponse.json({ error: "Text is required" }, { status: 400 });
 
@@ -159,9 +162,7 @@ export async function POST(request: Request) {
       seoBlock = "\n\nSEO-Safe Mode: Do NOT change any Markdown headings (lines starting with #). Do NOT change the casing or phrasing of the main topic keywords.";
     }
 
-    // Build tone block
-    const toneBlock = buildToneBlock(body.toneFormality, body.toneDirectness);
-
+    const toneBlock = buildToneBlock(formality, directness);
     const extraPrompt = voiceBlock + glossaryBlock + presetBlock + seoBlock + toneBlock;
 
     if (action === "regen") {
@@ -172,6 +173,21 @@ export async function POST(request: Request) {
       return await handleSelection(rawText, body.context ?? "", extraPrompt, profileUsed);
     }
 
+    // --- CACHING LOGIC ---
+    const cacheKey = hashRequest(rawText, intensity, profileId ?? null, presetId, seoSafe, formality, directness);
+    const cachedData = await getCachedResponse<any>(cacheKey);
+    
+    if (cachedData) {
+      // If cached, we still need to validate it and return it
+      const validation = validateGlossary(cachedData.rewritten, glossaryRecord);
+      if (!validation.ok) {
+        // Cache was invalidated by new glossary rules, fall through to regenerate
+      } else {
+        return NextResponse.json({ ...cachedData, provider: "Cache" });
+      }
+    }
+    // ---------------------
+
     const response = await handleFullRewrite(rawText, intensity, extraPrompt, profileUsed);
 
     if (response.status === 200) {
@@ -181,6 +197,9 @@ export async function POST(request: Request) {
       if (!validation.ok) {
         return NextResponse.json({ error: `Validation failed: ${validation.error}` }, { status: 502 });
       }
+
+      // Save to cache
+      await setCachedResponse(cacheKey, data);
 
       if (session?.user?.id) {
         await recordUserWords(session.user.id, wordCount);
