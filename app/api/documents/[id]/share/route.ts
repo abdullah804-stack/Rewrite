@@ -9,19 +9,61 @@ function generateSlug(): string {
   return randomBytes(8).toString("base64url");
 }
 
-/** POST /api/documents/[id]/share — turn sharing on or off, and return the slug */
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
+  const { id } = await params;
+  const body = await request.json().catch(() => ({}));
+  
+  const enable = body?.enable !== false;
+  const guestText = body?.text as string | undefined;
+
+  // 1. Anonymous Magic Link flow
+  if (id === "guest") {
+    if (!guestText || !guestText.trim()) {
+      return NextResponse.json({ error: "Text is required." }, { status: 400 });
+    }
+
+    const slug = generateSlug();
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 24); // 24 hour expiry
+
+    // Create a fake user to hold the document (or just use a generic guest ID)
+    // We'll use a special guest user ID or just create an orphan document if we allow null userId.
+    // Since our schema requires a userId, we will find or create a "guest" user.
+    
+    let guestUser = await prisma.user.findUnique({ where: { email: "guest@rewrite.app" } });
+    if (!guestUser) {
+      guestUser = await prisma.user.create({
+        data: { email: "guest@rewrite.app", name: "Guest" }
+      });
+    }
+
+    const document = await prisma.document.create({
+      data: {
+        userId: guestUser.id,
+        title: "Guest Draft",
+        preset: "custom",
+        slug,
+        isPublic: true,
+        expiresAt,
+        revisions: {
+          create: [
+            { kind: "REWRITE", content: guestText, wordCount: guestText.split(/\s+/).length }
+          ]
+        }
+      }
+    });
+
+    return NextResponse.json({ ok: true, isPublic: true, slug: document.slug });
+  }
+
+  // 2. Authenticated flow (existing logic)
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-
-  const { id } = await params;
-  const body = await request.json().catch(() => ({}));
-  const enable = body?.enable !== false;
 
   const document = await prisma.document.findFirst({
     where: { id, userId: session.user.id },
@@ -31,11 +73,9 @@ export async function POST(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  // Generate a slug if the user wants it public and we don't have one yet
   let slug = document.slug;
   if (enable && !slug) {
     slug = generateSlug();
-    // Retry on collision (extremely unlikely, but be safe)
     for (let i = 0; i < 3; i++) {
       const existing = await prisma.document.findUnique({ where: { slug } });
       if (!existing) break;
@@ -47,7 +87,7 @@ export async function POST(
     where: { id: document.id },
     data: {
       isPublic: enable,
-      slug: enable ? slug : document.slug, // keep the slug so re-enabling works
+      slug: enable ? slug : document.slug,
     },
   });
 

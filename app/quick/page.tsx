@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { ProfilePicker } from "./ProfilePicker";
 import { DiffView } from "./DiffView";
+import { ShareButton } from "./ShareButton";
 import { StyleReport } from "./StyleReport";
 import { Editor } from "./Editor";
 import { ProjectPicker } from "./ProjectPicker";
@@ -283,6 +284,25 @@ export default function QuickPage() {
               </div>
             )}
 
+	            {result && (
+              <>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-medium text-black dark:text-white">Results</h3>
+                  <ShareButton 
+                    documentId={documentId} 
+                    textToShare={result.rewritten} 
+                    onStatus={handleCopyText} 
+                  />
+                </div>
+                <DiffView
+                  original={result.original}
+                  rewritten={result.rewritten}
+                  context={result.original}
+                  profileId={profileId}
+                  onCopyAccepted={handleCopyText}
+                />
+              </>
+            )}
             {result && (
               <DiffView
                 original={result.original}
