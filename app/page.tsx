@@ -161,14 +161,15 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Personas Section (Orange Background & Text) */}
-      <section id="personas" className="bg-brand-100 dark:bg-brand-950/40 border-b border-brand-200 dark:border-brand-900/50 py-24 sm:py-32 relative overflow-hidden">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-brand-200/50 dark:bg-brand-900/20 blur-[100px] rounded-full pointer-events-none -z-10"></div>
+      {/* Personas Section (Solid Orange Background & White Text) */}
+      <section id="personas" className="bg-brand-600 py-24 sm:py-32 relative overflow-hidden">
+        {/* Subtle texture/depth overlay */}
+        <div className="absolute inset-0 bg-black/5 pointer-events-none"></div>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10">
           <div className="text-center max-w-3xl mx-auto mb-20">
-            <h2 className="text-3xl sm:text-5xl font-extrabold text-brand-800 dark:text-white tracking-tight">Meet your Personas.</h2>
-            <p className="text-lg text-brand-700 dark:text-brand-300 mt-6 leading-relaxed max-w-2xl mx-auto">
+            <h2 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight">Meet your Personas.</h2>
+            <p className="text-lg text-white/90 mt-6 leading-relaxed max-w-2xl mx-auto">
               Build a Voice Profile from your own writing, then give it a face. Choose from four distinct personas that adapt the AI's tone to match exactly how you want to sound.
             </p>
           </div>
@@ -177,12 +178,12 @@ export default async function Home() {
             {AVATARS.map((a, index) => (
               <div 
                 key={a.id} 
-                className="group relative p-8 rounded-3xl bg-surface-base dark:bg-surface-dark-base border border-surface-border dark:border-surface-dark-border hover:border-brand-500 transition-all duration-300 hover:-translate-y-2 hover:shadow-xl flex flex-col items-center text-center"
+                className="group relative p-8 rounded-3xl bg-surface-base dark:bg-surface-dark-base border border-transparent hover:border-black/10 transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl flex flex-col items-center text-center"
                 style={{ animationDelay: `${index * 100}ms` }}
               >
                 <div className="mb-6 relative group-hover:scale-110 transition-transform duration-500 ease-out">
                   <div className="animate-[bounce_3s_infinite]">
-                    <Avatar id={a.id} className="w-32 h-32 shadow-2xl" />
+                    <Avatar id={a.id} className="w-32 h-32 shadow-xl" />
                   </div>
                 </div>
                 <h3 className="text-xl font-bold text-text-primary dark:text-white mb-3">{a.name}</h3>
