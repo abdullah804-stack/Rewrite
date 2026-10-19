@@ -230,8 +230,8 @@ export default async function Home() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="p-8 rounded-3xl bg-surface-base dark:bg-surface-dark-base border border-surface-border dark:border-surface-dark-border flex gap-5 hover:-translate-y-1 hover:shadow-lg transition-all duration-300">
-              <div className="shrink-0 w-12 h-12 rounded-full bg-red-50 dark:bg-red-500/10 flex items-center justify-center text-red-500">
+            <div className="p-8 rounded-3xl bg-surface-base dark:bg-surface-dark-base border border-surface-border dark:border-surface-dark-border flex gap-5 hover:border-brand-600 dark:hover:border-brand-600 transition-colors group">
+              <div className="shrink-0 w-12 h-12 rounded-xl bg-red-50 dark:bg-red-500/10 flex items-center justify-center text-red-500 group-hover:scale-110 transition-transform">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
               </div>
               <div>
@@ -240,8 +240,8 @@ export default async function Home() {
               </div>
             </div>
 
-            <div className="p-8 rounded-3xl bg-surface-base dark:bg-surface-dark-base border border-surface-border dark:border-surface-dark-border flex gap-5 hover:-translate-y-1 hover:shadow-lg transition-all duration-300">
-              <div className="shrink-0 w-12 h-12 rounded-full bg-orange-50 dark:bg-orange-500/10 flex items-center justify-center text-orange-500">
+            <div className="p-8 rounded-3xl bg-surface-base dark:bg-surface-dark-base border border-surface-border dark:border-surface-dark-border flex gap-5 hover:border-brand-600 dark:hover:border-brand-600 transition-colors group">
+              <div className="shrink-0 w-12 h-12 rounded-xl bg-orange-50 dark:bg-orange-500/10 flex items-center justify-center text-orange-500 group-hover:scale-110 transition-transform">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
               </div>
               <div>
@@ -250,8 +250,8 @@ export default async function Home() {
               </div>
             </div>
 
-            <div className="p-8 rounded-3xl bg-surface-base dark:bg-surface-dark-base border border-surface-border dark:border-surface-dark-border flex gap-5 hover:-translate-y-1 hover:shadow-lg transition-all duration-300">
-              <div className="shrink-0 w-12 h-12 rounded-full bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center text-blue-500">
+            <div className="p-8 rounded-3xl bg-surface-base dark:bg-surface-dark-base border border-surface-border dark:border-surface-dark-border flex gap-5 hover:border-brand-600 dark:hover:border-brand-600 transition-colors group">
+              <div className="shrink-0 w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center text-blue-500 group-hover:scale-110 transition-transform">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
               </div>
               <div>
@@ -260,8 +260,8 @@ export default async function Home() {
               </div>
             </div>
 
-            <div className="p-8 rounded-3xl bg-surface-base dark:bg-surface-dark-base border border-surface-border dark:border-surface-dark-border flex gap-5 hover:-translate-y-1 hover:shadow-lg transition-all duration-300">
-              <div className="shrink-0 w-12 h-12 rounded-full bg-green-50 dark:bg-green-500/10 flex items-center justify-center text-green-500">
+            <div className="p-8 rounded-3xl bg-surface-base dark:bg-surface-dark-base border border-surface-border dark:border-surface-dark-border flex gap-5 hover:border-brand-600 dark:hover:border-brand-600 transition-colors group">
+              <div className="shrink-0 w-12 h-12 rounded-xl bg-green-50 dark:bg-green-500/10 flex items-center justify-center text-green-500 group-hover:scale-110 transition-transform">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
               </div>
               <div>
