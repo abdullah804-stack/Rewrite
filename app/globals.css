@@ -58,18 +58,24 @@ body {
 .delay-200 { animation-delay: 200ms; }
 .delay-300 { animation-delay: 300ms; }
 
-/* Persona Auto-Slider Animation */
-@keyframes slide-personas {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(calc(-100% - 1rem)); } 
+/* The Crossing Out Animation */
+@keyframes cross-out {
+  0% { transform: scaleX(0); }
+  100% { transform: scaleX(1); }
 }
 
-.animate-slide-personas {
-  animation: slide-personas 20s linear infinite;
+.animate-cross-out {
+  animation: cross-out 0.5s ease-out 0.8s forwards; 
 }
 
-.animate-slide-personas:hover {
-  animation-play-state: paused;
+/* The New Line Animation */
+@keyframes fade-in-up-delayed {
+  0% { opacity: 0; transform: translateY(20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in-up-delayed {
+  animation: fade-in-up-delayed 0.6s cubic-bezier(0.16, 1, 0.3, 1) 1.3s forwards;
 }
 
 /* Sticky Navigation Scroll Behavior */
