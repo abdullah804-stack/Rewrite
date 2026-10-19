@@ -161,14 +161,14 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Personas Section (Orange Background) */}
+      {/* Personas Section (Orange Background & Text) */}
       <section id="personas" className="bg-brand-100 dark:bg-brand-950/40 border-b border-brand-200 dark:border-brand-900/50 py-24 sm:py-32 relative overflow-hidden">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-brand-200/50 dark:bg-brand-900/20 blur-[100px] rounded-full pointer-events-none -z-10"></div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center max-w-3xl mx-auto mb-20">
-            <h2 className="text-3xl sm:text-5xl font-extrabold text-text-primary dark:text-white tracking-tight">Meet your Personas.</h2>
-            <p className="text-lg text-text-secondary dark:text-text-dark-secondary mt-6 leading-relaxed max-w-2xl mx-auto">
+            <h2 className="text-3xl sm:text-5xl font-extrabold text-brand-800 dark:text-white tracking-tight">Meet your Personas.</h2>
+            <p className="text-lg text-brand-700 dark:text-brand-300 mt-6 leading-relaxed max-w-2xl mx-auto">
               Build a Voice Profile from your own writing, then give it a face. Choose from four distinct personas that adapt the AI's tone to match exactly how you want to sound.
             </p>
           </div>
