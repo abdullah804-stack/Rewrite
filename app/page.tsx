@@ -83,7 +83,7 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Section Nav (Sticky below hero) */}
+      {/* Section Nav */}
       <div className="sticky top-16 z-40 bg-surface-base/90 dark:bg-surface-dark-base/90 backdrop-blur-md border-y border-surface-border dark:border-surface-dark-border hidden md:block">
         <div className="max-w-7xl mx-auto px-6 h-12 flex items-center justify-center gap-12 text-sm font-medium">
           <a href="#how-it-works" className="text-text-secondary dark:text-text-dark-secondary hover:text-brand-600 dark:hover:text-brand-500 transition-colors">How it works</a>
@@ -161,20 +161,36 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Personas Section */}
-      <section id="personas" className="py-24 sm:py-32">
+      {/* Personas Section (Redesigned) */}
+      <section id="personas" className="py-24 sm:py-32 relative overflow-hidden">
+        {/* Background decorative element */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-brand-100/30 dark:bg-brand-900/10 blur-[100px] rounded-full pointer-events-none -z-10"></div>
+
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center max-w-3xl mx-auto mb-20">
-            <h2 className="text-3xl sm:text-4xl font-bold text-text-primary dark:text-white tracking-tight">Meet your Personas.</h2>
-            <p className="text-lg text-text-secondary dark:text-text-dark-secondary mt-4">Build a voice profile from your own writing, and give it a face. Pick a persona to match your style.</p>
+            <h2 className="text-3xl sm:text-5xl font-extrabold text-text-primary dark:text-white tracking-tight">Meet your Personas.</h2>
+            <p className="text-lg text-text-secondary dark:text-text-dark-secondary mt-6 leading-relaxed max-w-2xl mx-auto">
+              Build a Voice Profile from your own writing, then give it a face. Choose from four distinct personas that adapt the AI's tone to match exactly how you want to sound.
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {AVATARS.map((a) => (
-              <div key={a.id} className="p-8 rounded-3xl bg-surface-raised dark:bg-surface-dark-raised border border-surface-border dark:border-surface-dark-border hover:border-brand-600 transition-colors group hover:-translate-y-1 hover:shadow-lg">
-                <Avatar id={a.id} className="w-16 h-16 mb-6 shadow-sm group-hover:scale-110 transition-transform" />
-                <h3 className="text-lg font-bold text-text-primary dark:text-white mb-2">{a.name}</h3>
-                <p className="text-sm text-text-secondary dark:text-text-dark-secondary leading-relaxed">{a.description}</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
+            {AVATARS.map((a, index) => (
+              <div 
+                key={a.id} 
+                className="group relative p-8 rounded-3xl bg-surface-raised dark:bg-surface-dark-raised border border-surface-border dark:border-surface-dark-border hover:border-brand-500 transition-all duration-300 hover:-translate-y-2 hover:shadow-xl flex flex-col items-center text-center"
+                style={{ animationDelay: `${index * 100}ms` }}
+              >
+                <div className="mb-6 relative group-hover:scale-110 transition-transform duration-500 ease-out">
+                  {/* Floating Animation applied to the avatar container */}
+                  <div className="animate-[bounce_3s_infinite]">
+                    <Avatar id={a.id} className="w-32 h-32 shadow-2xl" />
+                  </div>
+                </div>
+                <h3 className="text-xl font-bold text-text-primary dark:text-white mb-3">{a.name}</h3>
+                <p className="text-sm text-text-secondary dark:text-text-dark-secondary leading-relaxed">
+                  {a.description}
+                </p>
               </div>
             ))}
           </div>

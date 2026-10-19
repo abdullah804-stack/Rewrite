@@ -3,10 +3,26 @@ import Image from "next/image";
 export type AvatarId = "minimalist" | "storyteller" | "analyst" | "creator";
 
 export const AVATARS: { id: AvatarId; name: string; description: string }[] = [
-  { id: "minimalist", name: "The Minimalist", description: "Clean, direct, and professional." },
-  { id: "storyteller", name: "The Storyteller", description: "Flowing, warm, and conversational." },
-  { id: "analyst", name: "The Analyst", description: "Structured, logical, and academic." },
-  { id: "creator", name: "The Creator", description: "Casual, energetic, and punchy." },
+  { 
+    id: "minimalist", 
+    name: "The Minimalist", 
+    description: "Strips away the fluff. Delivers clear, direct, and highly professional text with zero jargon." 
+  },
+  { 
+    id: "storyteller", 
+    name: "The Storyteller", 
+    description: "Flowing and conversational. Perfect for blogs, newsletters, and keeping readers engaged." 
+  },
+  { 
+    id: "analyst", 
+    name: "The Analyst", 
+    description: "Structured and logical. Ideal for technical writing, reports, and academic papers." 
+  },
+  { 
+    id: "creator", 
+    name: "The Creator", 
+    description: "Casual, energetic, and punchy. Great for social media, LinkedIn, and marketing copy." 
+  },
 ];
 
 export function Avatar({ id, className = "w-8 h-8" }: { id: string; className?: string }) {
@@ -14,7 +30,6 @@ export function Avatar({ id, className = "w-8 h-8" }: { id: string; className?: 
     ? id 
     : "minimalist";
 
-  // Define specific background colors for each persona to make them pop
   const bgColors: Record<string, string> = {
     minimalist: "bg-neutral-100 dark:bg-neutral-800",
     storyteller: "bg-orange-100 dark:bg-orange-900/30",
