@@ -11,6 +11,7 @@ import { analyzeText } from "@/lib/analyze-client";
 import type { Metrics } from "@/lib/pipeline/metrics";
 import { PRESETS, type PresetId } from "@/config/presets";
 import { Avatar } from "@/lib/avatars";
+import { Logo } from "../Logo";
 
 type Intensity = "light" | "balanced" | "strong";
 
@@ -235,16 +236,10 @@ export default function QuickPage() {
 
   return (
     <main className="h-screen flex flex-col bg-surface-base text-text-primary transition-colors overflow-hidden">
-      {/* Header - Smaller on Mobile */}
       <header className="border-b border-surface-border shrink-0 bg-surface-base">
         <div className="px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
           <div className="flex items-center gap-2 sm:gap-4">
-            <Link href="/" className="text-base sm:text-lg font-bold tracking-tight flex items-center gap-2">
-              <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-brand-600 text-white flex items-center justify-center text-xs sm:text-sm font-black shadow-sm">
-                R
-              </div>
-              <span className="hidden sm:inline">Rewrite</span>
-            </Link>
+            <Logo />
             <span className="text-surface-border">/</span>
             <Link href="/workspace" className="text-xs sm:text-sm font-medium text-text-secondary hover:text-brand-600 transition-colors">
               Workspace
@@ -258,7 +253,6 @@ export default function QuickPage() {
         </div>
       </header>
 
-      {/* Toolbar - Scrollable horizontally on mobile */}
       <div className="border-b border-surface-border bg-surface-raised shrink-0 px-3 sm:px-6 py-2 sm:py-3 overflow-x-auto flex items-center gap-3 sm:gap-4 hide-scrollbar">
         <div className="flex gap-1 bg-surface-border p-1 rounded-lg shrink-0">
           {(["light", "balanced", "strong"] as const).map((level) => (
@@ -354,7 +348,6 @@ export default function QuickPage() {
         </div>
       </div>
 
-      {/* Mobile Tabs (Input / Output) */}
       <div className="flex lg:hidden border-b border-surface-border bg-surface-base">
         <button
           onClick={() => setMobileTab("input")}
@@ -370,10 +363,7 @@ export default function QuickPage() {
         </button>
       </div>
 
-      {/* Main Workspace Panes */}
       <div className="flex-1 flex overflow-hidden">
-        
-        {/* Input Pane (Hidden on mobile if tab is output) */}
         <div className={`flex-1 lg:min-w-[300px] border-r border-surface-border flex flex-col overflow-hidden ${mobileTab === "output" ? "hidden lg:flex" : "flex"}`}>
           <div className="px-4 sm:px-5 py-2 sm:py-3 border-b border-surface-border flex justify-between items-center shrink-0 bg-surface-base">
             <span className="text-[10px] sm:text-xs font-bold text-text-secondary uppercase tracking-wider">
@@ -395,7 +385,6 @@ export default function QuickPage() {
           </div>
         </div>
 
-        {/* Output Pane (Hidden on mobile if tab is input) */}
         <div className={`flex-1 lg:min-w-[300px] border-r border-surface-border flex flex-col overflow-hidden bg-surface-raised ${mobileTab === "input" ? "hidden lg:flex" : "flex"}`}>
           <div className="px-4 sm:px-5 py-2 sm:py-3 border-b border-surface-border flex justify-between items-center shrink-0 bg-surface-raised">
             <span className="text-[10px] sm:text-xs font-bold text-text-secondary uppercase tracking-wider">
@@ -452,7 +441,6 @@ export default function QuickPage() {
           </div>
         </div>
 
-        {/* Analysis Pane (Hidden on mobile entirely) */}
         <div className="w-80 shrink-0 flex flex-col overflow-hidden bg-surface-base hidden xl:flex">
           <div className="px-5 py-3 border-b border-surface-border shrink-0 bg-surface-base">
             <span className="text-xs font-bold text-text-secondary uppercase tracking-wider">

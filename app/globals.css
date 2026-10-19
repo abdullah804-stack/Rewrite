@@ -58,6 +58,20 @@ body {
 .delay-200 { animation-delay: 200ms; }
 .delay-300 { animation-delay: 300ms; }
 
+/* Persona Auto-Slider Animation */
+@keyframes slide-personas {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(calc(-100% - 1rem)); } 
+}
+
+.animate-slide-personas {
+  animation: slide-personas 20s linear infinite;
+}
+
+.animate-slide-personas:hover {
+  animation-play-state: paused;
+}
+
 /* Sticky Navigation Scroll Behavior */
 html {
   scroll-behavior: smooth;

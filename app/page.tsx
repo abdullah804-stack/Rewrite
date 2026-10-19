@@ -12,13 +12,9 @@ export default async function Home() {
       {/* Primary Header */}
       <header className="border-b border-surface-border sticky top-0 bg-surface-base/90 backdrop-blur-md z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          
-          {/* Left: Logo */}
           <div className="flex-shrink-0">
             <Logo />
           </div>
-
-          {/* Middle: Navigation Menu (Hidden on Mobile) */}
           <nav className="hidden lg:flex items-center gap-6 text-sm font-medium">
             <a href="#how-it-works" className="text-text-secondary hover:text-brand-600 transition-colors">How it works</a>
             <a href="#demo" className="text-text-secondary hover:text-brand-600 transition-colors">See the difference</a>
@@ -27,8 +23,6 @@ export default async function Home() {
             <a href="#explore" className="text-text-secondary hover:text-brand-600 transition-colors">Explore</a>
             <a href="#pricing" className="text-text-secondary hover:text-brand-600 transition-colors">Pricing</a>
           </nav>
-
-          {/* Right: Sign In / Dashboard Buttons */}
           <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
             <Link 
               href="/login" 
@@ -36,7 +30,6 @@ export default async function Home() {
             >
               Sign in
             </Link>
-
             {session?.user ? (
               <Link href="/dashboard" className="text-xs sm:text-sm font-semibold bg-brand-600 text-white px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg hover:bg-brand-700 transition-colors shadow-sm">
                 Dashboard
@@ -153,7 +146,7 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Personas Section (Mobile Slider) */}
+      {/* Personas Section (Automatic Slider) */}
       <section id="personas" className="bg-brand-600 py-16 sm:py-32 relative overflow-hidden">
         <div className="absolute inset-0 bg-black/5 pointer-events-none"></div>
 
@@ -165,25 +158,44 @@ export default async function Home() {
             </p>
           </div>
 
-          {/* Desktop Grid / Mobile Slider */}
-          <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 sm:grid sm:grid-cols-2 lg:grid-cols-4 sm:gap-6 pb-6 sm:pb-0 hide-scrollbar">
-            {AVATARS.map((a, index) => (
-              <div 
-                key={a.id} 
-                className="group relative min-w-[80vw] sm:min-w-0 snap-center p-6 sm:p-8 rounded-3xl bg-surface-base border border-brand-600 hover:border-brand-800 transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl flex flex-col items-center text-center"
-                style={{ animationDelay: `${index * 100}ms` }}
-              >
-                <div className="mb-4 sm:mb-6 relative group-hover:scale-110 transition-transform duration-500 ease-out">
-                  <div className="animate-[bounce_3s_infinite]">
-                    <Avatar id={a.id} className="w-24 h-24 sm:w-32 sm:h-32 shadow-xl" />
+          {/* Desktop Grid / Mobile Auto-Slider */}
+          <div className="overflow-hidden relative w-full pb-6 sm:pb-0">
+            <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 animate-slide-personas w-max sm:w-full">
+              {AVATARS.map((a, index) => (
+                <div 
+                  key={`original-${a.id}`} 
+                  className="group relative w-[80vw] sm:w-auto flex-shrink-0 p-6 sm:p-8 rounded-3xl bg-surface-base border border-brand-600 transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl flex flex-col items-center text-center"
+                  style={{ animationDelay: `${index * 100}ms` }}
+                >
+                  <div className="mb-4 sm:mb-6 relative group-hover:scale-110 transition-transform duration-500 ease-out">
+                    <div className="animate-[bounce_3s_infinite]">
+                      <Avatar id={a.id} className="w-24 h-24 sm:w-32 sm:h-32 shadow-xl" />
+                    </div>
                   </div>
+                  <h3 className="text-lg sm:text-xl font-bold text-text-primary mb-2 sm:mb-3">{a.name}</h3>
+                  <p className="text-xs sm:text-sm text-text-secondary leading-relaxed">
+                    {a.description}
+                  </p>
                 </div>
-                <h3 className="text-lg sm:text-xl font-bold text-text-primary mb-2 sm:mb-3">{a.name}</h3>
-                <p className="text-xs sm:text-sm text-text-secondary leading-relaxed">
-                  {a.description}
-                </p>
+              ))}
+              {/* Duplicate for infinite loop on mobile */}
+              <div className="flex gap-4 sm:hidden">
+                {AVATARS.map((a) => (
+                  <div 
+                    key={`copy-${a.id}`} 
+                    className="group relative w-[80vw] flex-shrink-0 p-6 rounded-3xl bg-surface-base border border-brand-600 flex flex-col items-center text-center"
+                  >
+                    <div className="mb-4 relative">
+                      <div className="animate-[bounce_3s_infinite]">
+                        <Avatar id={a.id} className="w-24 h-24 shadow-xl" />
+                      </div>
+                    </div>
+                    <h3 className="text-lg font-bold text-text-primary mb-2">{a.name}</h3>
+                    <p className="text-xs text-text-secondary leading-relaxed">{a.description}</p>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
           </div>
         </div>
       </section>
