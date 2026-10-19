@@ -55,17 +55,19 @@ export default async function Home() {
           </div>
           
           {/* Hero Title with Strike-through Animation */}
-          <h1 className="animate-fade-in-up delay-100 text-4xl sm:text-6xl lg:text-7xl font-extrabold text-text-primary leading-[1.1] sm:leading-[1.05] tracking-tight max-w-4xl mx-auto flex flex-col items-center">
+          <h1 className="animate-fade-in-up delay-100 text-4xl sm:text-6xl lg:text-7xl font-extrabold text-text-primary leading-[1.1] sm:leading-[1.05] tracking-tight max-w-4xl mx-auto">
             
             {/* The Crossed Out Text */}
-            <span className="relative inline-block px-2 sm:px-4 py-1">
+            <span className="relative inline-block mb-2 sm:mb-4">
               Stop sounding like an AI.
-              {/* The red line */}
-              <span className="absolute left-0 top-[55%] w-full h-[4px] sm:h-[6px] bg-red-600 origin-left animate-cross-out scale-x-0 z-10 rounded-full"></span>
+              {/* The red strike-through line */}
+              <span className="absolute left-0 top-1/2 w-full h-[3px] sm:h-[6px] bg-red-600 origin-left animate-cross-out scale-x-0 z-10 rounded-full -translate-y-1/2"></span>
             </span>
             
+            <br className="hidden sm:block" />
+            
             {/* The New Line */}
-            <span className="text-brand-600 mt-2 sm:mt-4 block opacity-0 animate-fade-in-up-delayed">
+            <span className="text-brand-600 inline-block opacity-0 animate-fade-in-up-delayed">
               Start sounding like you.
             </span>
           </h1>
