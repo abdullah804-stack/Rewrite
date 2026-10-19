@@ -4,6 +4,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getLimits } from "@/config/plans";
 import { Avatar } from "@/lib/avatars";
+import { Logo } from "../Logo";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -41,12 +42,7 @@ export default async function DashboardPage() {
     <main className="min-h-screen bg-surface-base text-text-primary transition-colors">
       <header className="border-b border-surface-border sticky top-0 bg-surface-base/90 backdrop-blur-md z-40">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
-          <Link href="/" className="text-base sm:text-lg font-bold tracking-tight flex items-center gap-2">
-            <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-brand-600 text-white flex items-center justify-center text-xs sm:text-sm font-black shadow-sm">
-              R
-            </div>
-            <span className="hidden sm:inline">Rewrite</span>
-          </Link>
+          <Logo />
           <div className="flex items-center gap-3 sm:gap-6">
             <Link
               href="/workspace"
@@ -85,7 +81,6 @@ export default async function DashboardPage() {
           Here is your writing activity.
         </p>
 
-        {/* Stats Row */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mt-8 sm:mt-10">
           <div className="p-5 sm:p-6 rounded-2xl border border-surface-border bg-surface-raised shadow-sm">
             <div className="text-xs sm:text-sm font-medium text-text-secondary mb-1">Words rewritten</div>
@@ -113,7 +108,6 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        {/* Personas Row */}
         {profiles.length > 0 && (
           <div className="mt-12 sm:mt-16">
             <div className="flex items-center justify-between mb-4 sm:mb-6">

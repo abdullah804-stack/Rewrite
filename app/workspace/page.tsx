@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { NewProjectButton } from "./NewProjectButton";
+import { Logo } from "../Logo";
 
 export default async function WorkspacePage() {
   const session = await auth();
@@ -25,12 +26,7 @@ export default async function WorkspacePage() {
     <main className="min-h-screen bg-surface-base text-text-primary transition-colors">
       <header className="border-b border-surface-border sticky top-0 bg-surface-base/90 backdrop-blur-md z-40">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
-          <Link href="/" className="text-base sm:text-lg font-bold tracking-tight flex items-center gap-2">
-            <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-brand-600 text-white flex items-center justify-center text-xs sm:text-sm font-black shadow-sm">
-              R
-            </div>
-            <span className="hidden sm:inline">Rewrite</span>
-          </Link>
+          <Logo />
           <div className="flex items-center gap-3 sm:gap-6">
             <Link 
               href="/settings" 
@@ -48,7 +44,6 @@ export default async function WorkspacePage() {
       </header>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-16">
-        {/* Header Section */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-6 mb-10 sm:mb-12">
           <div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-text-primary">Workspace</h1>
@@ -62,7 +57,6 @@ export default async function WorkspacePage() {
           </Link>
         </div>
 
-        {/* Projects Section */}
         <div className="mb-12 sm:mb-16">
           <div className="flex items-center justify-between mb-4 sm:mb-6">
             <h2 className="text-lg sm:text-xl font-bold text-text-primary">Projects</h2>
@@ -97,7 +91,6 @@ export default async function WorkspacePage() {
           )}
         </div>
 
-        {/* Recent Drafts Section */}
         <div>
           <h2 className="text-lg sm:text-xl font-bold text-text-primary mb-4 sm:mb-6">Recent drafts</h2>
           {documents.length === 0 ? (

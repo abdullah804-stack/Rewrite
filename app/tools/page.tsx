@@ -7,6 +7,7 @@ import { applyAllFixes } from "@/lib/pipeline/fixes";
 import { categoryLabel } from "@/lib/pipeline/lint";
 import { claimKindLabel } from "@/lib/pipeline/claims";
 import { audienceLabel, type AudienceTarget } from "@/lib/pipeline/readability";
+import { Logo } from "../Logo";
 
 type Tab = "lint" | "claims" | "readability" | "meter";
 
@@ -43,12 +44,7 @@ export default function ToolsPage() {
     <main className="min-h-screen bg-surface-base text-text-primary transition-colors">
       <header className="border-b border-surface-border sticky top-0 bg-surface-base/90 backdrop-blur-md z-40">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
-          <Link href="/" className="text-base sm:text-lg font-bold tracking-tight flex items-center gap-2">
-            <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-brand-600 text-white flex items-center justify-center text-xs sm:text-sm font-black shadow-sm">
-              R
-            </div>
-            <span className="hidden sm:inline">Rewrite</span>
-          </Link>
+          <Logo />
           <div className="flex items-center gap-4 sm:gap-6">
             <Link
               href="/login"
@@ -71,7 +67,6 @@ export default function ToolsPage() {
           </p>
         </div>
 
-        {/* Action bar */}
         <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-6 sm:mb-8">
           <button
             type="button"
@@ -98,9 +93,7 @@ export default function ToolsPage() {
           )}
         </div>
 
-        {/* Editor + results layout */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
-          {/* Editor */}
           <div>
             <label className="text-xs sm:text-sm font-bold text-text-primary mb-2 block">
               Your text
@@ -119,7 +112,6 @@ export default function ToolsPage() {
             )}
           </div>
 
-          {/* Results */}
           <div>
             <div className="flex gap-1 bg-surface-raised border border-surface-border p-1 rounded-lg sm:rounded-xl mb-4 sm:mb-6 shadow-sm overflow-x-auto hide-scrollbar">
               {(
