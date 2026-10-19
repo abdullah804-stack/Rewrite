@@ -2,25 +2,57 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+@theme {
+  /* Premium Brand Colors */
+  --color-brand-50: #eff6ff;
+  --color-brand-100: #dbeafe;
+  --color-brand-500: #3b82f6;
+  --color-brand-600: #2563eb; /* Primary Accent */
+  --color-brand-700: #1d4ed8;
+
+  /* Surface Colors (Light) */
+  --color-surface-base: #ffffff;
+  --color-surface-raised: #fafafa;
+  --color-surface-border: #e5e5e5;
+
+  /* Surface Colors (Dark) */
+  --color-surface-dark-base: #0a0a0a;
+  --color-surface-dark-raised: #171717;
+  --color-surface-dark-border: #262626;
+
+  /* Text Colors */
+  --color-text-primary: #0a0a0a;
+  --color-text-secondary: #737373;
+  --color-text-dark-primary: #ffffff;
+  --color-text-dark-secondary: #a3a3a3;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #0a0a0a;
+  --background: var(--color-surface-base);
+  --foreground: var(--color-text-primary);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ffffff;
+    --background: var(--color-surface-dark-base);
+    --foreground: var(--color-text-dark-primary);
   }
 }
 
 .dark {
-  --background: #0a0a0a;
-  --foreground: #ffffff;
+  --background: var(--color-surface-dark-base);
+  --foreground: var(--color-text-dark-primary);
 }
 
 body {
   background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-inter), sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Premium Focus Rings */
+*:focus-visible {
+  outline: 2px solid var(--color-brand-600);
+  outline-offset: 2px;
 }
