@@ -15,7 +15,6 @@ export function NewProfileForm({ disabled }: { disabled: boolean }) {
   const combinedText = samples.join("\n\n");
   const totalWords = combinedText.trim().split(/\s+/).filter(Boolean).length;
   
-  // Live coach analysis
   const coach = useMemo(() => analyzeSample(combinedText), [combinedText]);
 
   function updateSample(index: number, value: string) {
@@ -69,116 +68,121 @@ export function NewProfileForm({ disabled }: { disabled: boolean }) {
 
   if (disabled) {
     return (
-      <div className="mt-4 p-4 rounded-lg border border-neutral-200 bg-neutral-50 text-sm text-neutral-500">
+      <div className="mt-4 p-6 rounded-2xl border border-surface-border dark:border-surface-dark-border bg-surface-raised dark:bg-surface-dark-raised text-sm text-text-secondary dark:text-text-dark-secondary">
         Free plan allows 3 voice profiles. Delete one to create another.
       </div>
     );
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-      <div>
-        <label className="text-xs font-medium text-neutral-500 uppercase tracking-wide">
-          Profile name
-        </label>
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="e.g. My blog voice, Newsletter, LinkedIn"
-          className="mt-2 w-full h-11 px-4 rounded-lg border border-neutral-200 text-sm text-black placeholder:text-neutral-400 focus:outline-none focus:border-neutral-400"
-          required
-        />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <form onSubmit={handleSubmit} className="mt-4">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8">
+        
         {/* Left: Inputs */}
-        <div className="lg:col-span-2">
-          <div className="flex items-center justify-between">
-            <label className="text-xs font-medium text-neutral-500 uppercase tracking-wide">
-              Writing samples
+        <div className="space-y-6">
+          <div>
+            <label className="text-sm font-bold text-text-primary dark:text-white uppercase tracking-wide">
+              Profile name
             </label>
-            <span className="text-xs text-neutral-400">
-              {totalWords} words
-            </span>
-          </div>
-
-          <div className="mt-2 space-y-2">
-            {samples.map((sample, i) => (
-              <div key={i} className="relative">
-                <textarea
-                  value={sample}
-                  onChange={(e) => updateSample(i, e.target.value)}
-                  placeholder={`Sample ${i + 1} — paste 150+ words you wrote`}
-                  rows={5}
-                  className="w-full p-3 rounded-lg border border-neutral-200 text-sm text-black placeholder:text-neutral-400 focus:outline-none focus:border-neutral-400 resize-none"
-                />
-                {samples.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removeSample(i)}
-                    className="absolute top-2 right-2 text-xs text-neutral-400 hover:text-black transition-colors"
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-
-          {samples.length < 5 && (
-            <button
-              type="button"
-              onClick={addSample}
-              className="mt-2 text-xs text-neutral-500 hover:text-black transition-colors"
-            >
-              + Add another sample
-            </button>
-          )}
-        </div>
-
-        {/* Right: Voice Coach */}
-        <div className="bg-neutral-50 rounded-lg border border-neutral-200 p-4">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-medium text-black">Voice Coach</span>
-            <span className={`text-xs font-medium ${coach.score >= 80 ? 'text-green-700' : coach.score >= 50 ? 'text-yellow-700' : 'text-red-700'}`}>
-              {coach.score}/100
-            </span>
-          </div>
-          
-          <div className="h-1.5 w-full bg-neutral-200 rounded-full overflow-hidden mb-4">
-            <div
-              className={`h-full rounded-full transition-all duration-300 ${coach.score >= 80 ? 'bg-green-600' : coach.score >= 50 ? 'bg-yellow-600' : 'bg-red-600'}`}
-              style={{ width: `${coach.score}%` }}
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. My blog voice, Newsletter, LinkedIn"
+              className="mt-2 w-full h-12 px-4 rounded-xl border border-surface-border dark:border-surface-dark-border bg-surface-base dark:bg-surface-dark-base text-sm text-text-primary dark:text-white placeholder:text-text-secondary dark:placeholder:text-text-dark-secondary focus:outline-none focus:border-brand-500 dark:focus:border-brand-500 transition-colors shadow-sm"
+              required
             />
           </div>
 
-          <ul className="space-y-2 text-xs text-neutral-600">
-            {coach.feedback.map((f, i) => (
-              <li key={i} className="leading-relaxed flex gap-2">
-                <span className="text-neutral-400 shrink-0">•</span>
-                <span>{f}</span>
-              </li>
-            ))}
-          </ul>
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-bold text-text-primary dark:text-white uppercase tracking-wide">
+                Writing samples
+              </label>
+              <span className={`text-xs font-medium ${totalWords < 100 ? 'text-red-500' : 'text-text-secondary dark:text-text-dark-secondary'}`}>
+                {totalWords} words (min 100)
+              </span>
+            </div>
+
+            <div className="space-y-4">
+              {samples.map((sample, i) => (
+                <div key={i} className="relative group">
+                  <textarea
+                    value={sample}
+                    onChange={(e) => updateSample(i, e.target.value)}
+                    placeholder={`Sample ${i + 1} — paste 150+ words you wrote`}
+                    rows={5}
+                    className="w-full p-4 rounded-xl border border-surface-border dark:border-surface-dark-border bg-surface-base dark:bg-surface-dark-base text-sm text-text-primary dark:text-white placeholder:text-text-secondary dark:placeholder:text-text-dark-secondary focus:outline-none focus:border-brand-500 dark:focus:border-brand-500 resize-none shadow-sm transition-colors"
+                  />
+                  {samples.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeSample(i)}
+                      className="absolute top-3 right-3 text-xs font-medium text-text-secondary dark:text-text-dark-secondary hover:text-red-500 transition-colors"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {samples.length < 5 && (
+              <button
+                type="button"
+                onClick={addSample}
+                className="mt-3 text-sm font-semibold text-brand-600 dark:text-brand-500 hover:text-brand-700 dark:hover:text-brand-400 transition-colors"
+              >
+                + Add another sample
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Right: Voice Coach */}
+        <div>
+          <div className="sticky top-24 p-6 rounded-2xl bg-surface-raised dark:bg-surface-dark-raised border border-surface-border dark:border-surface-dark-border shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-base font-bold text-text-primary dark:text-white">Voice Coach</span>
+              <span className={`text-sm font-bold ${coach.score >= 80 ? 'text-green-600 dark:text-green-500' : coach.score >= 50 ? 'text-yellow-600 dark:text-yellow-500' : 'text-red-600 dark:text-red-500'}`}>
+                {coach.score}/100
+              </span>
+            </div>
+            
+            <div className="h-2 w-full bg-surface-border dark:bg-surface-dark-border rounded-full overflow-hidden mb-6">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${coach.score >= 80 ? 'bg-green-500' : coach.score >= 50 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                style={{ width: `${coach.score}%` }}
+              />
+            </div>
+
+            <ul className="space-y-3 text-sm text-text-secondary dark:text-text-dark-secondary">
+              {coach.feedback.map((f, i) => (
+                <li key={i} className="leading-relaxed flex gap-3">
+                  <span className="text-brand-600 shrink-0 mt-0.5">•</span>
+                  <span>{f}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       </div>
 
-      {error && (
-        <div className="text-sm text-red-600">{error}</div>
-      )}
+      <div className="mt-8 pt-8 border-t border-surface-border dark:border-surface-dark-border">
+        {error && (
+          <div className="text-sm text-red-600 dark:text-red-400 mb-4 font-medium">{error}</div>
+        )}
 
-      {success && (
-        <div className="text-sm text-green-700">
-          Voice profile created. It appears above.
-        </div>
-      )}
+        {success && (
+          <div className="text-sm text-green-600 dark:text-green-500 mb-4 font-medium">
+            Voice profile created. It appears above.
+          </div>
+        )}
 
-      <div className="pt-4">
         <button
           type="submit"
           disabled={loading || !name.trim() || totalWords < 100}
-          className="h-11 px-6 rounded-lg bg-black text-white text-sm font-medium hover:bg-neutral-800 disabled:bg-neutral-300 disabled:cursor-not-allowed transition-colors"
+          className="h-12 px-8 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 disabled:bg-surface-border dark:disabled:bg-surface-dark-border disabled:text-text-secondary dark:disabled:text-text-dark-secondary disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md"
         >
           {loading ? "Analyzing your voice..." : "Create voice profile"}
         </button>

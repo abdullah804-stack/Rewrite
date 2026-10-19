@@ -15,17 +15,20 @@ export default async function ProfilesPage() {
   });
 
   return (
-    <main className="min-h-screen bg-white dark:bg-neutral-950 text-black dark:text-white transition-colors">
-      <header className="border-b border-neutral-200 dark:border-neutral-800">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-          <Link href="/" className="text-sm font-medium text-black dark:text-white">
+    <main className="min-h-screen bg-surface-base dark:bg-surface-dark-base text-text-primary dark:text-text-dark-primary transition-colors">
+      <header className="border-b border-surface-border dark:border-surface-dark-border sticky top-0 bg-surface-base/80 dark:bg-surface-dark-base/80 backdrop-blur-md z-40">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+          <Link href="/" className="text-lg font-bold tracking-tight flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-brand-600 text-white flex items-center justify-center text-sm font-black shadow-sm">
+              R
+            </div>
             Rewrite
           </Link>
-          <div className="flex items-center gap-3 sm:gap-4">
+          <div className="flex items-center gap-4 sm:gap-6">
             <ThemeToggle />
             <Link
               href="/quick"
-              className="text-sm text-neutral-500 dark:text-neutral-400 hover:text-black dark:hover:text-white transition-colors"
+              className="text-sm font-medium text-text-secondary dark:text-text-dark-secondary hover:text-brand-600 dark:hover:text-brand-500 transition-colors hidden sm:inline"
             >
               Quick rewrite
             </Link>
@@ -37,7 +40,7 @@ export default async function ProfilesPage() {
             >
               <button
                 type="submit"
-                className="text-sm text-neutral-500 dark:text-neutral-400 hover:text-black dark:hover:text-white transition-colors"
+                className="text-sm font-medium text-text-secondary dark:text-text-dark-secondary hover:text-brand-600 dark:hover:text-brand-500 transition-colors"
               >
                 Sign out
               </button>
@@ -46,17 +49,17 @@ export default async function ProfilesPage() {
         </div>
       </header>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
-        <h1 className="text-2xl sm:text-3xl font-semibold text-black dark:text-white">
-          Your voice profiles
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+        <h1 className="text-3xl font-extrabold tracking-tight text-text-primary dark:text-white">
+          Voice profiles
         </h1>
-        <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-2 max-w-xl">
+        <p className="text-base text-text-secondary dark:text-text-dark-secondary mt-2 max-w-2xl">
           A voice profile is built from your own writing. Once created, every
           rewrite can match it. Free plan includes up to 3 profiles.
         </p>
 
         {profiles.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-10">
             {profiles.map((p) => {
               const profile = p.profile as {
                 interpreted?: { summary?: string };
@@ -65,22 +68,23 @@ export default async function ProfilesPage() {
               return (
                 <div
                   key={p.id}
-                  className="p-4 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900"
+                  className="p-6 rounded-2xl border border-surface-border dark:border-surface-dark-border bg-surface-raised dark:bg-surface-dark-raised shadow-sm hover:border-brand-500 dark:hover:border-brand-500 transition-colors"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="text-sm font-medium text-black dark:text-white">
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="text-lg font-bold text-text-primary dark:text-white">
                       {p.name}
                     </div>
-                    <span className="text-xs text-neutral-400 dark:text-neutral-500 px-2 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800">
+                    <span className="text-[10px] uppercase tracking-wider font-bold text-brand-700 dark:text-brand-400 px-2 py-1 rounded bg-brand-50 dark:bg-brand-500/10 border border-brand-100 dark:border-brand-500/20">
                       {p.depth}
                     </span>
                   </div>
-                  <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-2 leading-relaxed line-clamp-3">
+                  <p className="text-sm text-text-secondary dark:text-text-dark-secondary leading-relaxed line-clamp-3 mb-4">
                     {profile.interpreted?.summary ?? "No summary."}
                   </p>
-                  <div className="text-xs text-neutral-400 dark:text-neutral-500 mt-3">
-                    {p.sampleWords} words · grade{" "}
-                    {profile.measured?.readingGrade ?? "?"}
+                  <div className="text-xs font-medium text-text-secondary dark:text-text-dark-secondary flex items-center gap-3">
+                    <span>{p.sampleWords} words</span>
+                    <span className="w-1 h-1 rounded-full bg-surface-border dark:bg-surface-dark-border"></span>
+                    <span>Grade {profile.measured?.readingGrade ?? "?"}</span>
                   </div>
                 </div>
               );
@@ -88,8 +92,8 @@ export default async function ProfilesPage() {
           </div>
         )}
 
-        <div className="mt-10">
-          <h2 className="text-lg font-semibold text-black dark:text-white">
+        <div className="mt-16">
+          <h2 className="text-xl font-bold text-text-primary dark:text-white mb-6">
             {profiles.length === 0
               ? "Create your first voice profile"
               : "Add another voice profile"}
