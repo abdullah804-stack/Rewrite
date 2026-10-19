@@ -11,6 +11,7 @@ import { ThemeToggle } from "../ThemeToggle";
 import { analyzeText } from "@/lib/analyze-client";
 import type { Metrics } from "@/lib/pipeline/metrics";
 import { PRESETS, type PresetId } from "@/config/presets";
+import { Avatar } from "@/lib/avatars";
 
 type Intensity = "light" | "balanced" | "strong";
 
@@ -23,7 +24,7 @@ type RewriteResponse = {
   before: Metrics;
   after: Metrics;
   spansProtected: number;
-  profileUsed: { name: string } | null;
+  profileUsed: { name: string; avatar: string } | null;
   error?: string;
 };
 
@@ -72,6 +73,7 @@ export default function QuickPage() {
   
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
 
+  // Load autosave
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
@@ -92,6 +94,7 @@ export default function QuickPage() {
     }
   }, []);
 
+  // Save autosave
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!text) {
@@ -133,6 +136,7 @@ export default function QuickPage() {
       let lastProvider = "";
       let lastModel = "";
       let totalSpans = 0;
+      let usedProfile = null;
 
       for (let i = 0; i < chunks.length; i++) {
         if (chunks.length > 1) setProgress({ current: i + 1, total: chunks.length });
@@ -168,6 +172,7 @@ export default function QuickPage() {
         lastProvider = data.provider;
         lastModel = data.model;
         totalSpans += data.spansProtected;
+        if (data.profileUsed) usedProfile = data.profileUsed;
       }
 
       const finalData: RewriteResponse = {
@@ -179,7 +184,7 @@ export default function QuickPage() {
         before: analyzeText(text, "general").metrics,
         after: analyzeText(fullRewritten, "general").metrics,
         spansProtected: totalSpans,
-        profileUsed: profileId ? { name: "Custom Voice" } : null,
+        profileUsed: usedProfile,
       };
 
       setResult(finalData);
@@ -230,7 +235,6 @@ export default function QuickPage() {
 
   return (
     <main className="h-screen flex flex-col bg-surface-base dark:bg-surface-dark-base text-text-primary dark:text-text-dark-primary transition-colors overflow-hidden">
-      {/* Header */}
       <header className="border-b border-surface-border dark:border-surface-dark-border shrink-0 bg-surface-base dark:bg-surface-dark-base">
         <div className="px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -278,7 +282,6 @@ export default function QuickPage() {
         </div>
       </header>
 
-      {/* Toolbar */}
       <div className="border-b border-surface-border dark:border-surface-dark-border bg-surface-raised dark:bg-surface-dark-raised shrink-0 px-4 sm:px-6 py-3 flex flex-wrap items-center gap-4 transition-colors">
         <div className="flex gap-1 bg-surface-border dark:bg-surface-dark-border p-1 rounded-lg">
           {(["light", "balanced", "strong"] as const).map((level) => (
@@ -314,7 +317,6 @@ export default function QuickPage() {
         <ProfilePicker value={profileId} onChange={setProfileId} />
         <ProjectPicker value={projectId} onChange={setProjectId} />
 
-        {/* Tone Dials */}
         <div className="flex items-center gap-6 ml-2 bg-surface-base dark:bg-surface-dark-base px-4 py-1.5 rounded-lg border border-surface-border dark:border-surface-dark-border shadow-sm">
           <div className="flex items-center gap-3">
             <span className="text-[11px] font-bold uppercase tracking-wide text-text-secondary dark:text-text-dark-secondary">Formal</span>
@@ -370,9 +372,7 @@ export default function QuickPage() {
         </div>
       </div>
 
-      {/* Workspace Panes */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left: Input */}
         <div className="flex-1 min-w-[300px] border-r border-surface-border dark:border-surface-dark-border flex flex-col overflow-hidden">
           <div className="px-5 py-3 border-b border-surface-border dark:border-surface-dark-border flex justify-between items-center shrink-0 bg-surface-base dark:bg-surface-dark-base">
             <span className="text-xs font-bold text-text-secondary dark:text-text-dark-secondary uppercase tracking-wider">
@@ -394,16 +394,24 @@ export default function QuickPage() {
           </div>
         </div>
 
-        {/* Middle: Output */}
         <div className="flex-1 min-w-[300px] border-r border-surface-border dark:border-surface-dark-border flex flex-col overflow-hidden bg-surface-raised dark:bg-surface-dark-raised">
           <div className="px-5 py-3 border-b border-surface-border dark:border-surface-dark-border flex justify-between items-center shrink-0 bg-surface-raised dark:bg-surface-dark-raised">
             <span className="text-xs font-bold text-text-secondary dark:text-text-dark-secondary uppercase tracking-wider">
               Rewritten
             </span>
+            
+            {/* Show Avatar in Result Pane */}
             {result && (
-              <span className="text-xs font-medium px-2 py-1 rounded bg-surface-base dark:bg-surface-dark-base border border-surface-border dark:border-surface-dark-border text-text-secondary dark:text-text-dark-secondary">
-                via {result.provider}
-              </span>
+              <div className="flex items-center gap-2 text-xs font-medium px-2 py-1 rounded bg-surface-base dark:bg-surface-dark-base border border-surface-border dark:border-surface-dark-border text-text-secondary dark:text-text-dark-secondary">
+                {result.profileUsed && (
+                  <>
+                    <Avatar id={result.profileUsed.avatar || "minimalist"} className="w-4 h-4" />
+                    <span className="text-text-primary dark:text-white font-bold">{result.profileUsed.name}</span>
+                    <span className="text-surface-border dark:text-surface-dark-border">•</span>
+                  </>
+                )}
+                <span>via {result.provider}</span>
+              </div>
             )}
           </div>
           <div className="flex-1 overflow-auto p-6">
@@ -443,7 +451,6 @@ export default function QuickPage() {
           </div>
         </div>
 
-        {/* Right: Analysis */}
         <div className="w-80 shrink-0 flex flex-col overflow-hidden bg-surface-base dark:bg-surface-dark-base hidden xl:flex">
           <div className="px-5 py-3 border-b border-surface-border dark:border-surface-dark-border shrink-0 bg-surface-base dark:bg-surface-dark-base">
             <span className="text-xs font-bold text-text-secondary dark:text-text-dark-secondary uppercase tracking-wider">
