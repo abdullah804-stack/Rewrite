@@ -3,12 +3,12 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  /* Premium Brand Colors */
-  --color-brand-50: #eff6ff;
-  --color-brand-100: #dbeafe;
-  --color-brand-500: #3b82f6;
-  --color-brand-600: #2563eb; /* Primary Accent */
-  --color-brand-700: #1d4ed8;
+  /* Premium Brand Colors - Dark Burnt Orange */
+  --color-brand-50: #fff7ed;
+  --color-brand-100: #ffedd5;
+  --color-brand-500: #f97316;
+  --color-brand-600: #ea580c; /* Primary Accent */
+  --color-brand-700: #c2410c;
 
   /* Surface Colors (Light) */
   --color-surface-base: #ffffff;
@@ -22,7 +22,7 @@
 
   /* Text Colors */
   --color-text-primary: #0a0a0a;
-  --color-text-secondary: #737373;
+  --color-text-secondary: #525252;
   --color-text-dark-primary: #ffffff;
   --color-text-dark-secondary: #a3a3a3;
 }
@@ -49,10 +49,37 @@ body {
   color: var(--foreground);
   font-family: var(--font-inter), sans-serif;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
 }
 
 /* Premium Focus Rings */
 *:focus-visible {
   outline: 2px solid var(--color-brand-600);
   outline-offset: 2px;
+}
+
+/* Animations */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 0;
+}
+
+.delay-100 { animation-delay: 100ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+
+/* Sticky Navigation Scroll Behavior */
+html {
+  scroll-behavior: smooth;
 }
