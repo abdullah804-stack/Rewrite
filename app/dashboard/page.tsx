@@ -4,6 +4,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getLimits } from "@/config/plans";
 import { ThemeToggle } from "../ThemeToggle";
+import { Avatar } from "@/lib/avatars";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -14,7 +15,7 @@ export default async function DashboardPage() {
 
   const today = new Date().toISOString().slice(0, 10);
   
-  const [documentsCount, usageToday, totalWordsResult] = await Promise.all([
+  const [documentsCount, usageToday, totalWordsResult, profiles] = await Promise.all([
     prisma.document.count({ where: { userId: session.user.id } }),
     prisma.usageEvent.aggregate({
       where: { userId: session.user.id, day: today },
@@ -23,6 +24,11 @@ export default async function DashboardPage() {
     prisma.usageEvent.aggregate({
       where: { userId: session.user.id },
       _sum: { words: true },
+    }),
+    prisma.voiceProfile.findMany({
+      where: { userId: session.user.id },
+      orderBy: { updatedAt: "desc" },
+      take: 3,
     }),
   ]);
 
@@ -108,6 +114,29 @@ export default async function DashboardPage() {
             </div>
           </div>
         </div>
+
+        {/* Personas Row */}
+        {profiles.length > 0 && (
+          <div className="mt-16">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-text-primary dark:text-white">Your Personas</h2>
+              <Link href="/profiles" className="text-sm font-semibold text-brand-600 hover:text-brand-700 transition-colors">
+                Manage →
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+              {profiles.map((p) => (
+                <div key={p.id} className="p-5 rounded-2xl border border-surface-border dark:border-surface-dark-border bg-surface-raised dark:bg-surface-dark-raised shadow-sm flex items-center gap-4">
+                  <Avatar id={p.avatar || "minimalist"} className="w-12 h-12 shrink-0" />
+                  <div className="min-w-0">
+                    <div className="text-sm font-bold text-text-primary dark:text-white truncate">{p.name}</div>
+                    <div className="text-xs font-medium text-text-secondary dark:text-text-dark-secondary mt-0.5 truncate">{p.depth} depth</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <h2 className="text-xl font-bold text-text-primary dark:text-white mt-16 mb-6">Quick actions</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
