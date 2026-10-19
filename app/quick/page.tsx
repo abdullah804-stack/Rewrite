@@ -71,6 +71,7 @@ export default function QuickPage() {
   const [documentId, setDocumentId] = useState<string | null>(null);
   
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const [mobileTab, setMobileTab] = useState<"input" | "output">("input");
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -126,6 +127,7 @@ export default function QuickPage() {
     setCapacityReached(false);
     setResult(null);
     setProgress(null);
+    setMobileTab("output");
 
     try {
       const chunks = chunkText(text, 800);
@@ -228,64 +230,43 @@ export default function QuickPage() {
     setDocumentId(null);
     localStorage.removeItem(AUTOSAVE_KEY);
     setSaveStatus("idle");
+    setMobileTab("input");
   }
 
   return (
     <main className="h-screen flex flex-col bg-surface-base text-text-primary transition-colors overflow-hidden">
+      {/* Header - Smaller on Mobile */}
       <header className="border-b border-surface-border shrink-0 bg-surface-base">
-        <div className="px-4 sm:px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/" className="text-lg font-bold tracking-tight flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-brand-600 text-white flex items-center justify-center text-sm font-black shadow-sm">
+        <div className="px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2 sm:gap-4">
+            <Link href="/" className="text-base sm:text-lg font-bold tracking-tight flex items-center gap-2">
+              <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-brand-600 text-white flex items-center justify-center text-xs sm:text-sm font-black shadow-sm">
                 R
               </div>
-              Rewrite
+              <span className="hidden sm:inline">Rewrite</span>
             </Link>
             <span className="text-surface-border">/</span>
-            <Link href="/workspace" className="text-sm font-medium text-text-secondary hover:text-brand-600 transition-colors">
+            <Link href="/workspace" className="text-xs sm:text-sm font-medium text-text-secondary hover:text-brand-600 transition-colors">
               Workspace
             </Link>
-            {saveStatus !== "idle" && (
-              <span className="text-xs font-medium text-text-secondary flex items-center gap-1.5 ml-2 px-2 py-1 rounded bg-surface-raised">
-                {saveStatus === "saving" ? (
-                  <>
-                    <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-3 h-3 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
-                    Saved
-                  </>
-                )}
-              </span>
-            )}
           </div>
-          <div className="flex items-center gap-4 sm:gap-6">
-            <Link
-              href="/profiles"
-              className="text-sm font-medium text-text-secondary hover:text-brand-600 transition-colors hidden sm:inline"
-            >
-              Voices
-            </Link>
-            <Link
-              href="/tools"
-              className="text-sm font-medium text-text-secondary hover:text-brand-600 transition-colors hidden sm:inline"
-            >
-              Free tools
+          <div className="flex items-center gap-3">
+            <Link href="/tools" className="text-xs sm:text-sm font-medium text-text-secondary hover:text-brand-600 transition-colors">
+              Tools
             </Link>
           </div>
         </div>
       </header>
 
-      <div className="border-b border-surface-border bg-surface-raised shrink-0 px-4 sm:px-6 py-3 flex flex-wrap items-center gap-4 transition-colors">
-        <div className="flex gap-1 bg-surface-border p-1 rounded-lg">
+      {/* Toolbar - Scrollable horizontally on mobile */}
+      <div className="border-b border-surface-border bg-surface-raised shrink-0 px-3 sm:px-6 py-2 sm:py-3 overflow-x-auto flex items-center gap-3 sm:gap-4 hide-scrollbar">
+        <div className="flex gap-1 bg-surface-border p-1 rounded-lg shrink-0">
           {(["light", "balanced", "strong"] as const).map((level) => (
             <button
               key={level}
               type="button"
               onClick={() => setIntensity(level)}
-              className={`h-8 px-4 rounded-md text-xs font-semibold capitalize transition-colors ${
+              className={`h-8 px-3 sm:px-4 rounded-md text-[11px] sm:text-xs font-semibold capitalize transition-colors ${
                 intensity === level
                   ? "bg-surface-base text-brand-600 shadow-sm"
                   : "text-text-secondary hover:text-text-primary"
@@ -296,12 +277,12 @@ export default function QuickPage() {
           ))}
         </div>
 
-        <div className="h-6 border-l border-surface-border hidden sm:block"></div>
+        <div className="h-6 border-l border-surface-border hidden sm:block shrink-0"></div>
 
         <select
           value={preset}
           onChange={(e) => setPreset(e.target.value as PresetId)}
-          className="h-9 px-3 pr-8 rounded-lg border border-surface-border text-sm font-medium text-text-primary bg-surface-base focus:outline-none focus:border-brand-500 transition-colors"
+          className="h-9 px-2 sm:px-3 pr-6 sm:pr-8 rounded-lg border border-surface-border text-xs sm:text-sm font-medium text-text-primary bg-surface-base focus:outline-none focus:border-brand-500 transition-colors shrink-0"
         >
           {Object.entries(PRESETS).map(([id, p]) => (
             <option key={id} value={id}>
@@ -310,49 +291,54 @@ export default function QuickPage() {
           ))}
         </select>
 
-        <ProfilePicker value={profileId} onChange={setProfileId} />
-        <ProjectPicker value={projectId} onChange={setProjectId} />
+        <div className="shrink-0">
+          <ProfilePicker value={profileId} onChange={setProfileId} />
+        </div>
+        <div className="shrink-0">
+          <ProjectPicker value={projectId} onChange={setProjectId} />
+        </div>
 
-        <div className="flex items-center gap-6 ml-2 bg-surface-base px-4 py-1.5 rounded-lg border border-surface-border shadow-sm">
-          <div className="flex items-center gap-3">
-            <span className="text-[11px] font-bold uppercase tracking-wide text-text-secondary">Formal</span>
+        <div className="flex items-center gap-4 ml-2 bg-surface-base px-3 py-1.5 rounded-lg border border-surface-border shadow-sm shrink-0">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-wide text-text-secondary">Formal</span>
             <input
               type="range"
               min="1"
               max="10"
               value={formality}
               onChange={(e) => setFormality(Number(e.target.value))}
-              className="w-20 accent-brand-600 cursor-pointer"
+              className="w-12 sm:w-20 accent-brand-600 cursor-pointer"
             />
           </div>
           <div className="w-px h-4 bg-surface-border"></div>
-          <div className="flex items-center gap-3">
-            <span className="text-[11px] font-bold uppercase tracking-wide text-text-secondary">Direct</span>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-wide text-text-secondary">Direct</span>
             <input
               type="range"
               min="1"
               max="10"
               value={directness}
               onChange={(e) => setDirectness(Number(e.target.value))}
-              className="w-20 accent-brand-600 cursor-pointer"
+              className="w-12 sm:w-20 accent-brand-600 cursor-pointer"
             />
           </div>
         </div>
 
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto flex items-center gap-2 sm:gap-3 shrink-0">
           <button
             type="button"
             onClick={handleRewrite}
             disabled={loading || !text.trim() || wordCount > 5000}
-            className="h-10 px-6 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 disabled:bg-surface-border disabled:text-text-secondary disabled:cursor-not-allowed transition-all shadow-sm flex items-center gap-2"
+            className="h-9 sm:h-10 px-4 sm:px-6 rounded-xl bg-brand-600 text-white text-xs sm:text-sm font-semibold hover:bg-brand-700 disabled:bg-surface-border disabled:text-text-secondary disabled:cursor-not-allowed transition-all shadow-sm flex items-center gap-2"
           >
             {loading ? (
               <>
-                <svg className="animate-spin h-4 w-4 text-current" viewBox="0 0 24 24" fill="none">
+                <svg className="animate-spin h-3 w-3 sm:h-4 sm:w-4 text-current" viewBox="0 0 24 24" fill="none">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                {progress ? `Section ${progress.current}/${progress.total}...` : "Rewriting..."}
+                <span className="hidden sm:inline">{progress ? `Section ${progress.current}/${progress.total}...` : "Rewriting..."}</span>
+                <span className="sm:hidden">...</span>
               </>
             ) : "Rewrite"}
           </button>
@@ -360,7 +346,7 @@ export default function QuickPage() {
             <button
               type="button"
               onClick={handleReset}
-              className="h-10 px-4 rounded-xl border border-surface-border text-sm font-semibold text-text-secondary hover:bg-surface-base transition-colors"
+              className="h-9 sm:h-10 px-3 sm:px-4 rounded-xl border border-surface-border text-xs sm:text-sm font-semibold text-text-secondary hover:bg-surface-base transition-colors"
             >
               Reset
             </button>
@@ -368,17 +354,36 @@ export default function QuickPage() {
         </div>
       </div>
 
+      {/* Mobile Tabs (Input / Output) */}
+      <div className="flex lg:hidden border-b border-surface-border bg-surface-base">
+        <button
+          onClick={() => setMobileTab("input")}
+          className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors ${mobileTab === "input" ? "border-brand-600 text-brand-600" : "border-transparent text-text-secondary"}`}
+        >
+          Draft
+        </button>
+        <button
+          onClick={() => setMobileTab("output")}
+          className={`flex-1 py-3 text-sm font-bold border-b-2 transition-colors ${mobileTab === "output" ? "border-brand-600 text-brand-600" : "border-transparent text-text-secondary"}`}
+        >
+          Result
+        </button>
+      </div>
+
+      {/* Main Workspace Panes */}
       <div className="flex-1 flex overflow-hidden">
-        <div className="flex-1 min-w-[300px] border-r border-surface-border flex flex-col overflow-hidden">
-          <div className="px-5 py-3 border-b border-surface-border flex justify-between items-center shrink-0 bg-surface-base">
-            <span className="text-xs font-bold text-text-secondary uppercase tracking-wider">
+        
+        {/* Input Pane (Hidden on mobile if tab is output) */}
+        <div className={`flex-1 lg:min-w-[300px] border-r border-surface-border flex flex-col overflow-hidden ${mobileTab === "output" ? "hidden lg:flex" : "flex"}`}>
+          <div className="px-4 sm:px-5 py-2 sm:py-3 border-b border-surface-border flex justify-between items-center shrink-0 bg-surface-base">
+            <span className="text-[10px] sm:text-xs font-bold text-text-secondary uppercase tracking-wider">
               Your draft
             </span>
-            <span className="text-xs font-medium text-text-secondary">
-              {wordCount} / 5,000 words
+            <span className="text-[10px] sm:text-xs font-medium text-text-secondary">
+              {wordCount} words
             </span>
           </div>
-          <div className="flex-1 overflow-auto p-4 bg-surface-base">
+          <div className="flex-1 overflow-auto p-3 sm:p-4 bg-surface-base">
             <Editor
               value={text}
               onChange={setText}
@@ -390,14 +395,15 @@ export default function QuickPage() {
           </div>
         </div>
 
-        <div className="flex-1 min-w-[300px] border-r border-surface-border flex flex-col overflow-hidden bg-surface-raised">
-          <div className="px-5 py-3 border-b border-surface-border flex justify-between items-center shrink-0 bg-surface-raised">
-            <span className="text-xs font-bold text-text-secondary uppercase tracking-wider">
+        {/* Output Pane (Hidden on mobile if tab is input) */}
+        <div className={`flex-1 lg:min-w-[300px] border-r border-surface-border flex flex-col overflow-hidden bg-surface-raised ${mobileTab === "input" ? "hidden lg:flex" : "flex"}`}>
+          <div className="px-4 sm:px-5 py-2 sm:py-3 border-b border-surface-border flex justify-between items-center shrink-0 bg-surface-raised">
+            <span className="text-[10px] sm:text-xs font-bold text-text-secondary uppercase tracking-wider">
               Rewritten
             </span>
             
             {result && (
-              <div className="flex items-center gap-2 text-xs font-medium px-2 py-1 rounded bg-surface-base border border-surface-border text-text-secondary">
+              <div className="flex items-center gap-2 text-[10px] sm:text-xs font-medium px-2 py-1 rounded bg-surface-base border border-surface-border text-text-secondary">
                 {result.profileUsed && (
                   <>
                     <Avatar id={result.profileUsed.avatar || "minimalist"} className="w-4 h-4" />
@@ -405,13 +411,13 @@ export default function QuickPage() {
                     <span className="text-surface-border">•</span>
                   </>
                 )}
-                <span>via {result.provider}</span>
+                <span>{result.provider}</span>
               </div>
             )}
           </div>
-          <div className="flex-1 overflow-auto p-6">
+          <div className="flex-1 overflow-auto p-3 sm:p-6">
             {capacityReached && (
-              <div className="p-6 rounded-2xl border-2 border-brand-500 bg-surface-base text-sm shadow-sm">
+              <div className="p-4 sm:p-6 rounded-2xl border-2 border-brand-500 bg-surface-base text-sm shadow-sm">
                 <div className="font-bold text-text-primary text-base mb-2">Capacity reached</div>
                 <div className="text-text-secondary mb-4 leading-relaxed">All free AI providers are currently at capacity. This usually clears up within a minute.</div>
                 <button onClick={() => { setCapacityReached(false); handleRewrite(); }} className="font-semibold text-brand-600 hover:text-brand-700 transition-colors">Try again</button>
@@ -446,6 +452,7 @@ export default function QuickPage() {
           </div>
         </div>
 
+        {/* Analysis Pane (Hidden on mobile entirely) */}
         <div className="w-80 shrink-0 flex flex-col overflow-hidden bg-surface-base hidden xl:flex">
           <div className="px-5 py-3 border-b border-surface-border shrink-0 bg-surface-base">
             <span className="text-xs font-bold text-text-secondary uppercase tracking-wider">
