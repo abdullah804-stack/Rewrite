@@ -16,17 +16,20 @@ export default async function SettingsPage() {
   if (!user) redirect("/login");
 
   return (
-    <main className="min-h-screen bg-white dark:bg-neutral-950 text-black dark:text-white transition-colors">
-      <header className="border-b border-neutral-200 dark:border-neutral-800">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-          <Link href="/" className="text-sm font-medium text-black dark:text-white">
+    <main className="min-h-screen bg-surface-base dark:bg-surface-dark-base text-text-primary dark:text-text-dark-primary transition-colors">
+      <header className="border-b border-surface-border dark:border-surface-dark-border sticky top-0 bg-surface-base/80 dark:bg-surface-dark-base/80 backdrop-blur-md z-40">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+          <Link href="/" className="text-lg font-bold tracking-tight flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-brand-600 text-white flex items-center justify-center text-sm font-black shadow-sm">
+              R
+            </div>
             Rewrite
           </Link>
-          <div className="flex items-center gap-3 sm:gap-4">
+          <div className="flex items-center gap-4 sm:gap-6">
             <ThemeToggle />
             <Link
               href="/dashboard"
-              className="text-sm text-neutral-500 dark:text-neutral-400 hover:text-black dark:hover:text-white transition-colors"
+              className="text-sm font-medium text-text-secondary dark:text-text-dark-secondary hover:text-brand-600 dark:hover:text-brand-500 transition-colors"
             >
               Dashboard
             </Link>
@@ -38,7 +41,7 @@ export default async function SettingsPage() {
             >
               <button
                 type="submit"
-                className="text-sm text-neutral-500 dark:text-neutral-400 hover:text-black dark:hover:text-white transition-colors"
+                className="text-sm font-medium text-text-secondary dark:text-text-dark-secondary hover:text-brand-600 dark:hover:text-brand-500 transition-colors"
               >
                 Sign out
               </button>
@@ -47,25 +50,25 @@ export default async function SettingsPage() {
         </div>
       </header>
 
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
-        <h1 className="text-2xl sm:text-3xl font-semibold text-black dark:text-white">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+        <h1 className="text-3xl font-extrabold tracking-tight text-text-primary dark:text-white">
           Settings
         </h1>
-        <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-2">
+        <p className="text-base text-text-secondary dark:text-text-dark-secondary mt-2">
           Manage your account and data.
         </p>
 
-        <div className="mt-10 space-y-10">
+        <div className="mt-12 space-y-12">
           <section>
-            <h2 className="text-lg font-medium text-black dark:text-white">Account</h2>
-            <div className="mt-4 rounded-lg border border-neutral-200 dark:border-neutral-800 divide-y divide-neutral-200 dark:divide-neutral-800 bg-white dark:bg-neutral-900">
-              <div className="flex items-center justify-between px-4 py-3 text-sm">
-                <span className="text-neutral-500 dark:text-neutral-400">Email</span>
-                <span className="text-black dark:text-white">{user.email}</span>
+            <h2 className="text-xl font-bold text-text-primary dark:text-white mb-4">Account</h2>
+            <div className="rounded-2xl border border-surface-border dark:border-surface-dark-border bg-surface-raised dark:bg-surface-dark-raised overflow-hidden shadow-sm">
+              <div className="flex items-center justify-between px-6 py-4 text-sm border-b border-surface-border dark:border-surface-dark-border">
+                <span className="font-medium text-text-secondary dark:text-text-dark-secondary">Email</span>
+                <span className="font-semibold text-text-primary dark:text-white">{user.email}</span>
               </div>
-              <div className="flex items-center justify-between px-4 py-3 text-sm">
-                <span className="text-neutral-500 dark:text-neutral-400">Member since</span>
-                <span className="text-black dark:text-white">
+              <div className="flex items-center justify-between px-6 py-4 text-sm">
+                <span className="font-medium text-text-secondary dark:text-text-dark-secondary">Member since</span>
+                <span className="font-semibold text-text-primary dark:text-white">
                   {new Date(user.createdAt).toLocaleDateString()}
                 </span>
               </div>
@@ -73,27 +76,23 @@ export default async function SettingsPage() {
           </section>
 
           <section>
-            <h2 className="text-lg font-medium text-black dark:text-white">Data & Privacy</h2>
-            <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1 leading-relaxed">
-              Rewrite is a free writing workspace. We store your drafts and
-              voice profiles so you can access them across devices.
-              <br />
-              <br />
-              Your documents (drafts and rewrites) are automatically deleted
-              after 14 days. Voice profiles are kept until you delete them.
-            </p>
+            <h2 className="text-xl font-bold text-text-primary dark:text-white mb-4">Data & Privacy</h2>
+            <div className="p-6 rounded-2xl border border-surface-border dark:border-surface-dark-border bg-surface-raised dark:bg-surface-dark-raised text-sm text-text-secondary dark:text-text-dark-secondary leading-relaxed shadow-sm">
+              Rewrite is a free writing workspace. We store your drafts and voice profiles so you can access them across devices.
+              <br /><br />
+              Your documents (drafts and rewrites) are automatically deleted after 14 days. Voice profiles are kept until you delete them.
+            </div>
           </section>
 
           <section>
-            <h2 className="text-lg font-medium text-red-600 dark:text-red-500">Danger zone</h2>
-            <div className="mt-4 p-4 rounded-lg border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <h2 className="text-xl font-bold text-red-600 dark:text-red-500 mb-4">Danger zone</h2>
+            <div className="p-6 sm:p-8 rounded-2xl border-2 border-red-200 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
               <div>
-                <div className="text-sm font-medium text-red-900 dark:text-red-400">
+                <div className="text-lg font-bold text-red-900 dark:text-red-400">
                   Delete account
                 </div>
-                <div className="text-xs text-red-700 dark:text-red-500 mt-1">
-                  This will permanently delete your account, voice profiles, and
-                  all saved documents. This action cannot be undone.
+                <div className="text-sm text-red-700 dark:text-red-500 mt-2 max-w-md leading-relaxed">
+                  This will permanently delete your account, voice profiles, and all saved documents. This action cannot be undone.
                 </div>
               </div>
               <DeleteAccountButton />

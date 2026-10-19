@@ -33,23 +33,26 @@ export default async function DashboardPage() {
   const quotaPercent = Math.min(100, Math.round((wordsUsedToday / dailyLimit) * 100));
 
   return (
-    <main className="min-h-screen bg-white dark:bg-neutral-950 text-black dark:text-white transition-colors">
-      <header className="border-b border-neutral-200 dark:border-neutral-800">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-          <Link href="/" className="text-sm font-medium text-black dark:text-white">
+    <main className="min-h-screen bg-surface-base dark:bg-surface-dark-base text-text-primary dark:text-text-dark-primary transition-colors">
+      <header className="border-b border-surface-border dark:border-surface-dark-border sticky top-0 bg-surface-base/80 dark:bg-surface-dark-base/80 backdrop-blur-md z-40">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+          <Link href="/" className="text-lg font-bold tracking-tight flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-brand-600 text-white flex items-center justify-center text-sm font-black shadow-sm">
+              R
+            </div>
             Rewrite
           </Link>
-          <div className="flex items-center gap-3 sm:gap-4">
+          <div className="flex items-center gap-4 sm:gap-6">
             <ThemeToggle />
             <Link
               href="/workspace"
-              className="text-sm text-neutral-500 dark:text-neutral-400 hover:text-black dark:hover:text-white transition-colors"
+              className="text-sm font-medium text-text-secondary dark:text-text-dark-secondary hover:text-brand-600 dark:hover:text-brand-500 transition-colors hidden sm:inline"
             >
               Workspace
             </Link>
             <Link
               href="/settings"
-              className="text-sm text-neutral-500 dark:text-neutral-400 hover:text-black dark:hover:text-white transition-colors hidden sm:inline"
+              className="text-sm font-medium text-text-secondary dark:text-text-dark-secondary hover:text-brand-600 dark:hover:text-brand-500 transition-colors hidden sm:inline"
             >
               Settings
             </Link>
@@ -61,7 +64,7 @@ export default async function DashboardPage() {
             >
               <button
                 type="submit"
-                className="text-sm text-neutral-500 dark:text-neutral-400 hover:text-black dark:hover:text-white transition-colors"
+                className="text-sm font-medium text-text-secondary dark:text-text-dark-secondary hover:text-brand-600 dark:hover:text-brand-500 transition-colors"
               >
                 Sign out
               </button>
@@ -70,64 +73,69 @@ export default async function DashboardPage() {
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
-        <h1 className="text-2xl sm:text-3xl font-semibold text-black dark:text-white">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+        <h1 className="text-3xl font-extrabold tracking-tight text-text-primary dark:text-white">
           Welcome, {session.user.name?.split(" ")[0] ?? "writer"}
         </h1>
-        <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-2">
+        <p className="text-base text-text-secondary dark:text-text-dark-secondary mt-2">
           Here is your writing activity.
         </p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-8">
-          <div className="p-5 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900">
-            <div className="text-sm text-neutral-500 dark:text-neutral-400">Words rewritten</div>
-            <div className="text-2xl font-semibold text-black dark:text-white mt-1">
+        {/* Stats Row */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mt-10">
+          <div className="p-6 rounded-2xl border border-surface-border dark:border-surface-dark-border bg-surface-raised dark:bg-surface-dark-raised shadow-sm">
+            <div className="text-sm font-medium text-text-secondary dark:text-text-dark-secondary mb-1">Words rewritten</div>
+            <div className="text-3xl font-bold text-text-primary dark:text-white">
               {totalWordsAllTime.toLocaleString()}
             </div>
           </div>
-          <div className="p-5 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900">
-            <div className="text-sm text-neutral-500 dark:text-neutral-400">Documents saved</div>
-            <div className="text-2xl font-semibold text-black dark:text-white mt-1">
+          <div className="p-6 rounded-2xl border border-surface-border dark:border-surface-dark-border bg-surface-raised dark:bg-surface-dark-raised shadow-sm">
+            <div className="text-sm font-medium text-text-secondary dark:text-text-dark-secondary mb-1">Documents saved</div>
+            <div className="text-3xl font-bold text-text-primary dark:text-white">
               {documentsCount}
             </div>
           </div>
-          <div className="p-5 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900">
-            <div className="text-sm text-neutral-500 dark:text-neutral-400">Daily quota</div>
-            <div className="text-2xl font-semibold text-black dark:text-white mt-1">
-              {wordsUsedToday} <span className="text-sm font-normal text-neutral-400 dark:text-neutral-500">/ {dailyLimit}</span>
+          <div className="p-6 rounded-2xl border border-surface-border dark:border-surface-dark-border bg-surface-raised dark:bg-surface-dark-raised shadow-sm">
+            <div className="text-sm font-medium text-text-secondary dark:text-text-dark-secondary mb-1">Daily quota</div>
+            <div className="text-3xl font-bold text-text-primary dark:text-white mb-3">
+              {wordsUsedToday} <span className="text-base font-medium text-text-secondary dark:text-text-dark-secondary">/ {dailyLimit}</span>
             </div>
-            <div className="h-1.5 w-full bg-neutral-100 dark:bg-neutral-800 rounded-full mt-3 overflow-hidden">
+            <div className="h-2 w-full bg-surface-border dark:bg-surface-dark-border rounded-full overflow-hidden">
               <div
-                className={`h-full rounded-full ${quotaPercent >= 90 ? 'bg-red-500' : 'bg-black dark:bg-white'}`}
+                className={`h-full rounded-full transition-all duration-500 ${quotaPercent >= 90 ? 'bg-red-500' : 'bg-brand-600'}`}
                 style={{ width: `${quotaPercent}%` }}
               />
             </div>
           </div>
         </div>
 
-        <h2 className="text-lg font-medium text-black dark:text-white mt-12 mb-4">Quick actions</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <h2 className="text-xl font-bold text-text-primary dark:text-white mt-16 mb-6">Quick actions</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
           <Link
             href="/quick"
-            className="p-5 rounded-lg border border-neutral-200 dark:border-neutral-800 hover:border-neutral-400 dark:hover:border-neutral-600 bg-white dark:bg-neutral-900 transition-colors group"
+            className="p-6 sm:p-8 rounded-2xl border border-surface-border dark:border-surface-dark-border bg-surface-raised dark:bg-surface-dark-raised hover:border-brand-500 dark:hover:border-brand-500 transition-all group hover:-translate-y-1 hover:shadow-lg"
           >
-            <div className="text-sm font-medium text-black dark:text-white flex items-center justify-between">
-              <span>Quick rewrite</span>
-              <span className="text-neutral-300 dark:text-neutral-600 group-hover:text-black dark:group-hover:text-white transition-colors">→</span>
+            <div className="w-12 h-12 rounded-xl bg-brand-50 dark:bg-brand-500/10 flex items-center justify-center text-brand-600 mb-6 group-hover:scale-110 transition-transform">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
             </div>
-            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-2 leading-relaxed">
+            <div className="text-lg font-bold text-text-primary dark:text-white flex items-center justify-between">
+              <span>Quick rewrite</span>
+            </div>
+            <p className="text-sm text-text-secondary dark:text-text-dark-secondary mt-2 leading-relaxed">
               Paste a draft. Get it back natural in about 15 seconds. Facts protected.
             </p>
           </Link>
           <Link
             href="/profiles"
-            className="p-5 rounded-lg border border-neutral-200 dark:border-neutral-800 hover:border-neutral-400 dark:hover:border-neutral-600 bg-white dark:bg-neutral-900 transition-colors group"
+            className="p-6 sm:p-8 rounded-2xl border border-surface-border dark:border-surface-dark-border bg-surface-raised dark:bg-surface-dark-raised hover:border-brand-500 dark:hover:border-brand-500 transition-all group hover:-translate-y-1 hover:shadow-lg"
           >
-            <div className="text-sm font-medium text-black dark:text-white flex items-center justify-between">
-              <span>Voice profiles</span>
-              <span className="text-neutral-300 dark:text-neutral-600 group-hover:text-black dark:group-hover:text-white transition-colors">→</span>
+            <div className="w-12 h-12 rounded-xl bg-brand-50 dark:bg-brand-500/10 flex items-center justify-center text-brand-600 mb-6 group-hover:scale-110 transition-transform">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
             </div>
-            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-2 leading-relaxed">
+            <div className="text-lg font-bold text-text-primary dark:text-white flex items-center justify-between">
+              <span>Voice profiles</span>
+            </div>
+            <p className="text-sm text-text-secondary dark:text-text-dark-secondary mt-2 leading-relaxed">
               Teach the tool how you write so every rewrite matches your own voice.
             </p>
           </Link>
