@@ -10,7 +10,7 @@ import { prisma } from "@/lib/prisma";
 
 import { NewProjectButton } from "./NewProjectButton";
 
-import { ThemeToggle } from "../ThemeToggle";
+
 
 
 export default async function WorkspacePage() {
@@ -36,7 +36,7 @@ export default async function WorkspacePage() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <Logo />
           <div className="flex items-center gap-4 sm:gap-6">
-            <ThemeToggle />
+            
             <Link 
               href="/settings" 
               className="text-sm font-medium text-text-secondary dark:text-text-dark-secondary hover:text-brand-600 dark:hover:text-brand-500 transition-colors hidden sm:inline"

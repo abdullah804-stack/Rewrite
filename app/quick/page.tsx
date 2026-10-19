@@ -11,7 +11,7 @@ import { DiffView } from "./DiffView";
 import { StyleReport } from "./StyleReport";
 import { Editor } from "./Editor";
 import { ProjectPicker } from "./ProjectPicker";
-import { ThemeToggle } from "../ThemeToggle";
+
 import { analyzeText } from "@/lib/analyze-client";
 import type { Metrics } from "@/lib/pipeline/metrics";
 import { PRESETS, type PresetId } from "@/config/presets";
@@ -264,7 +264,7 @@ export default function QuickPage() {
             )}
           </div>
           <div className="flex items-center gap-4 sm:gap-6">
-            <ThemeToggle />
+            
             <Link
               href="/profiles"
               className="text-sm font-medium text-text-secondary dark:text-text-dark-secondary hover:text-brand-600 dark:hover:text-brand-500 transition-colors hidden sm:inline"

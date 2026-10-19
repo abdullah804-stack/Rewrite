@@ -10,7 +10,7 @@ import { prisma } from "@/lib/prisma";
 
 import { DeleteAccountButton } from "./DeleteAccountButton";
 
-import { ThemeToggle } from "../ThemeToggle";
+
 
 
 export default async function SettingsPage() {
@@ -29,7 +29,7 @@ export default async function SettingsPage() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <Logo />
           <div className="flex items-center gap-4 sm:gap-6">
-            <ThemeToggle />
+            
             <Link
               href="/dashboard"
               className="text-sm font-medium text-text-secondary dark:text-text-dark-secondary hover:text-brand-600 dark:hover:text-brand-500 transition-colors"

@@ -4,7 +4,7 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { ProjectSettingsForm } from "./ProjectSettingsForm";
-import { ThemeToggle } from "../../../ThemeToggle";
+
 
 export default async function ProjectSettingsPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -34,7 +34,7 @@ export default async function ProjectSettingsPage({ params }: { params: Promise<
             </Link>
           </div>
           <div className="flex items-center gap-4 sm:gap-6">
-            <ThemeToggle />
+            
             <form action={async () => { "use server"; await signOut({ redirectTo: "/" }); }}>
               <button type="submit" className="text-sm font-medium text-text-secondary dark:text-text-dark-secondary hover:text-brand-600 dark:hover:text-brand-500 transition-colors">
                 Sign out

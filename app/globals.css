@@ -1,7 +1,5 @@
 @import "tailwindcss";
 
-@custom-variant dark (&:where(.dark, .dark *));
-
 @theme {
   /* Premium Brand Colors - Dark Burnt Orange */
   --color-brand-50: #fff7ed;
@@ -10,38 +8,19 @@
   --color-brand-600: #ea580c; /* Primary Accent */
   --color-brand-700: #c2410c;
 
-  /* Surface Colors (Light) */
+  /* Surface Colors (Light Only) */
   --color-surface-base: #ffffff;
   --color-surface-raised: #fafafa;
   --color-surface-border: #e5e5e5;
 
-  /* Surface Colors (Dark) */
-  --color-surface-dark-base: #0a0a0a;
-  --color-surface-dark-raised: #171717;
-  --color-surface-dark-border: #262626;
-
-  /* Text Colors */
+  /* Text Colors (Light Only) */
   --color-text-primary: #0a0a0a;
   --color-text-secondary: #525252;
-  --color-text-dark-primary: #ffffff;
-  --color-text-dark-secondary: #a3a3a3;
 }
 
 :root {
   --background: var(--color-surface-base);
   --foreground: var(--color-text-primary);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: var(--color-surface-dark-base);
-    --foreground: var(--color-text-dark-primary);
-  }
-}
-
-.dark {
-  --background: var(--color-surface-dark-base);
-  --foreground: var(--color-text-dark-primary);
 }
 
 body {

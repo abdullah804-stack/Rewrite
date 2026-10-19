@@ -13,24 +13,6 @@ export const metadata: Metadata = {
   description:
     "Make AI-assisted drafts sound natural. Paste text for an instant rewrite, or teach it your own voice so every draft matches it, with your facts protected.",
   metadataBase: new URL(process.env.AUTH_URL || "http://localhost:3000"),
-  openGraph: {
-    title: "Rewrite",
-    description:
-      "Make AI-assisted drafts sound natural. Paste text for an instant rewrite, or teach it your own voice so every draft matches it, with your facts protected.",
-    type: "website",
-    locale: "en_US",
-    siteName: "Rewrite",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Rewrite",
-    description:
-      "Make AI-assisted drafts sound natural. Your facts protected.",
-  },
-  robots: {
-    index: true,
-    follow: true,
-  },
 };
 
 export const viewport: Viewport = {
@@ -46,7 +28,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${inter.variable} antialiased`}>
-      <body className="bg-white text-black font-sans">
+      <body className="bg-surface-base text-text-primary font-sans">
         <CommandPalette />
         {children}
       </body>

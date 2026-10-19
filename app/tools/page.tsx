@@ -18,7 +18,7 @@ import { claimKindLabel } from "@/lib/pipeline/claims";
 
 import { audienceLabel, type AudienceTarget } from "@/lib/pipeline/readability";
 
-import { ThemeToggle } from "../ThemeToggle";
+
 
 
 type Tab = "lint" | "claims" | "readability" | "meter";
@@ -58,7 +58,7 @@ export default function ToolsPage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <Logo />
           <div className="flex items-center gap-4 sm:gap-6">
-            <ThemeToggle />
+            
             <Link
               href="/login"
               className="text-sm font-medium text-text-secondary dark:text-text-dark-secondary hover:text-brand-600 dark:hover:text-brand-500 transition-colors"
