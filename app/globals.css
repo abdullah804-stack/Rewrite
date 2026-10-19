@@ -58,24 +58,45 @@ body {
 .delay-200 { animation-delay: 200ms; }
 .delay-300 { animation-delay: 300ms; }
 
-/* The Crossing Out Animation */
-@keyframes cross-out {
-  0% { transform: scaleX(0); }
-  100% { transform: scaleX(1); }
+/* ---------- Hero headline sequence ----------
+   0.0s  line 1 fades in
+   1.2s  red line draws left → right (0.6s)
+   2.0s  line 2 fades in
+---------------------------------------------- */
+@keyframes hero-in {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-.animate-cross-out {
-  animation: cross-out 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.8s forwards; 
+@keyframes hero-strike {
+  to { background-size: 100% 0.09em; }
 }
 
-/* The New Line Animation */
-@keyframes fade-in-up-delayed {
-  0% { opacity: 0; transform: translateY(20px); }
-  100% { opacity: 1; transform: translateY(0); }
+.hero-line-1 {
+  opacity: 0;
+  animation: hero-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0s forwards;
 }
 
-.animate-fade-in-up-delayed {
-  animation: fade-in-up-delayed 0.8s cubic-bezier(0.16, 1, 0.3, 1) 1.4s forwards;
+.hero-strike {
+  /* straight red line drawn as a background, so it works on every wrapped line */
+  background-image: linear-gradient(#dc2626, #dc2626);
+  background-repeat: no-repeat;
+  background-position: 0 56%;
+  background-size: 0% 0.09em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  animation: hero-strike 0.6s cubic-bezier(0.65, 0, 0.35, 1) 1.2s forwards;
+}
+
+.hero-line-2 {
+  opacity: 0;
+  animation: hero-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) 2s forwards;
+}
+
+/* Respect users who turn off motion: show the final state immediately */
+@media (prefers-reduced-motion: reduce) {
+  .hero-line-1, .hero-line-2 { animation: none; opacity: 1; }
+  .hero-strike { animation: none; background-size: 100% 0.09em; }
 }
 
 /* Sticky Navigation Scroll Behavior */

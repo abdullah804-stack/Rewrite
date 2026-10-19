@@ -54,18 +54,15 @@ export default async function Home() {
             The standard for AI-assisted writing
           </div>
           
-          {/* Hero Title with Straight Strike-through Animation */}
-          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold text-text-primary leading-[1.1] sm:leading-[1.05] tracking-tight max-w-4xl mx-auto flex flex-col items-center">
-            
-            {/* The Crossed Out Text */}
-            <span className="relative inline-block px-2 sm:px-4 py-1">
-              Stop sounding like an AI.
-              {/* The red straight line */}
-              <span className="absolute left-0 top-1/2 w-full h-[4px] sm:h-[8px] bg-red-600 origin-left animate-cross-out scale-x-0 z-10 -translate-y-1/2 rounded-full"></span>
+          {/* Hero Title: line 1 fades in, red line strikes it, line 2 appears */}
+          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold text-text-primary leading-[1.15] sm:leading-[1.1] tracking-tight max-w-4xl mx-auto flex flex-col items-center text-balance">
+            {/* Line 1: fades in, then gets struck through */}
+            <span className="hero-line-1 block px-2">
+              <span className="hero-strike">Stop sounding like an AI.</span>
             </span>
-            
-            {/* The New Line */}
-            <span className="text-brand-600 mt-2 sm:mt-4 block opacity-0 animate-fade-in-up-delayed">
+
+            {/* Line 2: appears after the strike-through */}
+            <span className="hero-line-2 text-brand-600 mt-2 sm:mt-4 block">
               Start sounding like you.
             </span>
           </h1>
