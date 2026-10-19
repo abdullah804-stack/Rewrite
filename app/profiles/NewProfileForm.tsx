@@ -3,9 +3,11 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { analyzeSample } from "@/lib/pipeline/coach";
+import { AVATARS, Avatar, type AvatarId } from "@/lib/avatars";
 
 export function NewProfileForm({ disabled }: { disabled: boolean }) {
   const [name, setName] = useState("");
+  const [avatar, setAvatar] = useState<AvatarId>("minimalist");
   const [samples, setSamples] = useState<string[]>([""]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +45,7 @@ export function NewProfileForm({ disabled }: { disabled: boolean }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name,
+          avatar,
           samples: samples.filter((s) => s.trim().length > 0),
           depth: "standard",
         }),
@@ -57,6 +60,7 @@ export function NewProfileForm({ disabled }: { disabled: boolean }) {
 
       setSuccess(true);
       setName("");
+      setAvatar("minimalist");
       setSamples([""]);
       router.refresh();
     } catch (err) {
@@ -79,7 +83,34 @@ export function NewProfileForm({ disabled }: { disabled: boolean }) {
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8">
         
         {/* Left: Inputs */}
-        <div className="space-y-6">
+        <div className="space-y-8">
+          
+          {/* Avatar Picker */}
+          <div>
+            <label className="text-sm font-bold text-text-primary dark:text-white uppercase tracking-wide mb-3 block">
+              Choose a persona
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {AVATARS.map((a) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  onClick={() => setAvatar(a.id)}
+                  className={`flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all ${
+                    avatar === a.id
+                      ? "border-brand-500 bg-brand-50 dark:bg-brand-500/10"
+                      : "border-surface-border dark:border-surface-dark-border bg-surface-base dark:bg-surface-dark-base hover:border-brand-300"
+                  }`}
+                >
+                  <Avatar id={a.id} className="w-10 h-10" />
+                  <span className={`text-xs font-semibold ${avatar === a.id ? "text-brand-700 dark:text-brand-400" : "text-text-secondary dark:text-text-dark-secondary"}`}>
+                    {a.name}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div>
             <label className="text-sm font-bold text-text-primary dark:text-white uppercase tracking-wide">
               Profile name
@@ -143,7 +174,10 @@ export function NewProfileForm({ disabled }: { disabled: boolean }) {
         <div>
           <div className="sticky top-24 p-6 rounded-2xl bg-surface-raised dark:bg-surface-dark-raised border border-surface-border dark:border-surface-dark-border shadow-sm">
             <div className="flex items-center justify-between mb-4">
-              <span className="text-base font-bold text-text-primary dark:text-white">Voice Coach</span>
+              <div className="flex items-center gap-3">
+                <Avatar id={avatar} className="w-8 h-8" />
+                <span className="text-base font-bold text-text-primary dark:text-white">Voice Coach</span>
+              </div>
               <span className={`text-sm font-bold ${coach.score >= 80 ? 'text-green-600 dark:text-green-500' : coach.score >= 50 ? 'text-yellow-600 dark:text-yellow-500' : 'text-red-600 dark:text-red-500'}`}>
                 {coach.score}/100
               </span>

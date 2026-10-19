@@ -69,6 +69,7 @@ model VoiceProfile {
   userId      String
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   name        String
+  avatar      String       @default("minimalist")
   depth       String       @default("full")
   profile     Json
   coachScore  Int?

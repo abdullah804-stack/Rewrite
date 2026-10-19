@@ -4,6 +4,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { NewProfileForm } from "./NewProfileForm";
 import { ThemeToggle } from "../ThemeToggle";
+import { Avatar } from "@/lib/avatars";
 
 export default async function ProfilesPage() {
   const session = await auth();
@@ -71,8 +72,11 @@ export default async function ProfilesPage() {
                   className="p-6 rounded-2xl border border-surface-border dark:border-surface-dark-border bg-surface-raised dark:bg-surface-dark-raised shadow-sm hover:border-brand-500 dark:hover:border-brand-500 transition-colors"
                 >
                   <div className="flex items-start justify-between gap-3 mb-3">
-                    <div className="text-lg font-bold text-text-primary dark:text-white">
-                      {p.name}
+                    <div className="flex items-center gap-3">
+                      <Avatar id={p.avatar || "minimalist"} className="w-10 h-10" />
+                      <div className="text-lg font-bold text-text-primary dark:text-white">
+                        {p.name}
+                      </div>
                     </div>
                     <span className="text-[10px] uppercase tracking-wider font-bold text-brand-700 dark:text-brand-400 px-2 py-1 rounded bg-brand-50 dark:bg-brand-500/10 border border-brand-100 dark:border-brand-500/20">
                       {p.depth}

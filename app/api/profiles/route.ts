@@ -24,6 +24,7 @@ type CreateBody = {
   name: string;
   samples: string[];
   depth?: "quick" | "standard" | "full";
+  avatar?: string;
 };
 
 export async function POST(request: Request) {
@@ -36,7 +37,7 @@ export async function POST(request: Request) {
   }
 
   const body = (await request.json()) as CreateBody;
-  const { name, samples, depth = "standard" } = body;
+  const { name, samples, depth = "standard", avatar = "minimalist" } = body;
 
   if (!name?.trim()) {
     return NextResponse.json({ error: "Name is required." }, { status: 400 });
@@ -58,16 +59,12 @@ export async function POST(request: Request) {
     );
   }
 
-  // Enforce profile limit (free tier: 3)
   const existing = await prisma.voiceProfile.count({
     where: { userId: session.user.id },
   });
   if (existing >= 3) {
     return NextResponse.json(
-      {
-        error:
-          "Free plan allows 3 voice profiles. Delete one to create another.",
-      },
+      { error: "Free plan allows 3 voice profiles. Delete one to create another." },
       { status: 403 }
     );
   }
@@ -79,6 +76,7 @@ export async function POST(request: Request) {
       data: {
         userId: session.user.id,
         name: name.trim(),
+        avatar,
         depth,
         profile: profile as unknown as object,
         sampleWords: totalWords,
