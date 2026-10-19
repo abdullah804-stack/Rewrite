@@ -162,8 +162,8 @@ export default async function Home() {
       </section>
 
       {/* Personas Section (Orange Background) */}
-      <section id="personas" className="bg-brand-50/50 dark:bg-brand-950/20 border-b border-surface-border dark:border-surface-dark-border py-24 sm:py-32 relative overflow-hidden">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-brand-100/50 dark:bg-brand-900/10 blur-[100px] rounded-full pointer-events-none -z-10"></div>
+      <section id="personas" className="bg-brand-100 dark:bg-brand-950/40 border-b border-brand-200 dark:border-brand-900/50 py-24 sm:py-32 relative overflow-hidden">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-brand-200/50 dark:bg-brand-900/20 blur-[100px] rounded-full pointer-events-none -z-10"></div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center max-w-3xl mx-auto mb-20">
