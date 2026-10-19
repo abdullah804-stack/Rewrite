@@ -54,11 +54,14 @@ export default async function Home() {
             The standard for AI-assisted writing
           </div>
           
+          {/* Hero Title with Strike-through Animation */}
           <h1 className="animate-fade-in-up delay-100 text-4xl sm:text-6xl lg:text-7xl font-extrabold text-text-primary leading-[1.1] sm:leading-[1.05] tracking-tight max-w-4xl mx-auto flex flex-col items-center">
-            {/* The Crossing Out Animation */}
-            <span className="relative inline-block px-2 sm:px-4">
+            
+            {/* The Crossed Out Text */}
+            <span className="relative inline-block px-2 sm:px-4 py-1">
               Stop sounding like an AI.
-              <span className="absolute left-0 top-1/2 w-full h-1.5 sm:h-2 bg-red-600 origin-left animate-cross-out scale-x-0 z-10 rounded-full"></span>
+              {/* The red line */}
+              <span className="absolute left-0 top-[55%] w-full h-[4px] sm:h-[6px] bg-red-600 origin-left animate-cross-out scale-x-0 z-10 rounded-full"></span>
             </span>
             
             {/* The New Line */}

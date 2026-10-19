@@ -65,7 +65,7 @@ body {
 }
 
 .animate-cross-out {
-  animation: cross-out 0.5s ease-out 0.8s forwards; 
+  animation: cross-out 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.8s forwards; 
 }
 
 /* The New Line Animation */
@@ -75,7 +75,7 @@ body {
 }
 
 .animate-fade-in-up-delayed {
-  animation: fade-in-up-delayed 0.6s cubic-bezier(0.16, 1, 0.3, 1) 1.3s forwards;
+  animation: fade-in-up-delayed 0.8s cubic-bezier(0.16, 1, 0.3, 1) 1.4s forwards;
 }
 
 /* Sticky Navigation Scroll Behavior */
