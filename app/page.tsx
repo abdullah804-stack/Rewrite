@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { auth } from "@/auth";
 import { AVATARS, Avatar } from "@/lib/avatars";
-import { Logo } from "./Logo";
+import { Logo } from "@/app/Logo";
+import { PersonaSlider } from "@/app/PersonaSlider";
 
 export default async function Home() {
   const session = await auth();
@@ -158,43 +159,8 @@ export default async function Home() {
             </p>
           </div>
 
-          {/* Mobile Auto-Slider (Hidden on Desktop) */}
-          <div className="sm:hidden overflow-hidden relative w-full pb-6">
-            <div className="flex gap-4 animate-slide-personas w-max">
-              {AVATARS.map((a, index) => (
-                <div 
-                  key={`mobile-${a.id}`} 
-                  className="group relative w-[85vw] flex-shrink-0 p-6 rounded-3xl bg-surface-base border border-brand-600 flex flex-col items-center text-center"
-                  style={{ animationDelay: `${index * 100}ms` }}
-                >
-                  <div className="mb-4 relative">
-                    <div className="animate-[bounce_3s_infinite]">
-                      <Avatar id={a.id} className="w-24 h-24 shadow-xl" />
-                    </div>
-                  </div>
-                  <h3 className="text-lg font-bold text-text-primary mb-2">{a.name}</h3>
-                  <p className="text-xs text-text-secondary leading-relaxed">{a.description}</p>
-                </div>
-              ))}
-              {/* Duplicate for infinite loop */}
-              <div className="flex gap-4">
-                {AVATARS.map((a) => (
-                  <div 
-                    key={`mobile-copy-${a.id}`} 
-                    className="group relative w-[85vw] flex-shrink-0 p-6 rounded-3xl bg-surface-base border border-brand-600 flex flex-col items-center text-center"
-                  >
-                    <div className="mb-4 relative">
-                      <div className="animate-[bounce_3s_infinite]">
-                        <Avatar id={a.id} className="w-24 h-24 shadow-xl" />
-                      </div>
-                    </div>
-                    <h3 className="text-lg font-bold text-text-primary mb-2">{a.name}</h3>
-                    <p className="text-xs text-text-secondary leading-relaxed">{a.description}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+          {/* Mobile Stepped Slider Component */}
+          <PersonaSlider />
 
           {/* Desktop Grid (Hidden on Mobile) */}
           <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
