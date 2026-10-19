@@ -35,79 +35,97 @@ export default async function PhrasePage({ params }: PageProps) {
   if (!phrase) notFound();
 
   return (
-    <main className="min-h-screen bg-white">
-      <header className="border-b border-neutral-200">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-          <Link href="/" className="text-sm font-medium text-black">
+    <main className="min-h-screen bg-surface-base dark:bg-surface-dark-base text-text-primary dark:text-text-dark-primary transition-colors">
+      <header className="border-b border-surface-border dark:border-surface-dark-border sticky top-0 bg-surface-base/80 dark:bg-surface-dark-base/80 backdrop-blur-md z-40">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+          <Link href="/" className="text-lg font-bold tracking-tight flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-brand-600 text-white flex items-center justify-center text-sm font-black shadow-sm">
+              R
+            </div>
             Rewrite
           </Link>
-          <Link href="/phrases" className="text-sm text-neutral-500 hover:text-black transition-colors">
+          <Link href="/phrases" className="text-sm font-medium text-text-secondary dark:text-text-dark-secondary hover:text-brand-600 dark:hover:text-brand-500 transition-colors">
             All phrases
           </Link>
         </div>
       </header>
 
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
-        <div className="mb-2">
-          <span className="text-xs font-medium uppercase tracking-wide text-neutral-400">
-            {phrase.category.replace("-", " ")}
-          </span>
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12 sm:py-20">
+        <div className="mb-4">
+          <Link href="/phrases" className="text-xs font-bold uppercase tracking-widest text-brand-600 hover:text-brand-700 transition-colors flex items-center gap-1">
+            ← Back to dictionary
+          </Link>
         </div>
-        <h1 className="text-3xl sm:text-4xl font-semibold text-black mb-6">
+        
+        <h1 className="text-3xl sm:text-5xl font-extrabold text-text-primary dark:text-white tracking-tight mb-6">
           Stop saying &quot;{phrase.phrase}&quot;
         </h1>
 
-        <div className="prose prose-neutral prose-sm sm:prose-base max-w-none text-neutral-600">
-          <p className="text-lg text-black leading-relaxed mb-8">
-            {phrase.notes}
-          </p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-12">
+          {/* Main Content */}
+          <div className="md:col-span-2 space-y-8">
+            <div className="prose prose-neutral dark:prose-invert max-w-none text-text-secondary dark:text-text-dark-secondary leading-relaxed">
+              <p className="text-xl text-text-primary dark:text-white font-medium mb-8">
+                {phrase.notes}
+              </p>
 
-          {phrase.replacements.length > 0 && phrase.replacements[0] !== "" && (
-            <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-6 mb-8">
-              <h3 className="text-sm font-medium text-black uppercase tracking-wide mt-0 mb-3">
-                What to use instead
-              </h3>
-              <div className="flex flex-wrap gap-2">
-                {phrase.replacements.map((r) => (
-                  <span key={r} className="px-3 py-1 bg-white border border-neutral-200 rounded-md text-sm font-medium text-black">
-                    {r}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
+              <h3 className="text-xl font-bold text-text-primary dark:text-white mb-3">Why it sounds like AI</h3>
+              <p>
+                Phrases like this are statistically overrepresented in AI-generated text. 
+                They act as structural filler—they pad the word count without adding meaning. 
+                Human writers usually prefer a direct statement over a winding preamble.
+              </p>
 
-          {phrase.replacements.length > 0 && phrase.replacements[0] === "" && (
-            <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-6 mb-8">
-              <h3 className="text-sm font-medium text-black uppercase tracking-wide mt-0 mb-3">
-                What to do
-              </h3>
-              <p className="text-sm font-medium text-black m-0">
-                Delete it. The sentence is almost always stronger without it.
+              <h3 className="text-xl font-bold text-text-primary dark:text-white mb-3 mt-8">See it in action</h3>
+              <p>
+                Paste a draft with this phrase into our free tool to see exactly how it gets flagged and fixed.
               </p>
             </div>
-          )}
 
-          <h3>Why it sounds like AI</h3>
-          <p>
-            Phrases like this are statistically overrepresented in AI-generated text. 
-            They act as structural filler—they pad the word count without adding meaning. 
-            Human writers usually prefer a direct statement over a winding preamble.
-          </p>
+            <div className="pt-6">
+              <Link
+                href="/quick"
+                className="inline-block h-12 px-8 rounded-xl bg-brand-600 text-white text-base font-semibold leading-[48px] hover:bg-brand-700 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5"
+              >
+                Fix your draft now
+              </Link>
+            </div>
+          </div>
 
-          <h3>See it in action</h3>
-          <p>
-            Paste a draft with this phrase into our free tool to see exactly how it gets fixed.
-          </p>
-        </div>
+          {/* Sidebar Card */}
+          <div>
+            <div className="p-6 rounded-2xl bg-surface-raised dark:bg-surface-dark-raised border border-surface-border dark:border-surface-dark-border shadow-sm sticky top-24">
+              <div className="text-xs font-bold uppercase tracking-widest text-text-secondary dark:text-text-dark-secondary mb-4">Details</div>
+              
+              <div className="mb-6">
+                <span className="inline-block px-3 py-1 rounded-full bg-brand-50 dark:bg-brand-500/10 text-brand-700 dark:text-brand-400 text-xs font-bold uppercase tracking-wide">
+                  {phrase.category.replace("-", " ")}
+                </span>
+              </div>
 
-        <div className="mt-10">
-          <Link
-            href="/quick"
-            className="inline-block h-11 px-6 rounded-lg bg-black text-white text-sm font-medium leading-[44px] hover:bg-neutral-800 transition-colors"
-          >
-            Fix your draft now
-          </Link>
+              {phrase.replacements.length > 0 && phrase.replacements[0] !== "" && (
+                <div className="mb-6">
+                  <h4 className="text-sm font-bold text-text-primary dark:text-white mb-2">Use instead:</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {phrase.replacements.map((r) => (
+                      <span key={r} className="px-2.5 py-1 bg-surface-base dark:bg-surface-dark-base border border-surface-border dark:border-surface-dark-border rounded-md text-sm font-medium text-text-primary dark:text-white">
+                        {r}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {phrase.replacements.length > 0 && phrase.replacements[0] === "" && (
+                <div className="mb-6">
+                  <h4 className="text-sm font-bold text-text-primary dark:text-white mb-2">Recommendation:</h4>
+                  <p className="text-sm font-medium text-brand-600 dark:text-brand-500">
+                    Delete it. The sentence is almost always stronger without it.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </main>
