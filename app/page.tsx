@@ -20,12 +20,20 @@ export default async function Home() {
                 Dashboard
               </Link>
             ) : (
-              <Link 
-                href="/login" 
-                className="text-sm font-semibold bg-surface-base dark:bg-surface-dark-base border border-brand-600 text-brand-600 dark:text-brand-500 px-5 py-2.5 rounded-lg hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-all shadow-sm"
-              >
-                Sign in
-              </Link>
+              <>
+                <Link 
+                  href="/login" 
+                  className="text-sm font-semibold bg-surface-base dark:bg-surface-dark-base border border-brand-600 text-brand-600 dark:text-brand-500 px-5 py-2.5 rounded-lg hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-all shadow-sm hidden sm:block"
+                >
+                  Sign in
+                </Link>
+                <Link 
+                  href="/quick" 
+                  className="text-sm font-semibold bg-brand-600 text-white px-5 py-2.5 rounded-lg hover:bg-brand-700 transition-colors shadow-sm"
+                >
+                  Get Started
+                </Link>
+              </>
             )}
           </div>
         </div>
@@ -67,6 +75,19 @@ export default async function Home() {
           </div>
         </div>
       </section>
+
+      {/* Sticky Section Navigation (Restored) */}
+      <div className="sticky top-16 z-40 bg-surface-base/90 dark:bg-surface-dark-base/90 backdrop-blur-md border-y border-surface-border dark:border-surface-dark-border hidden md:block">
+        <div className="max-w-7xl mx-auto px-6 h-12 flex items-center justify-center gap-12 text-sm font-medium">
+          <a href="#how-it-works" className="text-text-secondary dark:text-text-dark-secondary hover:text-brand-600 dark:hover:text-brand-500 transition-colors">How it works</a>
+          <a href="#demo" className="text-text-secondary dark:text-text-dark-secondary hover:text-brand-600 dark:hover:text-brand-500 transition-colors">See the difference</a>
+          <a href="#personas" className="text-text-secondary dark:text-text-dark-secondary hover:text-brand-600 dark:hover:text-brand-500 transition-colors">Personas</a>
+          <a href="#features" className="text-text-secondary dark:text-text-dark-secondary hover:text-brand-600 dark:hover:text-brand-500 transition-colors">Features</a>
+          <a href="#explore" className="text-text-secondary dark:text-text-dark-secondary hover:text-brand-600 dark:hover:text-brand-500 transition-colors">Explore</a>
+          <a href="#honesty" className="text-text-secondary dark:text-text-dark-secondary hover:text-brand-600 dark:hover:text-brand-500 transition-colors">Our promise</a>
+          <a href="#pricing" className="text-text-secondary dark:text-text-dark-secondary hover:text-brand-600 dark:hover:text-brand-500 transition-colors">Pricing</a>
+        </div>
+      </div>
 
       {/* How It Works */}
       <section id="how-it-works" className="py-24 sm:py-32">
@@ -383,25 +404,28 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-surface-border dark:border-surface-dark-border bg-surface-base dark:bg-surface-dark-base">
+      {/* Footer (Solid Orange) */}
+      <footer className="bg-brand-600 border-t border-brand-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <Logo />
+            {/* Logo box with white background so it pops on orange */}
+            <div className="bg-white p-1 rounded-lg">
+               <Logo />
+            </div>
             
-            <div className="flex flex-wrap justify-center gap-6 text-sm font-medium text-text-secondary dark:text-text-dark-secondary">
-              <Link href="/tools" className="hover:text-brand-600 transition-colors">Free Tools</Link>
-              <Link href="/examples" className="hover:text-brand-600 transition-colors">Examples</Link>
-              <Link href="/phrases" className="hover:text-brand-600 transition-colors">Dictionary</Link>
-              <Link href="/clipper" className="hover:text-brand-600 transition-colors">Web Clipper</Link>
+            <div className="flex flex-wrap justify-center gap-6 text-sm font-medium text-white/90">
+              <Link href="/tools" className="hover:text-white transition-colors">Free Tools</Link>
+              <Link href="/examples" className="hover:text-white transition-colors">Examples</Link>
+              <Link href="/phrases" className="hover:text-white transition-colors">Dictionary</Link>
+              <Link href="/clipper" className="hover:text-white transition-colors">Web Clipper</Link>
             </div>
 
-            <div className="flex flex-wrap justify-center gap-6 text-sm font-medium text-text-secondary dark:text-text-dark-secondary">
-              <Link href="/terms" className="hover:text-brand-600 transition-colors">Terms</Link>
-              <Link href="/privacy" className="hover:text-brand-600 transition-colors">Privacy</Link>
+            <div className="flex flex-wrap justify-center gap-6 text-sm font-medium text-white/90">
+              <Link href="/terms" className="hover:text-white transition-colors">Terms</Link>
+              <Link href="/privacy" className="hover:text-white transition-colors">Privacy</Link>
             </div>
           </div>
-          <div className="mt-8 text-center text-xs text-text-secondary dark:text-text-dark-secondary">
+          <div className="mt-8 text-center text-xs font-medium text-white/70">
             © {new Date().getFullYear()} Rewrite. A free writing workspace.
           </div>
         </div>
