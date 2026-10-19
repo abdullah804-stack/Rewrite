@@ -17,7 +17,6 @@ export function ShareButton({
   const [error, setError] = useState<string | null>(null);
 
   async function toggleShare(enable: boolean) {
-    // If no documentId and no textToShare, we can't share.
     if (!documentId && !textToShare) {
       setError("Nothing to share yet.");
       return;
@@ -67,36 +66,36 @@ export function ShareButton({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="h-9 px-3 rounded-lg border border-neutral-200 dark:border-neutral-700 text-xs font-medium text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+        className="h-9 px-4 rounded-xl border border-surface-border dark:border-surface-dark-border text-xs font-semibold text-text-primary dark:text-white hover:bg-surface-base dark:hover:bg-surface-dark-base transition-colors shadow-sm"
       >
         Share
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-1 w-72 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-lg z-20 p-4">
+        <div className="absolute right-0 mt-2 w-80 rounded-2xl border border-surface-border dark:border-surface-dark-border bg-surface-base dark:bg-surface-dark-base shadow-xl z-50 p-5">
           {!slug ? (
             <>
-              <p className="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
+              <p className="text-sm font-medium text-text-secondary dark:text-text-dark-secondary leading-relaxed mb-4">
                 {documentId 
                   ? "Create a public read-only link. You can turn it off any time."
                   : "Save this rewrite with a temporary 24-hour link. No account required."}
               </p>
               {error && (
-                <p className="text-xs text-red-600 dark:text-red-400 mt-2">{error}</p>
+                <p className="text-xs font-bold text-red-600 dark:text-red-400 mb-3">{error}</p>
               )}
-              <div className="flex items-center gap-2 mt-3">
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => toggleShare(true)}
                   disabled={loading}
-                  className="h-8 px-3 rounded-md bg-black dark:bg-white text-white dark:text-black text-xs font-medium hover:bg-neutral-800 dark:hover:bg-neutral-200 disabled:bg-neutral-300 dark:disabled:bg-neutral-700 transition-colors"
+                  className="h-9 px-4 rounded-lg bg-brand-600 text-white text-xs font-semibold hover:bg-brand-700 disabled:bg-surface-border transition-colors shadow-sm"
                 >
                   {loading ? "Creating…" : (documentId ? "Create link" : "Get magic link")}
                 </button>
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  className="h-8 px-3 rounded-md text-xs font-medium text-neutral-500 dark:text-neutral-400 hover:text-black dark:hover:text-white transition-colors"
+                  className="h-9 px-4 rounded-lg text-xs font-semibold text-text-secondary dark:text-text-dark-secondary hover:bg-surface-raised dark:hover:bg-surface-dark-raised transition-colors"
                 >
                   Cancel
                 </button>
@@ -104,17 +103,17 @@ export function ShareButton({
             </>
           ) : (
             <>
-              <p className="text-xs text-neutral-500 dark:text-neutral-400">Public link is on.</p>
-              <div className="mt-2 flex items-center gap-2">
+              <p className="text-sm font-bold text-text-primary dark:text-white mb-2">Public link is on.</p>
+              <div className="flex items-center gap-2 mb-3">
                 <input
                   readOnly
                   value={shareUrl ?? ""}
-                  className="flex-1 h-8 px-2 rounded-md border border-neutral-200 dark:border-neutral-700 text-xs text-black dark:text-white bg-neutral-50 dark:bg-neutral-800"
+                  className="flex-1 h-9 px-3 rounded-lg border border-surface-border dark:border-surface-dark-border text-xs font-medium text-text-primary dark:text-white bg-surface-raised dark:bg-surface-dark-raised"
                 />
                 <button
                   type="button"
                   onClick={copyLink}
-                  className="h-8 px-3 rounded-md bg-black dark:bg-white text-white dark:text-black text-xs font-medium hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-colors"
+                  className="h-9 px-4 rounded-lg bg-brand-600 text-white text-xs font-semibold hover:bg-brand-700 transition-colors shadow-sm"
                 >
                   Copy
                 </button>
@@ -123,7 +122,7 @@ export function ShareButton({
                 type="button"
                 onClick={() => toggleShare(false)}
                 disabled={loading}
-                className="mt-3 text-xs text-neutral-500 dark:text-neutral-400 hover:text-black dark:hover:text-white transition-colors"
+                className="text-xs font-semibold text-text-secondary dark:text-text-dark-secondary hover:text-red-500 transition-colors"
               >
                 {loading ? "Turning off…" : "Turn off sharing"}
               </button>

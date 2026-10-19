@@ -59,61 +59,61 @@ export function ProjectSettingsForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl">
-      <div className="p-4 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900 text-sm text-neutral-600 dark:text-neutral-400">
+    <form onSubmit={handleSubmit} className="space-y-8">
+      <div className="p-5 rounded-2xl bg-brand-50 dark:bg-brand-500/10 border border-brand-200 dark:border-brand-500/20 text-sm font-medium text-brand-800 dark:text-brand-300">
         These rules override global glossaries when you rewrite a document inside this project.
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-black dark:text-white mb-1">
+        <label className="block text-base font-bold text-text-primary dark:text-white mb-1">
           Always use these terms
         </label>
-        <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-2">Comma-separated. The AI will try to include these.</p>
+        <p className="text-sm text-text-secondary dark:text-text-dark-secondary mb-3">Comma-separated. The AI will try to include these.</p>
         <input
           type="text"
           value={alwaysUse}
           onChange={(e) => setAlwaysUse(e.target.value)}
           placeholder="e.g. AI-first, our platform, customer success"
-          className="w-full h-10 px-3 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-950 text-sm text-black dark:text-white focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-500"
+          className="w-full h-12 px-4 rounded-xl border border-surface-border dark:border-surface-dark-border bg-surface-base dark:bg-surface-dark-base text-sm font-medium text-text-primary dark:text-white placeholder:text-text-secondary dark:placeholder:text-text-dark-secondary focus:outline-none focus:border-brand-500 transition-colors shadow-sm"
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-black dark:text-white mb-1">
+        <label className="block text-base font-bold text-text-primary dark:text-white mb-1">
           Never use these terms
         </label>
-        <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-2">Comma-separated. The AI will reject any rewrite that includes these.</p>
+        <p className="text-sm text-text-secondary dark:text-text-dark-secondary mb-3">Comma-separated. The AI will reject any rewrite that includes these.</p>
         <input
           type="text"
           value={neverUse}
           onChange={(e) => setNeverUse(e.target.value)}
           placeholder="e.g. synergy, leverage, disrupt"
-          className="w-full h-10 px-3 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-950 text-sm text-black dark:text-white focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-500"
+          className="w-full h-12 px-4 rounded-xl border border-surface-border dark:border-surface-dark-border bg-surface-base dark:bg-surface-dark-base text-sm font-medium text-text-primary dark:text-white placeholder:text-text-secondary dark:placeholder:text-text-dark-secondary focus:outline-none focus:border-brand-500 transition-colors shadow-sm"
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-black dark:text-white mb-1">
+        <label className="block text-base font-bold text-text-primary dark:text-white mb-1">
           Keep exactly as is
         </label>
-        <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-2">Comma-separated. Brand names or code terms that must not be altered.</p>
+        <p className="text-sm text-text-secondary dark:text-text-dark-secondary mb-3">Comma-separated. Brand names or code terms that must not be altered.</p>
         <input
           type="text"
           value={keepAsIs}
           onChange={(e) => setKeepAsIs(e.target.value)}
           placeholder="e.g. Next.js, OpenAI, JavaScript"
-          className="w-full h-10 px-3 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-950 text-sm text-black dark:text-white focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-500"
+          className="w-full h-12 px-4 rounded-xl border border-surface-border dark:border-surface-dark-border bg-surface-base dark:bg-surface-dark-base text-sm font-medium text-text-primary dark:text-white placeholder:text-text-secondary dark:placeholder:text-text-dark-secondary focus:outline-none focus:border-brand-500 transition-colors shadow-sm"
         />
       </div>
 
-      {error && <div className="text-sm text-red-600 dark:text-red-400">{error}</div>}
-      {success && <div className="text-sm text-green-700 dark:text-green-500">Settings saved successfully.</div>}
+      <div className="pt-4 border-t border-surface-border dark:border-surface-dark-border">
+        {error && <div className="text-sm font-bold text-red-600 dark:text-red-400 mb-4">{error}</div>}
+        {success && <div className="text-sm font-bold text-green-600 dark:text-green-500 mb-4">Settings saved successfully.</div>}
 
-      <div className="pt-2">
         <button
           type="submit"
           disabled={loading}
-          className="h-10 px-5 rounded-lg bg-black dark:bg-white text-white dark:text-black text-sm font-medium hover:bg-neutral-800 dark:hover:bg-neutral-200 disabled:bg-neutral-300 dark:disabled:bg-neutral-700 transition-colors"
+          className="h-12 px-8 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 disabled:bg-surface-border dark:disabled:bg-surface-dark-border disabled:text-text-secondary dark:disabled:text-text-dark-secondary transition-all shadow-sm hover:shadow-md"
         >
           {loading ? "Saving..." : "Save project settings"}
         </button>
