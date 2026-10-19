@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useEffect } from "react";
-import { splitSentences } from "@/lib/pipeline/metrics";
 
 export function HeatmapEditor({
   text,
@@ -15,7 +14,6 @@ export function HeatmapEditor({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
 
-  // Sync scroll between textarea and overlay
   function handleScroll() {
     if (textareaRef.current && overlayRef.current) {
       overlayRef.current.scrollTop = textareaRef.current.scrollTop;
@@ -23,13 +21,11 @@ export function HeatmapEditor({
     }
   }
 
-  // Simple highlighting logic based on our metrics
   function renderHighlightedText() {
     if (!text) {
-      return <span className="text-neutral-400 dark:text-neutral-500">{placeholder}</span>;
+      return <span className="text-text-secondary">{placeholder}</span>;
     }
 
-    // Split by sentence, but keep the spaces/newlines
     const sentences = text.match(/[^.!?]+[.!?]*\s*/g) || [text];
     
     return sentences.map((sentence, i) => {
@@ -39,11 +35,11 @@ export function HeatmapEditor({
       
       let bgClass = "";
       if (words > 25) {
-        bgClass = "bg-red-200/50 dark:bg-red-900/40"; // Too long
+        bgClass = "bg-red-200/50"; 
       } else if (isPassive) {
-        bgClass = "bg-yellow-200/50 dark:bg-yellow-900/40"; // Passive
+        bgClass = "bg-yellow-200/50"; 
       } else if (hasWordyPhrase) {
-        bgClass = "bg-blue-200/50 dark:bg-blue-900/40"; // Wordy
+        bgClass = "bg-blue-200/50"; 
       }
 
       return (
@@ -56,7 +52,6 @@ export function HeatmapEditor({
 
   return (
     <div className="relative w-full h-full">
-      {/* The colored background layer */}
       <div
         ref={overlayRef}
         className="absolute inset-0 p-4 text-sm leading-relaxed whitespace-pre-wrap break-words pointer-events-none overflow-hidden text-transparent"
@@ -65,13 +60,12 @@ export function HeatmapEditor({
         {renderHighlightedText()}
       </div>
 
-      {/* The actual typing layer (transparent text) */}
       <textarea
         ref={textareaRef}
         value={text}
         onChange={(e) => onChange(e.target.value)}
         onScroll={handleScroll}
-        className="absolute inset-0 w-full h-full p-4 text-sm leading-relaxed bg-transparent text-black dark:text-white caret-black dark:caret-white placeholder-transparent resize-none focus:outline-none z-10"
+        className="absolute inset-0 w-full h-full p-4 text-sm leading-relaxed bg-transparent text-text-primary caret-text-primary placeholder-transparent resize-none focus:outline-none z-10"
         placeholder={placeholder}
         spellCheck={false}
       />

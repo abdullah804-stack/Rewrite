@@ -46,7 +46,7 @@ export function ProfilePicker({
 
   if (!loaded) {
     return (
-      <div className="text-xs text-neutral-400 h-9 flex items-center px-3">
+      <div className="text-xs text-text-secondary h-9 flex items-center px-3">
         Loading voices…
       </div>
     );
@@ -66,7 +66,7 @@ export function ProfilePicker({
   const selectedProfile = profiles.find((p) => p.id === value);
 
   return (
-    <div className="relative flex items-center bg-surface-base dark:bg-surface-dark-base border border-surface-border dark:border-surface-dark-border rounded-lg h-9 px-3 shadow-sm">
+    <div className="relative flex items-center bg-surface-base border border-surface-border rounded-lg h-9 px-3 shadow-sm">
       {selectedProfile && (
         <div className="mr-2">
           <Avatar id={selectedProfile.avatar || "minimalist"} className="w-5 h-5" />
@@ -75,7 +75,7 @@ export function ProfilePicker({
       <select
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value || null)}
-        className="appearance-none bg-transparent text-sm font-semibold text-text-primary dark:text-white focus:outline-none pr-6 cursor-pointer"
+        className="appearance-none bg-transparent text-sm font-semibold text-text-primary focus:outline-none pr-6 cursor-pointer"
       >
         <option value="" className="text-text-primary">Default (natural)</option>
         {profiles.map((p) => (

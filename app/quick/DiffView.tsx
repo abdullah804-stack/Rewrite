@@ -8,7 +8,6 @@ import {
 } from "@/lib/pipeline/diff";
 import { ExportMenu } from "./ExportMenu";
 
-// Helper to map reasons to educational explanations
 function getExplanation(reason: string): string | null {
   if (!reason) return null;
   if (reason.includes("Shortened")) return "AI tends to pad sentences with filler words. Shorter sentences are easier to read and sound more confident.";
@@ -28,7 +27,7 @@ function ChangeReason({ reason }: { reason: string }) {
 
   return (
     <div className="flex items-center gap-1.5 mt-2">
-      <p className="text-xs text-neutral-400 dark:text-neutral-500">{reason}</p>
+      <p className="text-xs text-text-secondary">{reason}</p>
       {explanation && (
         <div 
           className="relative flex items-center"
@@ -37,15 +36,15 @@ function ChangeReason({ reason }: { reason: string }) {
         >
           <button
             type="button"
-            className="w-4 h-4 rounded-full flex items-center justify-center bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
+            className="w-4 h-4 rounded-full flex items-center justify-center bg-surface-raised text-text-secondary hover:bg-surface-border transition-colors"
           >
             <span className="text-[10px] font-bold">?</span>
           </button>
           
           {show && (
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 p-2.5 rounded-lg bg-black dark:bg-white text-white dark:text-black text-xs leading-relaxed shadow-lg z-50 pointer-events-none">
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 p-2.5 rounded-lg bg-black text-white text-xs leading-relaxed shadow-lg z-50 pointer-events-none">
               {explanation}
-              <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-black dark:border-t-white"></div>
+              <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-black"></div>
             </div>
           )}
         </div>
@@ -201,8 +200,8 @@ export function DiffView({
           onClick={handleSpeak}
           className={`h-9 px-3 rounded-lg border text-xs font-medium transition-colors flex items-center gap-2 ${
             speaking
-              ? "border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400"
-              : "border-neutral-200 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800"
+              ? "border-red-200 bg-red-50 text-red-700"
+              : "border-surface-border text-text-primary hover:bg-surface-raised"
           }`}
         >
           {speaking ? (
@@ -218,29 +217,29 @@ export function DiffView({
           )}
         </button>
 
-        <div className="h-6 border-l border-neutral-200 dark:border-neutral-800 mx-1"></div>
+        <div className="h-6 border-l border-surface-border mx-1"></div>
 
         <button
           type="button"
           onClick={acceptAll}
-          className="h-9 px-3 rounded-lg border border-neutral-200 dark:border-neutral-700 text-xs font-medium text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+          className="h-9 px-3 rounded-lg border border-surface-border text-xs font-medium text-text-primary hover:bg-surface-raised transition-colors"
         >
           Accept all
         </button>
         <button
           type="button"
           onClick={rejectAll}
-          className="h-9 px-3 rounded-lg border border-neutral-200 dark:border-neutral-700 text-xs font-medium text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
+          className="h-9 px-3 rounded-lg border border-surface-border text-xs font-medium text-text-primary hover:bg-surface-raised transition-colors"
         >
           Reject all
         </button>
-        <span className="text-xs text-neutral-400 dark:text-neutral-500 ml-auto">
+        <span className="text-xs text-text-secondary ml-auto">
           {diff.changedCount} changed · {diff.unchangedCount} kept
         </span>
       </div>
 
       {regenError && (
-        <div className="text-xs text-red-600 dark:text-red-400 mb-3">{regenError}</div>
+        <div className="text-xs text-red-600 mb-3">{regenError}</div>
       )}
 
       <div className="space-y-3">
@@ -256,15 +255,15 @@ export function DiffView({
               onDragOver={(e) => handleDragOver(e, i)}
               onDragEnd={handleDragEnd}
               className={`group relative p-3 pl-10 rounded-lg border transition-all ${
-                isDragging ? "opacity-50 border-black dark:border-white" : ""
+                isDragging ? "opacity-50 border-black" : ""
               } ${
                 seg.accepted
-                  ? "border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900"
-                  : "border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/50 opacity-60"
+                  ? "border-surface-border bg-surface-base"
+                  : "border-surface-border bg-surface-raised opacity-60"
               }`}
             >
               <div 
-                className="absolute left-3 top-3 bottom-3 w-4 flex items-center justify-center cursor-grab active:cursor-grabbing text-neutral-300 dark:text-neutral-600 hover:text-black dark:hover:text-white"
+                className="absolute left-3 top-3 bottom-3 w-4 flex items-center justify-center cursor-grab active:cursor-grabbing text-text-secondary hover:text-text-primary"
                 title="Drag to reorder"
               >
                 <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current">
@@ -273,7 +272,7 @@ export function DiffView({
               </div>
 
               <div className="flex items-center justify-between gap-3 mb-2">
-                <span className="text-xs text-neutral-400 dark:text-neutral-500 uppercase tracking-wide">
+                <span className="text-xs text-text-secondary uppercase tracking-wide">
                   {seg.original ? (seg.changed ? "Change" : "Kept") : "Added"}
                 </span>
                 <div className="flex items-center gap-3">
@@ -282,7 +281,7 @@ export function DiffView({
                       type="button"
                       onClick={() => regenerate(i)}
                       disabled={isRegenerating}
-                      className="text-xs font-medium text-neutral-500 dark:text-neutral-400 hover:text-black dark:hover:text-white disabled:text-neutral-300 dark:disabled:text-neutral-600 transition-colors"
+                      className="text-xs font-medium text-text-secondary hover:text-text-primary disabled:text-surface-border transition-colors"
                     >
                       {isRegenerating ? "…" : "Regenerate"}
                     </button>
@@ -293,8 +292,8 @@ export function DiffView({
                       onClick={() => toggle(i)}
                       className={`text-xs font-medium transition-colors ${
                         seg.accepted
-                          ? "text-neutral-500 dark:text-neutral-400 hover:text-black dark:hover:text-white"
-                          : "text-neutral-400 dark:text-neutral-500 hover:text-black dark:hover:text-white"
+                          ? "text-text-secondary hover:text-text-primary"
+                          : "text-text-secondary hover:text-text-primary"
                       }`}
                     >
                       {seg.accepted ? "Reject" : "Accept"}
@@ -304,13 +303,13 @@ export function DiffView({
               </div>
 
               {seg.original && seg.changed && (
-                <p className="text-sm text-neutral-400 dark:text-neutral-500 line-through leading-relaxed mb-1">
+                <p className="text-sm text-text-secondary line-through leading-relaxed mb-1">
                   {seg.original}
                 </p>
               )}
 
               {(!seg.original || !seg.changed) && seg.original && (
-                <p className="text-sm text-neutral-500 dark:text-neutral-400 leading-relaxed">
+                <p className="text-sm text-text-secondary leading-relaxed">
                   {seg.original}
                 </p>
               )}
@@ -318,7 +317,7 @@ export function DiffView({
               {seg.changed && (
                 <p
                   className={`text-sm leading-relaxed ${
-                    seg.accepted ? "text-black dark:text-white" : "text-neutral-500 dark:text-neutral-400"
+                    seg.accepted ? "text-text-primary" : "text-text-secondary"
                   }`}
                 >
                   {seg.rewritten}
