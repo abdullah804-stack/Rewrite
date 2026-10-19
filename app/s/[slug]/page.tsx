@@ -37,25 +37,28 @@ export default async function SharedDocumentPage({ params }: PageProps) {
   const rewrittenText = rewrite?.content ?? "";
 
   return (
-    <main className="min-h-screen bg-white dark:bg-neutral-950 text-black dark:text-white transition-colors">
-      <header className="border-b border-neutral-200 dark:border-neutral-800">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-          <Link href="/" className="text-sm font-medium text-black dark:text-white">
+    <main className="min-h-screen bg-surface-base dark:bg-surface-dark-base text-text-primary dark:text-text-dark-primary transition-colors">
+      <header className="border-b border-surface-border dark:border-surface-dark-border bg-surface-base dark:bg-surface-dark-base">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+          <Link href="/" className="text-lg font-bold tracking-tight flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-brand-600 text-white flex items-center justify-center text-sm font-black shadow-sm">
+              R
+            </div>
             Rewrite
           </Link>
-          <Link href="/quick" className="text-sm text-neutral-500 dark:text-neutral-400 hover:text-black dark:hover:text-white transition-colors">
+          <Link href="/quick" className="text-sm font-semibold text-brand-600 hover:text-brand-700 transition-colors">
             Try the tool
           </Link>
         </div>
       </header>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
-        <div className="mb-8">
-          <h1 className="text-2xl sm:text-3xl font-semibold text-black dark:text-white">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-12">
+        <div className="mb-10 text-center sm:text-left">
+          <h1 className="text-3xl font-extrabold text-text-primary dark:text-white tracking-tight">
             {doc.title}
           </h1>
-          <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-2">
-            Shared {new Date(doc.updatedAt).toLocaleDateString()} · Review mode
+          <p className="text-sm font-medium text-text-secondary dark:text-text-dark-secondary mt-2">
+            Shared on {new Date(doc.updatedAt).toLocaleDateString()} · Review mode
           </p>
         </div>
 

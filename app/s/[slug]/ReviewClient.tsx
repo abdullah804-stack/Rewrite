@@ -50,70 +50,76 @@ export function ReviewClient({
   }
 
   return (
-    <div className="flex flex-col lg:flex-row gap-8">
+    <div className="flex flex-col lg:flex-row gap-8 items-start">
       {/* Text Area */}
-      <div className="flex-1 space-y-8">
+      <div className="flex-1 w-full space-y-6">
         <div>
-          <h2 className="text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wide mb-3">Original Draft</h2>
-          <div className="p-4 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900 text-sm whitespace-pre-wrap leading-relaxed text-neutral-600 dark:text-neutral-400">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-xs font-bold text-text-secondary dark:text-text-dark-secondary uppercase tracking-widest">Original Draft</h2>
+            <span className="text-xs font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 px-2 py-1 rounded">Before</span>
+          </div>
+          <div className="p-6 rounded-2xl border border-surface-border dark:border-surface-dark-border bg-surface-raised dark:bg-surface-dark-raised text-sm whitespace-pre-wrap leading-relaxed text-text-secondary dark:text-text-dark-secondary shadow-sm">
             {original || "No original text provided."}
           </div>
         </div>
 
         <div>
-          <h2 className="text-xs font-medium text-green-700 dark:text-green-500 uppercase tracking-wide mb-3">Rewritten Version</h2>
-          <div className="p-4 rounded-lg border border-green-200 dark:border-green-900/50 bg-green-50/30 dark:bg-green-950/20 text-sm whitespace-pre-wrap leading-relaxed text-black dark:text-white">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-xs font-bold text-text-secondary dark:text-text-dark-secondary uppercase tracking-widest">Rewritten Version</h2>
+            <span className="text-xs font-semibold text-brand-700 dark:text-brand-400 bg-brand-50 dark:bg-brand-500/10 px-2 py-1 rounded">After</span>
+          </div>
+          <div className="p-6 rounded-2xl border-2 border-brand-500 bg-surface-base dark:bg-surface-dark-base text-sm whitespace-pre-wrap leading-relaxed text-text-primary dark:text-white shadow-md">
             {rewritten || "No rewritten text provided."}
           </div>
         </div>
       </div>
 
       {/* Comments Sidebar */}
-      <div className="w-full lg:w-80 shrink-0">
-        <h2 className="text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wide mb-3">Comments</h2>
+      <div className="w-full lg:w-96 shrink-0">
+        <h2 className="text-xs font-bold text-text-secondary dark:text-text-dark-secondary uppercase tracking-widest mb-3">Comments</h2>
         
         <div className="space-y-3 mb-6 max-h-[500px] overflow-y-auto pr-2">
           {comments.length === 0 && (
-            <p className="text-sm text-neutral-400 dark:text-neutral-500 italic">No comments yet. Be the first to review.</p>
+            <p className="text-sm font-medium text-text-secondary dark:text-text-dark-secondary italic p-4 rounded-xl bg-surface-raised dark:bg-surface-dark-raised border border-surface-border dark:border-surface-dark-border text-center">No comments yet. Be the first to review.</p>
           )}
           {comments.map((c) => (
-            <div key={c.id} className="p-3 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 text-sm">
-              <div className="flex items-center justify-between mb-1">
-                <span className="font-medium text-black dark:text-white">{c.authorName}</span>
-                <span className="text-[10px] text-neutral-400">
+            <div key={c.id} className="p-4 rounded-xl border border-surface-border dark:border-surface-dark-border bg-surface-raised dark:bg-surface-dark-raised text-sm shadow-sm">
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-bold text-text-primary dark:text-white">{c.authorName}</span>
+                <span className="text-[10px] font-medium text-text-secondary dark:text-text-dark-secondary bg-surface-base dark:bg-surface-dark-base px-2 py-0.5 rounded border border-surface-border dark:border-surface-dark-border">
                   {new Date(c.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>
-              <p className="text-neutral-600 dark:text-neutral-400 leading-relaxed">{c.content}</p>
+              <p className="text-text-secondary dark:text-text-dark-secondary leading-relaxed">{c.content}</p>
             </div>
           ))}
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-3 p-4 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900">
+        <form onSubmit={handleSubmit} className="space-y-4 p-5 rounded-2xl border border-surface-border dark:border-surface-dark-border bg-surface-raised dark:bg-surface-dark-raised shadow-sm">
           <div>
-            <label className="block text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-1">Your name</label>
+            <label className="block text-xs font-bold text-text-primary dark:text-white uppercase tracking-widest mb-2">Your name</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full h-8 px-2 rounded border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-950 text-xs focus:outline-none focus:border-neutral-400"
+              className="w-full h-10 px-3 rounded-lg border border-surface-border dark:border-surface-dark-border bg-surface-base dark:bg-surface-dark-base text-sm text-text-primary dark:text-white focus:outline-none focus:border-brand-500 transition-colors"
               placeholder="e.g. Alex"
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-neutral-500 dark:text-neutral-400 mb-1">Comment</label>
+            <label className="block text-xs font-bold text-text-primary dark:text-white uppercase tracking-widest mb-2">Comment</label>
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
               rows={3}
-              className="w-full p-2 rounded border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-950 text-xs focus:outline-none focus:border-neutral-400 resize-none"
+              className="w-full p-3 rounded-lg border border-surface-border dark:border-surface-dark-border bg-surface-base dark:bg-surface-dark-base text-sm text-text-primary dark:text-white focus:outline-none focus:border-brand-500 resize-none transition-colors"
               placeholder="Leave feedback..."
             />
           </div>
           <button
             type="submit"
             disabled={loading || !name.trim() || !content.trim()}
-            className="w-full h-8 rounded bg-black dark:bg-white text-white dark:text-black text-xs font-medium hover:bg-neutral-800 dark:hover:bg-neutral-200 disabled:bg-neutral-300 transition-colors"
+            className="w-full h-10 rounded-lg bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 disabled:bg-surface-border dark:disabled:bg-surface-dark-border disabled:text-text-secondary dark:disabled:text-text-dark-secondary transition-colors shadow-sm"
           >
             {loading ? "Posting..." : "Post comment"}
           </button>
