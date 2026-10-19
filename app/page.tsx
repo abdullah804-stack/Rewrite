@@ -22,7 +22,7 @@ export default async function Home() {
             ) : (
               <Link 
                 href="/login" 
-                className="text-sm font-semibold bg-surface-base dark:bg-surface-dark-base border border-brand-600 dark:border-brand-600 text-text-primary dark:text-white px-5 py-2.5 rounded-lg hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-all shadow-sm"
+                className="text-sm font-semibold bg-surface-base dark:bg-surface-dark-base border border-brand-600 text-brand-600 dark:text-brand-500 px-5 py-2.5 rounded-lg hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-all shadow-sm"
               >
                 Sign in
               </Link>
@@ -76,27 +76,27 @@ export default async function Home() {
             <p className="text-lg text-text-secondary dark:text-text-dark-secondary mt-4">We don't just replace words. We interpret your intent, execute a rewrite, and mathematically validate the output.</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12 relative">
-            <div className="hidden md:block absolute top-12 left-[15%] right-[15%] h-0.5 bg-brand-600 -z-10"></div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
+            <div className="hidden md:block absolute top-1/2 left-[15%] right-[15%] h-0.5 bg-brand-600 -z-10"></div>
 
-            <div className="text-center group hover:-translate-y-2 transition-transform duration-300">
-              <div className="w-24 h-24 mx-auto bg-surface-base dark:bg-surface-dark-raised border-4 border-brand-600 rounded-full flex items-center justify-center text-brand-600 shadow-sm relative z-10 mb-6 group-hover:scale-110 transition-transform">
+            <div className="p-8 rounded-3xl bg-surface-raised dark:bg-surface-dark-raised border border-brand-600 hover:border-brand-800 transition-all duration-300 hover:-translate-y-2 hover:shadow-lg text-center group">
+              <div className="w-24 h-24 mx-auto bg-surface-base dark:bg-surface-dark-base border-4 border-brand-600 rounded-full flex items-center justify-center text-brand-600 shadow-sm relative z-10 mb-6 group-hover:scale-110 transition-transform">
                 <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
               </div>
               <h3 className="text-xl font-bold text-text-primary dark:text-white mb-3">1. Paste your draft</h3>
               <p className="text-sm text-text-secondary dark:text-text-dark-secondary leading-relaxed">Drop in a ChatGPT or Claude draft. We instantly scan it for AI-isms, unsourced claims, and readability issues.</p>
             </div>
 
-            <div className="text-center group hover:-translate-y-2 transition-transform duration-300">
-              <div className="w-24 h-24 mx-auto bg-surface-base dark:bg-surface-dark-raised border-4 border-brand-600 rounded-full flex items-center justify-center text-brand-600 shadow-sm relative z-10 mb-6 group-hover:scale-110 transition-transform">
+            <div className="p-8 rounded-3xl bg-surface-raised dark:bg-surface-dark-raised border border-brand-600 hover:border-brand-800 transition-all duration-300 hover:-translate-y-2 hover:shadow-lg text-center group">
+              <div className="w-24 h-24 mx-auto bg-surface-base dark:bg-surface-dark-base border-4 border-brand-600 rounded-full flex items-center justify-center text-brand-600 shadow-sm relative z-10 mb-6 group-hover:scale-110 transition-transform">
                 <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
               </div>
               <h3 className="text-xl font-bold text-text-primary dark:text-white mb-3">2. Choose your voice</h3>
               <p className="text-sm text-text-secondary dark:text-text-dark-secondary leading-relaxed">Select your pre-built Voice Profile. The AI adapts to your specific tone, sentence length, and directness.</p>
             </div>
 
-            <div className="text-center group hover:-translate-y-2 transition-transform duration-300">
-              <div className="w-24 h-24 mx-auto bg-surface-base dark:bg-surface-dark-raised border-4 border-brand-600 rounded-full flex items-center justify-center text-brand-600 shadow-sm relative z-10 mb-6 group-hover:scale-110 transition-transform">
+            <div className="p-8 rounded-3xl bg-surface-raised dark:bg-surface-dark-raised border border-brand-600 hover:border-brand-800 transition-all duration-300 hover:-translate-y-2 hover:shadow-lg text-center group">
+              <div className="w-24 h-24 mx-auto bg-surface-base dark:bg-surface-dark-base border-4 border-brand-600 rounded-full flex items-center justify-center text-brand-600 shadow-sm relative z-10 mb-6 group-hover:scale-110 transition-transform">
                 <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
               </div>
               <h3 className="text-xl font-bold text-text-primary dark:text-white mb-3">3. Review the diff</h3>
