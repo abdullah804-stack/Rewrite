@@ -162,6 +162,7 @@ exports.Prisma.VoiceProfileScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
   name: 'name',
+  avatar: 'avatar',
   depth: 'depth',
   profile: 'profile',
   coachScore: 'coachScore',
@@ -225,8 +226,17 @@ exports.Prisma.ProjectScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
   name: 'name',
+  glossary: 'glossary',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
+};
+
+exports.Prisma.CommentScalarFieldEnum = {
+  id: 'id',
+  documentId: 'documentId',
+  authorName: 'authorName',
+  content: 'content',
+  createdAt: 'createdAt'
 };
 
 exports.Prisma.SortOrder = {
@@ -280,7 +290,8 @@ exports.Prisma.ModelName = {
   Document: 'Document',
   Revision: 'Revision',
   UsageEvent: 'UsageEvent',
-  Project: 'Project'
+  Project: 'Project',
+  Comment: 'Comment'
 };
 
 /**

@@ -71,6 +71,7 @@ model VoiceProfile {
   userId      String
   user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   name        String
+  avatar      String     @default("minimalist")
   depth       String     @default("full")
   profile     Json
   coachScore  Int?
@@ -112,6 +113,7 @@ model Document {
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
   revisions Revision[]
+  comments  Comment[]
   projectId String?
   project   Project?      @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
@@ -169,9 +171,19 @@ model Project {
   userId    String
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   name      String
+  glossary  Json? // Add this line
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
   documents Document[]
 
   @@index([userId])
+}
+
+model Comment {
+  id         String   @id @default(cuid())
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  authorName String
+  content    String
+  createdAt  DateTime @default(now())
 }

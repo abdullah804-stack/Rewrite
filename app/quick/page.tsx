@@ -1,5 +1,9 @@
 "use client";
 
+import { Logo } from "@/app/Logo";
+
+
+
 import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { ProfilePicker } from "./ProfilePicker";
@@ -238,12 +242,7 @@ export default function QuickPage() {
       <header className="border-b border-surface-border dark:border-surface-dark-border shrink-0 bg-surface-base dark:bg-surface-dark-base">
         <div className="px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link href="/" className="text-lg font-bold tracking-tight flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-brand-600 text-white flex items-center justify-center text-sm font-black shadow-sm">
-                R
-              </div>
-              Rewrite
-            </Link>
+            <Logo />
             <span className="text-surface-border dark:text-surface-dark-border">/</span>
             <Link href="/workspace" className="text-sm font-medium text-text-secondary dark:text-text-dark-secondary hover:text-brand-600 dark:hover:text-brand-500 transition-colors">
               Workspace

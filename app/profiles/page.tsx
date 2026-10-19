@@ -1,10 +1,19 @@
+import { Logo } from "@/app/Logo";
 import { auth, signOut } from "@/auth";
+
+
 import { redirect } from "next/navigation";
+
 import Link from "next/link";
+
 import { prisma } from "@/lib/prisma";
+
 import { NewProfileForm } from "./NewProfileForm";
+
 import { ThemeToggle } from "../ThemeToggle";
+
 import { Avatar } from "@/lib/avatars";
+
 
 export default async function ProfilesPage() {
   const session = await auth();
@@ -19,12 +28,7 @@ export default async function ProfilesPage() {
     <main className="min-h-screen bg-surface-base dark:bg-surface-dark-base text-text-primary dark:text-text-dark-primary transition-colors">
       <header className="border-b border-surface-border dark:border-surface-dark-border sticky top-0 bg-surface-base/80 dark:bg-surface-dark-base/80 backdrop-blur-md z-40">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="text-lg font-bold tracking-tight flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-brand-600 text-white flex items-center justify-center text-sm font-black shadow-sm">
-              R
-            </div>
-            Rewrite
-          </Link>
+          <Logo />
           <div className="flex items-center gap-4 sm:gap-6">
             <ThemeToggle />
             <Link

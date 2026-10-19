@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { auth } from "@/auth";
 import { AVATARS, Avatar } from "@/lib/avatars";
+import { Logo } from "./Logo";
 
 export default async function Home() {
   const session = await auth();
@@ -11,12 +12,7 @@ export default async function Home() {
       {/* Primary Header */}
       <header className="border-b border-surface-border dark:border-surface-dark-border sticky top-0 bg-surface-base/80 dark:bg-surface-dark-base/80 backdrop-blur-md z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="text-lg font-bold tracking-tight flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-brand-600 text-white flex items-center justify-center text-sm font-black shadow-sm">
-              R
-            </div>
-            Rewrite
-          </Link>
+          <Logo />
           <nav className="flex items-center gap-4 sm:gap-8">
             <Link href="#how-it-works" className="text-sm font-medium text-text-secondary dark:text-text-dark-secondary hover:text-text-primary dark:hover:text-white transition-colors hidden md:inline">
               How it works
@@ -163,7 +159,6 @@ export default async function Home() {
 
       {/* Personas Section (Solid Orange Background & White Text) */}
       <section id="personas" className="bg-brand-600 py-24 sm:py-32 relative overflow-hidden">
-        {/* Subtle texture/depth overlay */}
         <div className="absolute inset-0 bg-black/5 pointer-events-none"></div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 relative z-10">
@@ -371,12 +366,7 @@ export default async function Home() {
       <footer className="border-t border-surface-border dark:border-surface-dark-border bg-surface-base dark:bg-surface-dark-base">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded bg-brand-600 text-white flex items-center justify-center text-xs font-black">
-                R
-              </div>
-              <span className="text-base font-bold text-text-primary dark:text-white">Rewrite</span>
-            </div>
+            <Logo />
             
             <div className="flex flex-wrap justify-center gap-6 text-sm font-medium text-text-secondary dark:text-text-dark-secondary">
               <Link href="/tools" className="hover:text-brand-600 transition-colors">Free Tools</Link>

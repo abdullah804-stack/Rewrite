@@ -1,3 +1,4 @@
+import { Logo } from "@/app/Logo";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { phrases } from "@/lib/phrases";
@@ -38,12 +39,7 @@ export default async function PhrasePage({ params }: PageProps) {
     <main className="min-h-screen bg-surface-base dark:bg-surface-dark-base text-text-primary dark:text-text-dark-primary transition-colors">
       <header className="border-b border-surface-border dark:border-surface-dark-border sticky top-0 bg-surface-base/80 dark:bg-surface-dark-base/80 backdrop-blur-md z-40">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="text-lg font-bold tracking-tight flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-brand-600 text-white flex items-center justify-center text-sm font-black shadow-sm">
-              R
-            </div>
-            Rewrite
-          </Link>
+          <Logo />
           <Link href="/phrases" className="text-sm font-medium text-text-secondary dark:text-text-dark-secondary hover:text-brand-600 dark:hover:text-brand-500 transition-colors">
             All phrases
           </Link>

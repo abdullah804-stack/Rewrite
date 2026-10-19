@@ -1,3 +1,4 @@
+import { Logo } from "@/app/Logo";
 import { signIn } from "@/auth";
 import Link from "next/link";
 
@@ -9,12 +10,9 @@ export default function LoginPage() {
         {/* Decorative background element */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-brand-500/10 dark:bg-brand-500/5 blur-[100px] rounded-full pointer-events-none"></div>
         
-        <Link href="/" className="text-lg font-bold tracking-tight flex items-center gap-2 relative z-10">
-          <div className="w-8 h-8 rounded-lg bg-brand-600 text-white flex items-center justify-center text-sm font-black shadow-sm">
-            R
-          </div>
-          Rewrite
-        </Link>
+        <div className="relative z-10">
+          <Logo />
+        </div>
         
         <div className="max-w-md relative z-10">
           <h1 className="text-4xl font-extrabold text-text-primary dark:text-white leading-[1.1] tracking-tight">
@@ -36,12 +34,7 @@ export default function LoginPage() {
       <div className="flex-1 flex flex-col justify-center px-4 sm:px-6 lg:px-12 relative z-10">
         <div className="mx-auto w-full max-w-sm">
           <div className="lg:hidden mb-12 flex justify-center">
-            <Link href="/" className="text-lg font-bold tracking-tight flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-brand-600 text-white flex items-center justify-center text-sm font-black shadow-sm">
-                R
-              </div>
-              Rewrite
-            </Link>
+            <Logo />
           </div>
 
           <h2 className="text-3xl font-extrabold text-text-primary dark:text-white tracking-tight">Sign in</h2>
