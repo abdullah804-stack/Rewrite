@@ -18,26 +18,29 @@ export default async function ProjectSettingsPage({ params }: { params: Promise<
   if (!project) notFound();
 
   return (
-    <main className="min-h-screen bg-white dark:bg-neutral-950 text-black dark:text-white transition-colors">
-      <header className="border-b border-neutral-200 dark:border-neutral-800">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+    <main className="min-h-screen bg-surface-base dark:bg-surface-dark-base text-text-primary dark:text-text-dark-primary transition-colors">
+      <header className="border-b border-surface-border dark:border-surface-dark-border sticky top-0 bg-surface-base/80 dark:bg-surface-dark-base/80 backdrop-blur-md z-40">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link href="/" className="text-sm font-medium text-black dark:text-white">
+            <Link href="/" className="text-lg font-bold tracking-tight flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-brand-600 text-white flex items-center justify-center text-sm font-black shadow-sm">
+                R
+              </div>
               Rewrite
             </Link>
-            <span className="text-neutral-300 dark:text-neutral-700">/</span>
-            <Link href="/workspace" className="text-sm text-neutral-500 dark:text-neutral-400 hover:text-black dark:hover:text-white transition-colors">
+            <span className="text-surface-border dark:text-surface-dark-border">/</span>
+            <Link href="/workspace" className="text-sm font-medium text-text-secondary dark:text-text-dark-secondary hover:text-brand-600 dark:hover:text-brand-500 transition-colors">
               Workspace
             </Link>
-            <span className="text-neutral-300 dark:text-neutral-700">/</span>
-            <Link href={`/workspace/${project.id}`} className="text-sm text-neutral-500 dark:text-neutral-400 hover:text-black dark:hover:text-white transition-colors">
+            <span className="text-surface-border dark:text-surface-dark-border">/</span>
+            <Link href={`/workspace/${project.id}`} className="text-sm font-medium text-text-secondary dark:text-text-dark-secondary hover:text-brand-600 dark:hover:text-brand-500 transition-colors">
               {project.name}
             </Link>
           </div>
-          <div className="flex items-center gap-3 sm:gap-4">
+          <div className="flex items-center gap-4 sm:gap-6">
             <ThemeToggle />
             <form action={async () => { "use server"; await signOut({ redirectTo: "/" }); }}>
-              <button type="submit" className="text-sm text-neutral-500 dark:text-neutral-400 hover:text-black dark:hover:text-white transition-colors">
+              <button type="submit" className="text-sm font-medium text-text-secondary dark:text-text-dark-secondary hover:text-brand-600 dark:hover:text-brand-500 transition-colors">
                 Sign out
               </button>
             </form>
@@ -45,15 +48,17 @@ export default async function ProjectSettingsPage({ params }: { params: Promise<
         </div>
       </header>
 
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
-        <h1 className="text-2xl sm:text-3xl font-semibold text-black dark:text-white">
-          Project settings
-        </h1>
-        <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-2">
-          Configure rules specifically for <strong className="text-black dark:text-white">{project.name}</strong>.
-        </p>
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+        <div className="mb-10">
+          <h1 className="text-3xl font-extrabold tracking-tight text-text-primary dark:text-white">
+            Project settings
+          </h1>
+          <p className="text-base text-text-secondary dark:text-text-dark-secondary mt-2">
+            Configure rules specifically for <strong className="text-text-primary dark:text-white">{project.name}</strong>.
+          </p>
+        </div>
 
-        <div className="mt-8">
+        <div className="p-6 sm:p-10 rounded-3xl border border-surface-border dark:border-surface-dark-border bg-surface-raised dark:bg-surface-dark-raised shadow-sm">
           <ProjectSettingsForm projectId={project.id} initialGlossary={project.glossary} />
         </div>
       </div>

@@ -38,7 +38,7 @@ export default async function SharedDocumentPage({ params }: PageProps) {
 
   return (
     <main className="min-h-screen bg-surface-base dark:bg-surface-dark-base text-text-primary dark:text-text-dark-primary transition-colors">
-      <header className="border-b border-surface-border dark:border-surface-dark-border bg-surface-base dark:bg-surface-dark-base">
+      <header className="border-b border-surface-border dark:border-surface-dark-border sticky top-0 bg-surface-base/80 dark:bg-surface-dark-base/80 backdrop-blur-md z-40">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <Link href="/" className="text-lg font-bold tracking-tight flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-brand-600 text-white flex items-center justify-center text-sm font-black shadow-sm">
@@ -54,11 +54,14 @@ export default async function SharedDocumentPage({ params }: PageProps) {
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-12">
         <div className="mb-10 text-center sm:text-left">
-          <h1 className="text-3xl font-extrabold text-text-primary dark:text-white tracking-tight">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-50 dark:bg-brand-500/10 border border-brand-200 dark:border-brand-500/20 text-brand-700 dark:text-brand-500 text-xs font-bold tracking-wide uppercase mb-4 shadow-sm">
+            Review Mode
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-text-primary dark:text-white tracking-tight">
             {doc.title}
           </h1>
           <p className="text-sm font-medium text-text-secondary dark:text-text-dark-secondary mt-2">
-            Shared on {new Date(doc.updatedAt).toLocaleDateString()} · Review mode
+            Shared on {new Date(doc.updatedAt).toLocaleDateString()}
           </p>
         </div>
 
