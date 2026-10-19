@@ -20,8 +20,8 @@ export default async function Home() {
             <Link href="#features" className="text-sm font-medium text-text-secondary dark:text-text-dark-secondary hover:text-text-primary dark:hover:text-white transition-colors hidden md:inline">
               Features
             </Link>
-            <Link href="/tools" className="text-sm font-medium text-text-secondary dark:text-text-dark-secondary hover:text-text-primary dark:hover:text-white transition-colors hidden sm:inline">
-              Free tools
+            <Link href="#explore" className="text-sm font-medium text-text-secondary dark:text-text-dark-secondary hover:text-text-primary dark:hover:text-white transition-colors hidden md:inline">
+              Explore
             </Link>
             <div className="h-4 w-px bg-surface-border dark:bg-surface-dark-border hidden sm:block"></div>
             {session?.user ? (
@@ -86,7 +86,7 @@ export default async function Home() {
           <a href="#demo" className="text-text-secondary dark:text-text-dark-secondary hover:text-brand-600 dark:hover:text-brand-500 transition-colors">See the difference</a>
           <a href="#personas" className="text-text-secondary dark:text-text-dark-secondary hover:text-brand-600 dark:hover:text-brand-500 transition-colors">Personas</a>
           <a href="#features" className="text-text-secondary dark:text-text-dark-secondary hover:text-brand-600 dark:hover:text-brand-500 transition-colors">Features</a>
-          <a href="#honesty" className="text-text-secondary dark:text-text-dark-secondary hover:text-brand-600 dark:hover:text-brand-500 transition-colors">Our promise</a>
+          <a href="#explore" className="text-text-secondary dark:text-text-dark-secondary hover:text-brand-600 dark:hover:text-brand-500 transition-colors">Explore</a>
           <a href="#pricing" className="text-text-secondary dark:text-text-dark-secondary hover:text-brand-600 dark:hover:text-brand-500 transition-colors">Pricing</a>
         </div>
       </div>
@@ -157,7 +157,7 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Personas Section (Solid Orange Background & White Text) */}
+      {/* Personas Section */}
       <section id="personas" className="bg-brand-600 py-24 sm:py-32 relative overflow-hidden">
         <div className="absolute inset-0 bg-black/5 pointer-events-none"></div>
 
@@ -253,8 +253,52 @@ export default async function Home() {
         </div>
       </section>
 
+      {/* NEW: Explore Section */}
+      <section id="explore" className="bg-surface-raised dark:bg-surface-dark-raised border-y border-surface-border dark:border-surface-dark-border py-24 sm:py-32">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="text-center max-w-3xl mx-auto mb-20">
+            <h2 className="text-3xl sm:text-4xl font-bold text-text-primary dark:text-white tracking-tight">Explore the Tool</h2>
+            <p className="text-lg text-text-secondary dark:text-text-dark-secondary mt-4">Dive into the resources, free utilities, and integrations we built to make writing easier.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Link href="/tools" className="group p-6 rounded-3xl bg-surface-base dark:bg-surface-dark-base border border-surface-border dark:border-surface-dark-border hover:border-brand-600 transition-all hover:-translate-y-1 hover:shadow-lg">
+              <div className="w-10 h-10 rounded-lg bg-brand-50 dark:bg-brand-500/10 flex items-center justify-center text-brand-600 mb-4 group-hover:scale-110 transition-transform">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+              </div>
+              <h3 className="text-lg font-bold text-text-primary dark:text-white mb-2 group-hover:text-brand-600 transition-colors">Free Tools</h3>
+              <p className="text-sm text-text-secondary dark:text-text-dark-secondary leading-relaxed">Unlimited linting, claims checking, and readability scores without an account.</p>
+            </Link>
+
+            <Link href="/examples" className="group p-6 rounded-3xl bg-surface-base dark:bg-surface-dark-base border border-surface-border dark:border-surface-dark-border hover:border-brand-600 transition-all hover:-translate-y-1 hover:shadow-lg">
+              <div className="w-10 h-10 rounded-lg bg-brand-50 dark:bg-brand-500/10 flex items-center justify-center text-brand-600 mb-4 group-hover:scale-110 transition-transform">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+              </div>
+              <h3 className="text-lg font-bold text-text-primary dark:text-white mb-2 group-hover:text-brand-600 transition-colors">Examples</h3>
+              <p className="text-sm text-text-secondary dark:text-text-dark-secondary leading-relaxed">See real before-and-after examples of how we strip away the AI-isms.</p>
+            </Link>
+
+            <Link href="/phrases" className="group p-6 rounded-3xl bg-surface-base dark:bg-surface-dark-base border border-surface-border dark:border-surface-dark-border hover:border-brand-600 transition-all hover:-translate-y-1 hover:shadow-lg">
+              <div className="w-10 h-10 rounded-lg bg-brand-50 dark:bg-brand-500/10 flex items-center justify-center text-brand-600 mb-4 group-hover:scale-110 transition-transform">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+              </div>
+              <h3 className="text-lg font-bold text-text-primary dark:text-white mb-2 group-hover:text-brand-600 transition-colors">Dictionary</h3>
+              <p className="text-sm text-text-secondary dark:text-text-dark-secondary leading-relaxed">A comprehensive list of 90+ AI phrases to avoid and what to use instead.</p>
+            </Link>
+
+            <Link href="/clipper" className="group p-6 rounded-3xl bg-surface-base dark:bg-surface-dark-base border border-surface-border dark:border-surface-dark-border hover:border-brand-600 transition-all hover:-translate-y-1 hover:shadow-lg">
+              <div className="w-10 h-10 rounded-lg bg-brand-50 dark:bg-brand-500/10 flex items-center justify-center text-brand-600 mb-4 group-hover:scale-110 transition-transform">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
+              </div>
+              <h3 className="text-lg font-bold text-text-primary dark:text-white mb-2 group-hover:text-brand-600 transition-colors">Web Clipper</h3>
+              <p className="text-sm text-text-secondary dark:text-text-dark-secondary leading-relaxed">Use our bookmarklet to rewrite highlighted text from any website instantly.</p>
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* Security & Honesty Section */}
-      <section id="honesty" className="bg-surface-raised dark:bg-surface-dark-raised border-y border-surface-border dark:border-surface-dark-border py-24 sm:py-32">
+      <section id="honesty" className="py-24 sm:py-32">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
           <div className="text-center max-w-3xl mx-auto mb-16">
             <h2 className="text-3xl sm:text-4xl font-bold text-text-primary dark:text-white tracking-tight">Security & Honesty by Design</h2>
@@ -262,7 +306,7 @@ export default async function Home() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="p-8 rounded-3xl bg-surface-base dark:bg-surface-dark-base border border-surface-border dark:border-surface-dark-border flex gap-5 hover:border-brand-600 dark:hover:border-brand-600 transition-colors group hover:-translate-y-1 hover:shadow-lg">
+            <div className="p-8 rounded-3xl bg-surface-raised dark:bg-surface-dark-raised border border-surface-border dark:border-surface-dark-border flex gap-5 hover:border-brand-600 dark:hover:border-brand-600 transition-colors group hover:-translate-y-1 hover:shadow-lg">
               <div className="shrink-0 w-12 h-12 rounded-xl bg-red-50 dark:bg-red-500/10 flex items-center justify-center text-red-500 group-hover:scale-110 transition-transform">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
               </div>
@@ -272,7 +316,7 @@ export default async function Home() {
               </div>
             </div>
 
-            <div className="p-8 rounded-3xl bg-surface-base dark:bg-surface-dark-base border border-surface-border dark:border-surface-dark-border flex gap-5 hover:border-brand-600 dark:hover:border-brand-600 transition-colors group hover:-translate-y-1 hover:shadow-lg">
+            <div className="p-8 rounded-3xl bg-surface-raised dark:bg-surface-dark-raised border border-surface-border dark:border-surface-dark-border flex gap-5 hover:border-brand-600 dark:hover:border-brand-600 transition-colors group hover:-translate-y-1 hover:shadow-lg">
               <div className="shrink-0 w-12 h-12 rounded-xl bg-orange-50 dark:bg-orange-500/10 flex items-center justify-center text-orange-500 group-hover:scale-110 transition-transform">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
               </div>
@@ -282,7 +326,7 @@ export default async function Home() {
               </div>
             </div>
 
-            <div className="p-8 rounded-3xl bg-surface-base dark:bg-surface-dark-base border border-surface-border dark:border-surface-dark-border flex gap-5 hover:border-brand-600 dark:hover:border-brand-600 transition-colors group hover:-translate-y-1 hover:shadow-lg">
+            <div className="p-8 rounded-3xl bg-surface-raised dark:bg-surface-dark-raised border border-surface-border dark:border-surface-dark-border flex gap-5 hover:border-brand-600 dark:hover:border-brand-600 transition-colors group hover:-translate-y-1 hover:shadow-lg">
               <div className="shrink-0 w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center text-blue-500 group-hover:scale-110 transition-transform">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
               </div>
@@ -292,7 +336,7 @@ export default async function Home() {
               </div>
             </div>
 
-            <div className="p-8 rounded-3xl bg-surface-base dark:bg-surface-dark-base border border-surface-border dark:border-surface-dark-border flex gap-5 hover:border-brand-600 dark:hover:border-brand-600 transition-colors group hover:-translate-y-1 hover:shadow-lg">
+            <div className="p-8 rounded-3xl bg-surface-raised dark:bg-surface-dark-raised border border-surface-border dark:border-surface-dark-border flex gap-5 hover:border-brand-600 dark:hover:border-brand-600 transition-colors group hover:-translate-y-1 hover:shadow-lg">
               <div className="shrink-0 w-12 h-12 rounded-xl bg-green-50 dark:bg-green-500/10 flex items-center justify-center text-green-500 group-hover:scale-110 transition-transform">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
               </div>
@@ -306,14 +350,14 @@ export default async function Home() {
       </section>
 
       {/* Pricing Section (Free) */}
-      <section id="pricing" className="py-24 sm:py-32">
+      <section id="pricing" className="bg-surface-raised dark:bg-surface-dark-raised border-y border-surface-border dark:border-surface-dark-border py-24 sm:py-32">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center max-w-3xl mx-auto mb-16">
             <h2 className="text-3xl sm:text-4xl font-bold text-text-primary dark:text-white tracking-tight">Pricing? It's free.</h2>
             <p className="text-lg text-text-secondary dark:text-text-dark-secondary mt-4">No credit card. No trial. No BYOK. Just a free workspace built on free infrastructure.</p>
           </div>
 
-          <div className="max-w-lg mx-auto bg-surface-raised dark:bg-surface-dark-raised p-8 sm:p-12 rounded-[2rem] border-2 border-brand-600 shadow-2xl relative overflow-hidden">
+          <div className="max-w-lg mx-auto bg-surface-base dark:bg-surface-dark-base p-8 sm:p-12 rounded-[2rem] border-2 border-brand-600 shadow-2xl relative overflow-hidden">
             <div className="absolute top-0 right-0 bg-brand-600 text-white text-xs font-bold px-4 py-1 rounded-bl-lg uppercase tracking-wide">Always Free</div>
             <h3 className="text-2xl font-bold text-text-primary dark:text-white mb-2">The Free Plan</h3>
             <p className="text-sm text-text-secondary dark:text-text-dark-secondary mb-8">Everything you need to write naturally.</p>
