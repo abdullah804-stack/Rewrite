@@ -40,7 +40,6 @@ export default function LoginPage() {
             Continue to your writing workspace.
           </p>
 
-          {/* Google OAuth Button */}
           <form
             action={async () => {
               "use server";

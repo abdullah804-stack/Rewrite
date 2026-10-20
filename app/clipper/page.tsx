@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Logo } from "../Logo";
 
 const BOOKMARKLET_CODE = `javascript:(function(){var t=window.getSelection().toString()||document.body.innerText.slice(0,1500);if(!t.trim()){alert('Please highlight some text first.');return;}var u=window.location.origin.includes('localhost')?'http://localhost:3000':'https://rewrite-green.vercel.app';window.open(u+'/quick?text='+encodeURIComponent(t),'_blank');})();`;
 
@@ -7,12 +8,7 @@ export default function ClipperPage() {
     <main className="min-h-screen bg-surface-base text-text-primary transition-colors">
       <header className="border-b border-surface-border sticky top-0 bg-surface-base/90 backdrop-blur-md z-40">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
-          <Link href="/" className="text-base sm:text-lg font-bold tracking-tight flex items-center gap-2">
-            <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-brand-600 text-white flex items-center justify-center text-xs sm:text-sm font-black shadow-sm">
-              R
-            </div>
-            <span className="hidden sm:inline">Rewrite</span>
-          </Link>
+          <Logo />
           <Link
             href="/quick"
             className="text-xs sm:text-sm font-medium text-text-secondary hover:text-brand-600 transition-colors"
