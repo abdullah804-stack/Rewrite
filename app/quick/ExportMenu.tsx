@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { exportAs, type ExportFormat } from "@/lib/client/export";
 
 const FORMATS: { format: ExportFormat; label: string }[] = [
@@ -21,14 +22,18 @@ export function ExportMenu({
 }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (!ref.current) return;
-      if (!ref.current.contains(e.target as Node)) {
-        setOpen(false);
+      if (
+        buttonRef.current?.contains(e.target as Node) ||
+        menuRef.current?.contains(e.target as Node)
+      ) {
+        return;
       }
+      setOpen(false);
     }
     if (open) {
       document.addEventListener("mousedown", handleClick);
@@ -53,39 +58,53 @@ export function ExportMenu({
     }
   }
 
+  // Get the button's position to place the portal menu exactly under it
+  const rect = buttonRef.current?.getBoundingClientRect();
+
   return (
-    <div ref={ref} className="relative inline-block">
+    <>
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         disabled={busy}
-        className="h-9 px-4 rounded-lg bg-black text-white text-xs font-medium hover:bg-neutral-800 disabled:bg-neutral-300 transition-colors"
+        className="h-9 px-4 rounded-lg bg-black text-white text-xs font-medium hover:bg-neutral-800 disabled:bg-surface-border transition-colors"
       >
         {busy ? "Preparing…" : "Export"}
       </button>
 
-      {open && (
-        <div className="absolute right-0 mt-1 w-48 rounded-lg border border-neutral-200 bg-white shadow-lg z-20 overflow-hidden">
-          <button
-            type="button"
-            onClick={handleCopy}
-            className="w-full text-left px-3 py-2 text-xs text-neutral-700 hover:bg-neutral-50 transition-colors"
-          >
-            Copy to clipboard
-          </button>
-          <div className="border-t border-neutral-200" />
-          {FORMATS.map((f) => (
-            <button
-              key={f.format}
-              type="button"
-              onClick={() => handleExport(f.format)}
-              className="w-full text-left px-3 py-2 text-xs text-neutral-700 hover:bg-neutral-50 transition-colors"
+      {open && rect && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              ref={menuRef}
+              className="fixed w-48 rounded-lg border border-surface-border bg-surface-base shadow-xl z-[9999] overflow-hidden"
+              style={{
+                top: rect.bottom + 8,
+                left: rect.left,
+              }}
             >
-              {f.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+              <button
+                type="button"
+                onClick={handleCopy}
+                className="w-full text-left px-3 py-2.5 text-xs text-text-primary hover:bg-surface-raised transition-colors"
+              >
+                Copy to clipboard
+              </button>
+              <div className="border-t border-surface-border" />
+              {FORMATS.map((f) => (
+                <button
+                  key={f.format}
+                  type="button"
+                  onClick={() => handleExport(f.format)}
+                  className="w-full text-left px-3 py-2.5 text-xs text-text-primary hover:bg-surface-raised transition-colors"
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>,
+            document.body
+          )
+        : null}
+    </>
   );
 }
