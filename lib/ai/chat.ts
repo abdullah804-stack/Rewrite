@@ -102,7 +102,6 @@ async function chatCloudflare(
   }
 
   const data = await response.json();
-
   const text = extractCloudflareText(data);
   if (!text) {
     throw new Error(
@@ -122,9 +121,7 @@ function extractCloudflareText(data: unknown): string | null {
 
   if (result && typeof result === "object") {
     const r = result as Record<string, unknown>;
-
     if (typeof r.response === "string" && r.response.length > 0) return r.response;
-
     const choices = r.choices;
     if (Array.isArray(choices) && choices.length > 0) {
       const first = choices[0] as Record<string, unknown>;
@@ -132,10 +129,8 @@ function extractCloudflareText(data: unknown): string | null {
       if (message && typeof message.content === "string") return message.content;
       if (typeof first?.text === "string") return first.text;
     }
-
     if (typeof r.text === "string" && r.text.length > 0) return r.text;
   }
-
   return null;
 }
 
@@ -161,6 +156,9 @@ async function chatOpenAICompatible(
         ],
         max_tokens: opts.maxTokens ?? 2000,
         temperature: opts.temperature ?? 0.7,
+        // Added parameters to force statistical divergence
+        top_p: 0.95,
+        frequency_penalty: 0.5,
       }),
     });
 
@@ -174,7 +172,6 @@ async function chatOpenAICompatible(
     }
 
     const raw = await response.text();
-
     if (!raw || raw.trim().length === 0) {
       if (attempt < 2) {
         await sleep(800);
@@ -193,7 +190,6 @@ async function chatOpenAICompatible(
     }
 
     const text = data?.choices?.[0]?.message?.content;
-
     if (typeof text !== "string" || text.length === 0) {
       if (attempt < 2) {
         await sleep(800);
@@ -212,15 +208,6 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// Provider chain is fixed by evaluation results, not guesses.
-// Eval (9 fixtures, 2026-10-16):
-//   - groq: 7/9 success, 3.1s avg, protected spans 7/7. PRIMARY.
-//   - openrouter: 9/9 success, 31s avg, protected spans 9/9. SAFETY NET.
-//   - google: free tier is 5 req/min per model — unusable at real traffic.
-//   - cloudflare: dropped protected spans 7/9 times — unsafe.
-//
-// The chain falls through on ANY thrown error. That includes 429 rate
-// limits, 5xx server errors, empty responses, and JSON parse failures.
 export async function chatWithFallback(
   opts: Omit<ChatOptions, "providerId">,
   order: ProviderId[] = ["groq", "openrouter"]

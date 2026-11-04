@@ -49,17 +49,31 @@ Core rules:
 1. Preserve meaning exactly. Do not add facts.
 2. Tokens like ⟦P1⟧, ⟦P2⟧ are protected spans. Reproduce each token exactly once.
 3. Remove stock phrases, hedges, corporate jargon, and LLM tells.
-4. Vary sentence length.
-5. Return JSON only: { "paragraphs": [{ "index": 0, "text": "..." }] }`;
+
+Strict Stylistic Rules (You must follow these):
+- BURSTINESS: You must include at least one sentence with fewer than 8 words. You must include at least one sentence with more than 25 words. Do not write three sentences in a row with similar lengths.
+- LEXICAL DIVERSITY: Do not repeat the same verb or noun more than twice in a paragraph. Avoid generic words like "important", "use", "make".
+- RHYTHM: Do not start consecutive sentences with the same word.
+- IMPERFECTION: Use a mix of active and passive voice. Occasionally start a sentence with "And" or "But".
+
+Return JSON only, with this exact shape:
+{
+  "paragraphs": [
+    { "index": 0, "text": "rewritten paragraph 0" }
+  ]
+}
+No commentary. No markdown fences. Valid JSON only.`;
 
 const REGEN_SYSTEM = `You rewrite ONE sentence. Return an alternative that reads more naturally.
 1. Preserve meaning and protected tokens exactly.
 2. Match the surrounding context.
-3. Return JSON only: { "text": "..." }`;
+3. Vary the sentence length drastically from the original.
+4. Return JSON only: { "text": "..." }`;
 
 const SELECTION_SYSTEM = `You rewrite a selected passage. Rewrite only the selection so it fits the context.
 1. Preserve meaning and protected tokens exactly.
-2. Return JSON only: { "text": "..." }`;
+2. Vary the sentence length and use specific vocabulary.
+3. Return JSON only: { "text": "..." }`;
 
 function buildVoiceBlock(profile: VoiceProfile): string {
   const m = profile.measured;
@@ -178,7 +192,6 @@ export async function POST(request: Request) {
     const cachedData = await getCachedResponse<any>(cacheKey);
     
     if (cachedData) {
-      // If cached, we still need to validate it and return it
       const validation = validateGlossary(cachedData.rewritten, glossaryRecord);
       if (!validation.ok) {
         // Cache was invalidated by new glossary rules, fall through to regenerate
@@ -198,7 +211,6 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: `Validation failed: ${validation.error}` }, { status: 502 });
       }
 
-      // Save to cache
       await setCachedResponse(cacheKey, data);
 
       if (session?.user?.id) {
@@ -238,7 +250,12 @@ ${maskedParagraphs.map((p, i) => `[Paragraph ${i}]\n${p}`).join("\n\n")}
 
 Return JSON: { "paragraphs": [{ "index": 0, "text": "..." }] }`;
 
-  const result = await chatWithFallback({ system: BASE_SYSTEM, user: userPrompt, maxTokens: 4000, temperature: 0.7 });
+  const result = await chatWithFallback({ 
+    system: BASE_SYSTEM, 
+    user: userPrompt, 
+    maxTokens: 4000, 
+    temperature: 0.85 // Increased to break statistical patterns
+  });
 
   let parsed: { paragraphs: { index: number; text: string }[] };
   try {
@@ -267,7 +284,12 @@ async function handleRegen(sentence: string, context: string, extraPrompt: strin
   const { masked, spans } = protect(sentence);
   const { masked: maskedContext } = protect(context);
   const userPrompt = `Regenerate this sentence:\n"""\n${masked}\n"""\nContext:\n"""\n${maskedContext.slice(0, 1500)}\n"""\n${extraPrompt}\n\nReturn JSON: { "text": "..." }`;
-  const result = await chatWithFallback({ system: REGEN_SYSTEM, user: userPrompt, maxTokens: 400, temperature: 0.85 });
+  const result = await chatWithFallback({ 
+    system: REGEN_SYSTEM, 
+    user: userPrompt, 
+    maxTokens: 400, 
+    temperature: 0.95 // Even higher temperature for single sentence regen
+  });
   
   let parsed: { text: string };
   try { parsed = JSON.parse(stripJsonFences(result.text)); } catch {
@@ -285,7 +307,12 @@ async function handleSelection(selection: string, context: string, extraPrompt: 
   const { masked, spans } = protect(selection);
   const { masked: maskedContext } = protect(context);
   const userPrompt = `Rewrite this selection:\n"""\n${masked}\n"""\nContext:\n"""\n${maskedContext.slice(0, 1500)}\n"""\n${extraPrompt}\n\nReturn JSON: { "text": "..." }`;
-  const result = await chatWithFallback({ system: SELECTION_SYSTEM, user: userPrompt, maxTokens: 800, temperature: 0.7 });
+  const result = await chatWithFallback({ 
+    system: SELECTION_SYSTEM, 
+    user: userPrompt, 
+    maxTokens: 800, 
+    temperature: 0.85 
+  });
   
   let parsed: { text: string };
   try { parsed = JSON.parse(stripJsonFences(result.text)); } catch {
