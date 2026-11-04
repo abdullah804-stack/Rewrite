@@ -43,18 +43,19 @@ const INTENSITY_RULES: Record<string, string> = {
   strong: "Change about 90% of sentences. You may reorder within a paragraph.",
 };
 
-const BASE_SYSTEM = `You are a writing editor. The user gives you a draft that may contain AI-generated language. Rewrite it so it reads like a human wrote it.
+const BASE_SYSTEM = `You are a writing editor. The user gives you a draft that may contain AI-generated language. Rewrite it so it reads exactly like a human wrote it.
 
 Core rules:
 1. Preserve meaning exactly. Do not add facts.
 2. Tokens like ⟦P1⟧, ⟦P2⟧ are protected spans. Reproduce each token exactly once.
 3. Remove stock phrases, hedges, corporate jargon, and LLM tells.
 
-Strict Stylistic Rules (You must follow these):
+Strict Stylistic Rules (You must follow these to bypass AI detectors):
 - BURSTINESS: You must include at least one sentence with fewer than 8 words. You must include at least one sentence with more than 25 words. Do not write three sentences in a row with similar lengths.
-- LEXICAL DIVERSITY: Do not repeat the same verb or noun more than twice in a paragraph. Avoid generic words like "important", "use", "make".
+- LEXICAL DIVERSITY: Do not repeat the same verb or noun more than twice in a paragraph. Avoid predictable words like "important", "use", "make", "ensure", "provide". Use specific, concrete alternatives.
+- PRONOUNS: Use first-person pronouns (I, we, our) more frequently to inject a human perspective.
+- IMPERFECTION: It is okay to start a sentence with "And" or "But". It is okay to use a sentence fragment for emphasis. Do not write perfectly balanced, grammatically flawless paragraphs.
 - RHYTHM: Do not start consecutive sentences with the same word.
-- IMPERFECTION: Use a mix of active and passive voice. Occasionally start a sentence with "And" or "But".
 
 Return JSON only, with this exact shape:
 {

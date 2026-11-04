@@ -154,11 +154,11 @@ async function chatOpenAICompatible(
           { role: "system", content: opts.system },
           { role: "user", content: opts.user },
         ],
-        max_tokens: opts.maxTokens ?? 2000,
+                max_tokens: opts.maxTokens ?? 2000,
         temperature: opts.temperature ?? 0.7,
-        // Added parameters to force statistical divergence
-        top_p: 0.95,
-        frequency_penalty: 0.5,
+        // Pushed higher to force statistical divergence
+        top_p: 0.98,
+        frequency_penalty: 0.8, 
       }),
     });
 
