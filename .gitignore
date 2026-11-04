@@ -43,4 +43,6 @@ eval-results/
 *.tsbuildinfo
 next-env.d.ts
 
+my-video/
+
 /app/generated/prisma
