@@ -1,0 +1,14 @@
+# Project Update 🚀
+
+Here's what we shipped this week:
+
+- **New UI** for the dashboard (finally!)
+- Speed improvements: 30% faster load times
+- Fixed the login bug (you know the one)
+
+| Feature | Status | Owner |
+|---------|--------|-------|
+| Export  | ✅ Done | Alex  |
+| Import  | 🚧 WIP  | Sam   |
+
+> Note: Don't forget to run the migration script before deploying.
