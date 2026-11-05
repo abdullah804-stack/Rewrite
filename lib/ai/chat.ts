@@ -154,10 +154,11 @@ async function chatOpenAICompatible(
           { role: "system", content: opts.system },
           { role: "user", content: opts.user },
         ],
-                        max_tokens: opts.maxTokens ?? 2000,
+        max_tokens: opts.maxTokens ?? 2000,
         temperature: opts.temperature ?? 0.7,
         top_p: 0.9,
-        frequency_penalty: 0.2, 
+        frequency_penalty: 0.2,
+        response_format: { type: "json_object" } // Force JSON output
       }),
     });
 

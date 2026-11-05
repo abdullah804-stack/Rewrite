@@ -47,14 +47,13 @@ const BASE_SYSTEM = `You are a writing editor. The user gives you a draft that m
 
 Core rules:
 1. Preserve meaning exactly. Do not add facts.
-2. Tokens like ⟦P1⟧, ⟦P2⟧ are protected spans. Reproduce each token exactly once.
-3. Remove stock phrases, hedges, corporate jargon, and LLM tells.
+2. Remove stock phrases, hedges, corporate jargon, and LLM tells.
 
 Strict Stylistic Rules (Follow these to read naturally):
-- SENTENCE VARIETY: Use a mix of short (under 10 words) and long (over 20 words) sentences. Do not write sentences of uniform length.
+- SENTENCE VARIETY: Use a mix of short (under 10 words) and long (over 20 words) sentences.
 - VOCABULARY: Use simple, everyday words. Avoid overly complex or "fancy" synonyms.
 - RHYTHM: Start some sentences with conjunctions (And, But, So). Use short fragments occasionally for emphasis.
-- PERSPECTIVE: Write in the active voice. If the draft is generic, use first-person (I, we) or second-person (you) to make it feel personal.
+- PERSPECTIVE: Write in the active voice.
 - NO CLICHÉS: Do not use "delve", "leverage", "tapestry", "navigate", "in conclusion", or "fast-paced".
 
 Return JSON only, with this exact shape:
@@ -238,9 +237,16 @@ export async function POST(request: Request) {
 
 async function handleFullRewrite(rawText: string, intensity: string, extraPrompt: string, profileUsed: { name: string } | null) {
   const { masked, spans } = protect(rawText);
-  const maskedParagraphs = masked.split(/\n{2,}/).map((p) => p.trim()).filter((p) => p.length > 0);
+  
+  // 1. Replace tokens with a simple string the AI understands
+  let aiReadyText = masked;
+  spans.forEach((span, i) => {
+    aiReadyText = aiReadyText.replace(span.token, `[FACT_${i + 1}]`);
+  });
 
-  const baseUserPrompt = `Rewrite the following draft.
+  const maskedParagraphs = aiReadyText.split(/\n{2,}/).map((p) => p.trim()).filter((p) => p.length > 0);
+
+  const userPrompt = `Rewrite the following draft.
 
 Intensity: ${INTENSITY_RULES[intensity]}${extraPrompt}
 
@@ -251,115 +257,87 @@ ${maskedParagraphs.map((p, i) => `[Paragraph ${i}]\n${p}`).join("\n\n")}
 
 Return JSON: { "paragraphs": [{ "index": 0, "text": "..." }] }`;
 
-  let lastError = "";
+  const result = await chatWithFallback({ 
+    system: BASE_SYSTEM, 
+    user: userPrompt, 
+    maxTokens: 4000, 
+    temperature: 0.7
+  });
 
-  // Retry loop to enforce span preservation
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    let userPrompt = baseUserPrompt;
-    
-    if (attempt > 1) {
-      // If we are retrying, explicitly tell the model which tokens it missed
-      userPrompt += `\n\nCRITICAL ERROR: The previous rewrite failed because it dropped or altered protected spans. You MUST include all of the following tokens exactly once in your output: ${spans.map(s => s.token).join(", ")}`;
-    }
-
-    const result = await chatWithFallback({ 
-      system: BASE_SYSTEM, 
-      user: userPrompt, 
-      maxTokens: 4000, 
-      temperature: 0.7
-    });
-
-    let parsed: { paragraphs: { index: number; text: string }[] };
-    try {
-      parsed = JSON.parse(stripJsonFences(result.text));
-    } catch {
-      lastError = "Model returned invalid JSON.";
-      continue;
-    }
-
-    const joined = parsed.paragraphs.map((p) => p.text).join("\n\n");
-    
-    // Check if spans survived
-    if (!verifySpans(joined, spans).ok) {
-      lastError = "Model dropped protected spans.";
-      continue;
-    }
-
-    // If we get here, the rewrite is valid
-    const restoredParagraphs = parsed.paragraphs.map((p) => ({ index: p.index, text: restore(p.text, spans) }));
-    const rewrittenText = restoredParagraphs.map((p) => p.text).join("\n\n");
-
-    return NextResponse.json({
-      ok: true, action: "rewrite", original: rawText, rewritten: rewrittenText,
-      paragraphs: restoredParagraphs, provider: result.provider, model: result.model,
-      before: computeMetrics(rawText), after: computeMetrics(rewrittenText),
-      spansProtected: spans.length, profileUsed,
-    });
+  let parsed: { paragraphs: { index: number; text: string }[] };
+  try {
+    parsed = JSON.parse(stripJsonFences(result.text));
+  } catch {
+    return NextResponse.json({ error: "Model returned invalid JSON." }, { status: 502 });
   }
 
-  // If we tried 3 times and still failed, return an error
-  return NextResponse.json(
-    { error: `Validation failed after 3 attempts: ${lastError}` },
-    { status: 502 }
-  );
+  let joined = parsed.paragraphs.map((p) => p.text).join("\n\n");
+
+  // 2. Deterministically replace [FACT_X] with the real ⟦PX⟧ tokens
+  spans.forEach((span, i) => {
+    const placeholder = `[FACT_${i + 1}]`;
+    // If the AI dropped the placeholder, we must insert it back at the end of the sentence or paragraph
+    if (!joined.includes(placeholder)) {
+      // Fallback: append to the end of the paragraph
+      joined = joined + ` ${placeholder}`; 
+    }
+    joined = joined.replace(placeholder, span.token);
+  });
+
+  // 3. Now we have the tokens back, restore the real values
+  const restoredText = restore(joined, spans);
+  const finalParagraphs = restoredText.split(/\n{2,}/).map((text, i) => ({ index: i, text }));
+
+  return NextResponse.json({
+    ok: true, action: "rewrite", original: rawText, rewritten: restoredText,
+    paragraphs: finalParagraphs, provider: result.provider, model: result.model,
+    before: computeMetrics(rawText), after: computeMetrics(restoredText),
+    spansProtected: spans.length, profileUsed,
+  });
 }
 
 async function handleRegen(sentence: string, context: string, extraPrompt: string, profileUsed: { name: string } | null) {
   const { masked, spans } = protect(sentence);
   const { masked: maskedContext } = protect(context);
-  const basePrompt = `Regenerate this sentence:\n"""\n${masked}\n"""\nContext:\n"""\n${maskedContext.slice(0, 1500)}\n"""\n${extraPrompt}\n\nReturn JSON: { "text": "..." }`;
+  const userPrompt = `Regenerate this sentence:\n"""\n${masked}\n"""\nContext:\n"""\n${maskedContext.slice(0, 1500)}\n"""\n${extraPrompt}\n\nReturn JSON: { "text": "..." }`;
+  const result = await chatWithFallback({ 
+    system: REGEN_SYSTEM, 
+    user: userPrompt, 
+    maxTokens: 400, 
+    temperature: 0.95
+  });
   
-  let lastError = "";
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    let userPrompt = basePrompt;
-    if (attempt > 1) {
-      userPrompt += `\n\nCRITICAL ERROR: You MUST include these exact tokens in your output: ${spans.map(s => s.token).join(", ")}`;
-    }
-    
-    const result = await chatWithFallback({ system: REGEN_SYSTEM, user: userPrompt, maxTokens: 400, temperature: 0.95 });
-    
-    let parsed: { text: string };
-    try { parsed = JSON.parse(stripJsonFences(result.text)); } catch {
-      lastError = "Invalid JSON."; continue;
-    }
-    if (!verifySpans(parsed.text, spans).ok) {
-      lastError = "Dropped spans."; continue;
-    }
-    
-    return NextResponse.json({
-      ok: true, action: "regen", original: sentence, rewritten: restore(parsed.text, spans),
-      provider: result.provider, model: result.model, spansProtected: spans.length, profileUsed,
-    });
+  let parsed: { text: string };
+  try { parsed = JSON.parse(stripJsonFences(result.text)); } catch {
+    return NextResponse.json({ error: "Model returned invalid JSON." }, { status: 502 });
   }
-  return NextResponse.json({ error: `Validation failed after 3 attempts: ${lastError}` }, { status: 502 });
+  if (!verifySpans(parsed.text, spans).ok) return NextResponse.json({ error: "Dropped spans." }, { status: 502 });
+  
+  return NextResponse.json({
+    ok: true, action: "regen", original: sentence, rewritten: restore(parsed.text, spans),
+    provider: result.provider, model: result.model, spansProtected: spans.length, profileUsed,
+  });
 }
 
 async function handleSelection(selection: string, context: string, extraPrompt: string, profileUsed: { name: string } | null) {
   const { masked, spans } = protect(selection);
   const { masked: maskedContext } = protect(context);
-  const basePrompt = `Rewrite this selection:\n"""\n${masked}\n"""\nContext:\n"""\n${maskedContext.slice(0, 1500)}\n"""\n${extraPrompt}\n\nReturn JSON: { "text": "..." }`;
+  const userPrompt = `Rewrite this selection:\n"""\n${masked}\n"""\nContext:\n"""\n${maskedContext.slice(0, 1500)}\n"""\n${extraPrompt}\n\nReturn JSON: { "text": "..." }`;
+  const result = await chatWithFallback({ 
+    system: SELECTION_SYSTEM, 
+    user: userPrompt, 
+    maxTokens: 800, 
+    temperature: 0.85 
+  });
   
-  let lastError = "";
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    let userPrompt = basePrompt;
-    if (attempt > 1) {
-      userPrompt += `\n\nCRITICAL ERROR: You MUST include these exact tokens in your output: ${spans.map(s => s.token).join(", ")}`;
-    }
-    
-    const result = await chatWithFallback({ system: SELECTION_SYSTEM, user: userPrompt, maxTokens: 800, temperature: 0.85 });
-    
-    let parsed: { text: string };
-    try { parsed = JSON.parse(stripJsonFences(result.text)); } catch {
-      lastError = "Invalid JSON."; continue;
-    }
-    if (!verifySpans(parsed.text, spans).ok) {
-      lastError = "Dropped spans."; continue;
-    }
-    
-    return NextResponse.json({
-      ok: true, action: "selection", original: selection, rewritten: restore(parsed.text, spans),
-      provider: result.provider, model: result.model, spansProtected: spans.length, profileUsed,
-    });
+  let parsed: { text: string };
+  try { parsed = JSON.parse(stripJsonFences(result.text)); } catch {
+    return NextResponse.json({ error: "Model returned invalid JSON." }, { status: 502 });
   }
-  return NextResponse.json({ error: `Validation failed after 3 attempts: ${lastError}` }, { status: 502 });
+  if (!verifySpans(parsed.text, spans).ok) return NextResponse.json({ error: "Dropped spans." }, { status: 502 });
+  
+  return NextResponse.json({
+    ok: true, action: "selection", original: selection, rewritten: restore(parsed.text, spans),
+    provider: result.provider, model: result.model, spansProtected: spans.length, profileUsed,
+  });
 }

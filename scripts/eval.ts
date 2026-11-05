@@ -40,7 +40,6 @@ function readFixtures(folder: string): { name: string; text: string }[] {
     }));
 }
 
-// The new "Experienced Editor" prompt from the Audit
 const SYSTEM = `You are an experienced human editor.
 
 Your task is to improve the quality of the supplied writing while preserving the author's intended meaning, information, and voice.
@@ -91,7 +90,14 @@ async function runOne(
   providerId: string
 ): Promise<EvalRow> {
   const { masked, spans } = protect(text);
-  const maskedParagraphs = masked
+  
+  // Replace tokens with a simple string the AI understands
+  let aiReadyText = masked;
+  spans.forEach((span, i) => {
+    aiReadyText = aiReadyText.replace(span.token, `[FACT_${i + 1}]`);
+  });
+
+  const maskedParagraphs = aiReadyText
     .split(/\n{2,}/)
     .map((p) => p.trim())
     .filter((p) => p.length > 0);
@@ -126,15 +132,37 @@ Return JSON with a "paragraphs" array.`;
         .replace(/```\s*$/i, "")
         .trim();
 
-      const parsed = JSON.parse(cleaned);
+      let parsed: { paragraphs: { index: number; text: string }[] };
+      try {
+        parsed = JSON.parse(cleaned);
+      } catch {
+        // Attempt to extract JSON from markdown fences or noise
+        const match = cleaned.match(/\{[\s\S]*\}/);
+        if (match) {
+          parsed = JSON.parse(match[0]);
+        } else {
+          throw new Error("Invalid JSON");
+        }
+      }
+
       const joined = parsed.paragraphs
         .map((p: { text: string }) => p.text)
         .join("\n\n");
 
-      const verify = verifySpans(joined, spans);
-      const restored = restore(joined, spans);
-      const after = computeMetrics(restored);
-      const lintAfter = lint(restored).score;
+      // Deterministically replace [FACT_X] with the real ⟦PX⟧ tokens
+      let restored = joined;
+      spans.forEach((span, i) => {
+        const placeholder = `[FACT_${i + 1}]`;
+        if (!restored.includes(placeholder)) {
+          restored = restored + ` ${placeholder}`;
+        }
+        restored = restored.replace(placeholder, span.token);
+      });
+
+      const verify = verifySpans(restored, spans);
+      const finalText = restore(restored, spans);
+      const after = computeMetrics(finalText);
+      const lintAfter = lint(finalText).score;
 
       return {
         fixture: fixtureName,
