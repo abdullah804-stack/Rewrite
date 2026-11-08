@@ -5,8 +5,7 @@ import Link from "next/link";
 import { analyzeText } from "@/lib/analyze-client";
 import { applyAllFixes } from "@/lib/pipeline/fixes";
 import { categoryLabel } from "@/lib/pipeline/lint";
-import { claimKindLabel } from "@/lib/pipeline/claims";
-import { audienceLabel, type AudienceTarget } from "@/lib/pipeline/readability";
+import { sourceCheckKindLabel } from "@/lib/pipeline/claims";import { audienceLabel, type AudienceTarget } from "@/lib/pipeline/readability";
 import { Logo } from "../Logo";
 
 type Tab = "lint" | "claims" | "readability" | "meter";
@@ -270,8 +269,7 @@ function ClaimsPanel({ analysis }: { analysis: ReturnType<typeof analyzeText> })
             <div className="flex items-center justify-between gap-2 flex-wrap mb-1.5 sm:mb-2">
               <span className="text-xs sm:text-sm font-bold text-text-primary">{flag.text}</span>
               <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-text-secondary px-1.5 sm:px-2 py-0.5 sm:py-1 rounded bg-surface-raised border border-surface-border">
-                {claimKindLabel(flag.kind)}
-              </span>
+                {sourceCheckKindLabel(flag.kind)}              </span>
             </div>
             <div className="text-[11px] sm:text-xs font-medium text-text-secondary mt-1">
               {flag.hasSource ? (

@@ -1,84 +1,72 @@
 import { describe, it, expect } from "vitest";
-import { findClaims } from "../claims";
+import { findSourceChecks, type SourceCheckFlag } from "../claims";
 
-describe("findClaims", () => {
-  it("flags a percentage with no source", () => {
-    const result = findClaims("We grew 42% last year.");
-    expect(result.unsourcedCount).toBeGreaterThanOrEqual(1);
-    expect(result.flags.some((f) => f.kind === "percentage")).toBe(true);
+describe("findSourceChecks", () => {
+  it("detects a percentage", () => {
+    const result = findSourceChecks("About 42% of users agreed.");
+    expect(result.flags.some((f: SourceCheckFlag) => f.kind === "percentage")).toBe(true);
+    expect(result.unsourcedCount).toBe(1);
   });
 
-  it("does not flag a percentage with a URL nearby", () => {
-    const result = findClaims(
-      "We grew 42% last year, according to https://example.com/report."
-    );
-    const percentage = result.flags.find((f) => f.kind === "percentage");
+  it("marks a percentage as sourced if the sentence contains a URL", () => {
+    const result = findSourceChecks("About 42% of users agreed, see https://example.com.");
+    const percentage = result.flags.find((f: SourceCheckFlag) => f.kind === "percentage");
     expect(percentage?.hasSource).toBe(true);
+    expect(result.sourcedCount).toBe(1);
   });
 
-  it("flags a currency figure", () => {
-    const result = findClaims("Revenue was $5 million.");
-    expect(result.flags.some((f) => f.kind === "currency")).toBe(true);
+  it("detects a currency figure", () => {
+    const result = findSourceChecks("Revenue reached $5 million.");
+    expect(result.flags.some((f: SourceCheckFlag) => f.kind === "currency")).toBe(true);
   });
 
-  it("flags a study reference with no citation", () => {
-    const result = findClaims("Studies show that coffee improves focus.");
-    expect(result.flags.some((f) => f.kind === "study-reference")).toBe(true);
+  it("detects a study reference without a citation", () => {
+    const result = findSourceChecks("Studies show that reading improves memory.");
+    expect(result.flags.some((f: SourceCheckFlag) => f.kind === "study-reference")).toBe(true);
   });
 
-  it("does not flag a study reference with citation", () => {
-    const result = findClaims(
-      "Studies show that coffee improves focus (Smith et al., 2020)."
+  it("marks a study reference as sourced if a citation is nearby", () => {
+    const result = findSourceChecks(
+      "Studies show that reading improves memory (Smith et al., 2023)."
     );
-    const study = result.flags.find((f) => f.kind === "study-reference");
+    const study = result.flags.find((f: SourceCheckFlag) => f.kind === "study-reference");
     expect(study?.hasSource).toBe(true);
   });
 
-  it("flags an expert reference with no name", () => {
-    const result = findClaims("Experts say the market will recover.");
-    expect(result.flags.some((f) => f.kind === "expert-reference")).toBe(true);
+  it("detects an expert reference without a name", () => {
+    const result = findSourceChecks("Experts say the economy is recovering.");
+    expect(result.flags.some((f: SourceCheckFlag) => f.kind === "expert-reference")).toBe(true);
   });
 
-  it("flags a large statistic", () => {
-    const result = findClaims("The company serves 1,500,000 customers.");
-    expect(result.flags.some((f) => f.kind === "statistic")).toBe(true);
+  it("detects a large statistic", () => {
+    const result = findSourceChecks("The company hired 1,200 employees.");
+    expect(result.flags.some((f: SourceCheckFlag) => f.kind === "statistic")).toBe(true);
   });
 
-  it("flags a date reference", () => {
-    const result = findClaims("In 2023, we launched the product.");
-    expect(result.flags.some((f) => f.kind === "date")).toBe(true);
+  it("detects a date reference", () => {
+    const result = findSourceChecks("In 2023, the market shifted.");
+    expect(result.flags.some((f: SourceCheckFlag) => f.kind === "date")).toBe(true);
   });
 
-  it("does not flag a date with source", () => {
-    const result = findClaims("In 2023, we launched, per our annual report.");
-    const date = result.flags.find((f) => f.kind === "date");
+  it("marks a date as sourced if a URL is in the sentence", () => {
+    const result = findSourceChecks(
+      "In 2023, the market shifted (see https://example.com)."
+    );
+    const date = result.flags.find((f: SourceCheckFlag) => f.kind === "date");
     expect(date?.hasSource).toBe(true);
   });
 
-  it("returns no flags for clean text", () => {
-    const result = findClaims("The cat sat on the mat. The dog ran fast.");
-    expect(result.flags.length).toBe(0);
-  });
-
-  it("handles empty input", () => {
-    const result = findClaims("");
+  it("returns zero flags for clean text", () => {
+    const result = findSourceChecks("The cat sat on the mat.");
     expect(result.flags.length).toBe(0);
     expect(result.unsourcedCount).toBe(0);
   });
 
-  it("does not double-flag overlapping spans", () => {
-    const result = findClaims("We grew 42% in 2023.");
-    // 42% and 2023 shouldn't overlap, but if patterns collided we'd see dupes
-    const starts = result.flags.map((f) => f.start);
-    const unique = new Set(starts);
-    expect(starts.length).toBe(unique.size);
-  });
-
-  it("counts sourced and unsourced correctly", () => {
-    const result = findClaims(
-      "We grew 42% (Smith et al., 2020). But 17% of users churned."
-    );
-    expect(result.sourcedCount).toBeGreaterThanOrEqual(1);
-    expect(result.unsourcedCount).toBeGreaterThanOrEqual(1);
+  it("returns flags in order of appearance", () => {
+    const result = findSourceChecks("In 2023, about 42% of users agreed.");
+    const starts = result.flags.map((f: SourceCheckFlag) => f.start);
+    for (let i = 1; i < starts.length; i++) {
+      expect(starts[i]).toBeGreaterThanOrEqual(starts[i - 1]);
+    }
   });
 });

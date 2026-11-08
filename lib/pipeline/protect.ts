@@ -21,20 +21,31 @@ export type ProtectedText = {
   spans: ProtectedSpan[];
 };
 
-// Step 2.5: the `number` pattern previously matched any single digit (\d),
-// which froze labels like "01" in "Step 01" and prevented legitimate rewrites.
-// Now requires 2+ leading digits, or a decimal value, or a thousands-grouped
-// value. Small ordinal-style numbers (01, 1, 2) are left alone.
+// Step 10: Added `heading` and `code` protection (Audit §3A)
+// Order matters: Fenced code blocks must be caught before inline code or URLs
+// so they don't get split up by inner matches.
 const PATTERNS: { kind: ProtectedSpan["kind"]; regex: RegExp }[] = [
+  // 1. Fenced code blocks (multi-line)
+  { kind: "code", regex: /```[\s\S]*?```/g },
+  // 2. Markdown headings (e.g., # Heading, ## Subheading)
+  { kind: "heading", regex: /^#{1,6}\s.+$/gm },
+  // 3. Inline code (single backticks)
+  { kind: "code", regex: /`[^`\n]+`/g },
+  // 4. URLs
   { kind: "url", regex: /https?:\/\/[^\s)\]}"'<>]+/g },
+  // 5. Emails
   { kind: "email", regex: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g },
+  // 6. Currency
   { kind: "currency", regex: /\$\s?\d[\d,]*(?:\.\d+)?(?:\s?(?:million|billion|thousand|k|M|B))?/g },
+  // 7. Percent
   { kind: "percent", regex: /\d+(?:\.\d+)?\s?%/g },
+  // 8. Years
   { kind: "year", regex: /\b(?:19|20)\d{2}\b/g },
-  // Multi-digit numbers, decimals, and thousands-grouped values.
-  // Does NOT match single digits like "1" or "01".
+  // 9. Multi-digit numbers (excludes single digits like "01")
   { kind: "number", regex: /\b\d{2,}[\d,]*(?:\.\d+)?\b/g },
+  // 10. Quotes
   { kind: "quote", regex: /"[^"\n]{1,200}"/g },
+  // 11. Citations
   { kind: "citation", regex: /\([A-Z][a-zA-Z]+(?:\s+et\s+al\.)?,\s*\d{4}\)/g },
 ];
 

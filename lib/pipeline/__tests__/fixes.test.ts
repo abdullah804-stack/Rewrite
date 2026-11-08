@@ -44,11 +44,13 @@ describe("applyFix", () => {
 
 describe("applyAllFixes", () => {
   it("fixes multiple phrases at once", () => {
-    const text = "Leverage the synergy and delve into the details.";
-    const { result, appliedCount } = applyAllFixes(text);
+    const { result, appliedCount } = applyAllFixes(
+      "We must delve into the synergy of this paradigm shift."
+    );
     expect(appliedCount).toBeGreaterThanOrEqual(2);
-    expect(result).not.toContain("Leverage");
     expect(result).not.toContain("delve into");
+    expect(result).not.toContain("synergy");
+    expect(result).not.toContain("paradigm shift");
   });
 
   it("returns the original for clean text", () => {

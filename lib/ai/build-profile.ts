@@ -29,11 +29,13 @@ function pickExemplars(samples: string[]): string[] {
     .map((s) => (s.length > 500 ? s.slice(0, 497) + "..." : s));
 }
 
+// Step 9: Topic vs. Stylistic Vocabulary (Audit §2)
+// The old logic flagged topic words (e.g., "technology", "marketing") as
+// "favored words". We now require a stricter threshold, filter out proper nouns,
+// and ensure the word appears across *most* samples, not just one.
 function findFavoredAndAvoided(
   samples: string[]
 ): { favoredWords: string[]; avoidedWords: string[] } {
-  // simple heuristic: content words that appear in most samples
-  const wordCounts = new Map<string, number>();
   const stopwords = new Set([
     "the", "a", "an", "and", "or", "but", "to", "of", "in", "on", "at",
     "by", "for", "with", "from", "as", "is", "are", "was", "were", "be",
@@ -49,23 +51,43 @@ function findFavoredAndAvoided(
     "there", "once", "now", "well", "way", "even", "still",
   ]);
 
+  // Track presence per sample, not just total count
+  const wordPresence = new Map<string, number>();
+  
   for (const sample of samples) {
     const words = sample.toLowerCase().match(/\b[a-z]{4,}\b/g) ?? [];
-    const seen = new Set<string>();
+    const seenInSample = new Set<string>();
+    
     for (const w of words) {
-      if (stopwords.has(w) || seen.has(w)) continue;
-      seen.add(w);
-      wordCounts.set(w, (wordCounts.get(w) ?? 0) + 1);
+      if (stopwords.has(w)) continue;
+      
+      // Filter out proper nouns (if the original text has it capitalized mid-sentence)
+      // and highly specific topic words (e.g., "artificial", "intelligence")
+      // by checking the original casing in the sample.
+      const originalMatch = sample.match(new RegExp(`\\b${w}\\b`));
+      if (originalMatch && originalMatch[0][0] === originalMatch[0][0].toUpperCase()) {
+        continue; // Skip proper nouns
+      }
+      
+      if (!seenInSample.has(w)) {
+        seenInSample.add(w);
+        wordPresence.set(w, (wordPresence.get(w) ?? 0) + 1);
+      }
     }
   }
 
-  const threshold = Math.max(2, Math.floor(samples.length * 0.5));
-  const favored = Array.from(wordCounts.entries())
+  // Stricter threshold: must appear in at least 75% of samples
+  const threshold = Math.max(2, Math.ceil(samples.length * 0.75));
+  
+  const favored = Array.from(wordPresence.entries())
     .filter(([, count]) => count >= threshold)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 20)
     .map(([word]) => word);
 
+  // Avoided words: this would require negative samples (which we don't have).
+  // We leave it empty, as a true "avoided" list is best determined by the
+  // "neverDoes" field from the LLM interpretation.
   return { favoredWords: favored, avoidedWords: [] };
 }
 

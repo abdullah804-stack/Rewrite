@@ -1,11 +1,10 @@
 import { redis } from "../ratelimit";
 import { createHash } from "crypto";
 
-// Step 4A: Cache-Key fix (Audit §3B)
-// We now hash the *effective* glossary rules and the model name.
-// This prevents Project A's rules from leaking into Project B's rewrite,
-// and prevents mixing outputs from different models (e.g., Groq vs OpenRouter).
+// Step 16: Accepts promptVersion as the first argument to invalidate
+// the cache when prompts change.
 export function hashRequest(
+  promptVersion: string,
   text: string,
   intensity: string,
   profileId: string | null,
@@ -16,12 +15,8 @@ export function hashRequest(
   glossaryHash: string | null,
   modelName: string
 ): string {
-  // Bump this if the prompt or protection logic changes drastically,
-  // to force fresh generations and avoid serving stale text.
-  const CACHE_VERSION = "v2";
-
   const payload = JSON.stringify({
-    v: CACHE_VERSION,
+    v: promptVersion,
     text,
     intensity,
     profileId,
@@ -48,7 +43,6 @@ export async function getCachedResponse<T>(key: string): Promise<T | null> {
 
 export async function setCachedResponse<T>(key: string, data: T): Promise<void> {
   try {
-    // Cache for 24 hours
     await redis.set(`cache:rewrite:${key}`, JSON.stringify(data), { ex: 86400 });
   } catch {
     // ignore cache failures

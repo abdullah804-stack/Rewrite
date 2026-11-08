@@ -2,11 +2,21 @@ import { NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { auth } from "@/auth";
 import { prisma } from "../../../../../lib/prisma";
+import { redis } from "../../../../../lib/ratelimit";
 
 export const runtime = "nodejs";
 
 function generateSlug(): string {
   return randomBytes(8).toString("base64url");
+}
+
+function clientIp(request: Request): string {
+  const headers = request.headers;
+  const forwarded = headers.get("x-forwarded-for");
+  if (forwarded) return forwarded.split(",")[0].trim();
+  const real = headers.get("x-real-ip");
+  if (real) return real;
+  return "unknown";
 }
 
 export async function POST(
@@ -22,18 +32,37 @@ export async function POST(
 
   // 1. Anonymous Magic Link flow
   if (id === "guest") {
+    // Step 14: Rate limit anonymous guest shares (Audit §9E #6)
+    // Max 3 guest shares per IP per hour to prevent database abuse.
+    const ip = clientIp(request);
+    const rateLimitKey = `ratelimit:guest-share:${ip}`;
+    
+    try {
+      const current = await redis.get<number>(rateLimitKey);
+      if (current && current >= 3) {
+        return NextResponse.json(
+          { error: "Too many guest shares. Please try again later." },
+          { status: 429 }
+        );
+      }
+      
+      const newCount = await redis.incr(rateLimitKey);
+      if (newCount === 1) {
+        // First request in this window: set 1-hour expiry
+        await redis.expire(rateLimitKey, 3600);
+      }
+    } catch {
+      // If Redis is down, allow the request (don't block users due to infra)
+    }
+
     if (!guestText || !guestText.trim()) {
       return NextResponse.json({ error: "Text is required." }, { status: 400 });
     }
 
     const slug = generateSlug();
     const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 24); // 24 hour expiry
+    expiresAt.setHours(expiresAt.getHours() + 24);
 
-    // Create a fake user to hold the document (or just use a generic guest ID)
-    // We'll use a special guest user ID or just create an orphan document if we allow null userId.
-    // Since our schema requires a userId, we will find or create a "guest" user.
-    
     let guestUser = await prisma.user.findUnique({ where: { email: "guest@rewrite.app" } });
     if (!guestUser) {
       guestUser = await prisma.user.create({

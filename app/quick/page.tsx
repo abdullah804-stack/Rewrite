@@ -528,10 +528,12 @@ export default function QuickPage() {
                   )}
                 </div>
 
-                <div>
+                                <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-bold text-text-primary">Claims</span>
-                    <span className="text-sm font-bold text-brand-600">{analysis.claims.unsourcedCount} need source</span>
+                    <span className="text-sm font-bold text-text-primary">Source checks</span>
+                    <span className="text-sm font-bold text-brand-600">
+                      {analysis.claims.unsourcedCount} missing source
+                    </span>
                   </div>
                   {analysis.claims.flags.length > 0 && (
                     <div className="space-y-2 mt-2">

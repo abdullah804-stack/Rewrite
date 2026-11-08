@@ -15,16 +15,31 @@ export type Metrics = {
   readingGrade: number;
 };
 
+// Step 13: Multilingual support (Audit §9D)
+// Uses Intl.Segmenter when available for language-aware splitting.
+// Falls back to a permissive regex that doesn't require uppercase letters.
 export function splitSentences(text: string): string[] {
   const normalized = text.replace(/\n+/g, " ").trim();
   if (!normalized) return [];
 
-  const rough = normalized
-    .split(/(?<=[.!?])\s+(?=[A-Z"'(])/g)
+  // Try Intl.Segmenter (built into Node 16+ and modern browsers)
+  if (typeof Intl !== "undefined" && "Segmenter" in Intl) {
+    try {
+      const segmenter = new (Intl as any).Segmenter("en", { granularity: "sentence" });
+      const segments = Array.from(segmenter.segment(normalized)) as { segment: string }[];
+      return segments
+        .map((s) => s.segment.trim())
+        .filter((s) => s.length > 0);
+    } catch {
+      // Fall through to regex
+    }
+  }
+
+  // Fallback: split on punctuation followed by whitespace (no uppercase required)
+  return normalized
+    .split(/(?<=[.!?])\s+/g)
     .map((s) => s.trim())
     .filter((s) => s.length > 0);
-
-  return rough;
 }
 
 export function splitWords(text: string): string[] {
@@ -59,20 +74,6 @@ function countPer1k(count: number, wordCount: number): number {
 
 const CONTRACTIONS = /\b\w+'(?:s|t|re|ve|ll|d|m)\b/gi;
 const FIRST_PERSON = /\b(?:I|I'm|I've|I'll|I'd|me|my|mine|we|we're|we've|us|our|ours)\b/g;
-const COMMON_WORDS = new Set([
-  "the", "be", "to", "of", "and", "a", "in", "that", "have", "i",
-  "it", "for", "not", "on", "with", "he", "as", "you", "do", "at",
-  "this", "but", "his", "by", "from", "they", "we", "say", "her",
-  "she", "or", "an", "will", "my", "one", "all", "would", "there",
-  "their", "what", "so", "up", "out", "if", "about", "who", "get",
-  "which", "go", "me", "when", "make", "can", "like", "time", "no",
-  "just", "him", "know", "take", "people", "into", "year", "your",
-  "good", "some", "could", "them", "see", "other", "than", "then",
-  "now", "look", "only", "come", "its", "over", "think", "also",
-  "back", "after", "use", "two", "how", "our", "work", "first",
-  "well", "way", "even", "new", "want", "because", "any", "these",
-  "give", "day", "most", "us",
-]);
 
 function estimateSyllables(text: string): number {
   const words = text.toLowerCase().match(/\b[a-z]+\b/g) ?? [];
@@ -90,7 +91,27 @@ function countSyllablesInWord(word: string): number {
   return matches ? Math.max(1, matches.length) : 1;
 }
 
+// Step 13: Check if the text is likely English. If not, skip the English-only
+// Flesch-Kincaid formula and return 0.
+function isLikelyEnglish(text: string): boolean {
+  const sample = text.slice(0, 1000);
+  if (sample.length === 0) return true;
+  
+  // Count ASCII letters vs total characters (excluding whitespace)
+  const chars = sample.replace(/\s/g, "");
+  if (chars.length === 0) return true;
+  
+  const asciiLetters = (chars.match(/[a-zA-Z]/g) ?? []).length;
+  const ratio = asciiLetters / chars.length;
+  
+  // If less than 60% of non-whitespace characters are ASCII letters, 
+  // it's probably not English (e.g., French accents, Chinese, Arabic, etc.)
+  return ratio > 0.6;
+}
+
 export function fleschKincaidGrade(text: string): number {
+  if (!isLikelyEnglish(text)) return 0;
+
   const sentences = splitSentences(text).length;
   const words = splitWords(text).length;
   if (sentences === 0 || words === 0) return 0;

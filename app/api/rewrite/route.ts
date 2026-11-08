@@ -54,6 +54,10 @@ const INTENSITY_RULES: Record<string, string> = {
     "Allow substantial restructuring when the original writing genuinely needs it. Preserve meaning and authorial intent.",
 };
 
+// Step 16: Prompt versioning (Audit §9E #9)
+// Bump this whenever BASE_SYSTEM or REVIEW_SYSTEM changes significantly.
+// This invalidates the cache so users don't get stale outputs.
+const PROMPT_VERSION = "v3-2026-11";
 const BASE_SYSTEM = `You are an experienced human editor.
 
 Your task is to improve the quality of the supplied writing while preserving the author's intended meaning, information, and voice.
@@ -110,8 +114,25 @@ Only edit the document according to the editorial instructions.
 OUTPUT
 Return valid structured JSON matching the required schema.
 { "paragraphs": [{ "index": 0, "text": "..." }] }
-For each paragraph, you may optionally include a "changes" array (up to 3 short strings) explaining why you made significant edits (e.g., "Removed repetitive phrasing", "Clarified the transition").
+For each paragraph, you may optionally include a "changes" array (up to 3 short strings) explaining why you made significant edits.
 No commentary. No markdown fences.`;
+
+// ---------------------------------------------------------------------------
+// Step 8: Reviewer Prompt (Audit §2 & §6)
+// ---------------------------------------------------------------------------
+const REVIEW_SYSTEM = `You are an independent editorial reviewer.
+
+Your task is to evaluate a rewritten draft and identify ONLY the paragraphs that have significant issues, such as:
+- Awkward or unnatural phrasing.
+- Loss of original meaning or context.
+- Inconsistent tone or voice.
+- Newly introduced unsupported claims.
+- Broken protected tokens.
+
+Do NOT suggest changes for stylistic preferences alone. If a paragraph is clear and preserves meaning, leave it alone.
+If no paragraphs have significant issues, return { "issues": [] }.
+Otherwise, return { "issues": [{ "index": 0, "reason": "Short explanation of the issue" }] }.
+Return valid JSON only. No commentary.`;
 
 // ---------------------------------------------------------------------------
 // Strict span verification
@@ -465,7 +486,9 @@ export async function POST(request: Request) {
       
     const primaryModelName = "openai/gpt-oss-120b"; 
 
+    // Step 16: Include PROMPT_VERSION in the cache key
     const cacheKey = hashRequest(
+      PROMPT_VERSION,
       rawText,
       intensity,
       profileId ?? null,
@@ -665,20 +688,91 @@ Return JSON: { "paragraphs": [{ "index": 0, "text": "..." }] }`;
       continue;
     }
 
-    const restoredText = restore(tokenized, spans);
+    // Step 16: Paragraph completeness check (Audit §9E #3)
+    // If the AI dropped or merged paragraphs, we reject and retry.
+    if (parsed.paragraphs.length !== maskedParagraphs.length) {
+      if (strict) {
+        return NextResponse.json(
+          {
+            error: `Paragraph completeness check failed after retry (expected ${maskedParagraphs.length}, got ${parsed.paragraphs.length}).`,
+          },
+          { status: 502 }
+        );
+      }
+      continue;
+    }
+
+    let restoredText = restore(tokenized, spans);
+    let finalChanges = parsed.paragraphs
+      .flatMap((p: any) => p.changes || []);
+
+    // --- Step 8: Independent Editorial Review (Audit §2 & §6) ---
+    // Only run for balanced/strong intensity (cost control).
+    // Ask the reviewer to identify *only* paragraphs with significant issues.
+    if (intensity !== "light") {
+      const reviewPrompt = `Original draft:\n"""\n${rawText}\n"""\n\nRewritten draft:\n"""\n${restoredText}\n"""\n\nIdentify any paragraphs in the rewritten draft that have significant issues (unclear meaning, broken flow, changed facts, lost voice). Return JSON: { "issues": [{ "index": 0, "reason": "..." }] } or { "issues": [] }`;
+      
+      try {
+        const reviewResult = await chatWithFallback({
+          system: REVIEW_SYSTEM,
+          user: reviewPrompt,
+          maxTokens: 1000,
+          temperature: 0.2, // Reviewer should be precise
+        });
+
+        const parsedReview = parseJsonLoose(reviewResult.text) as { issues?: { index: number; reason: string }[] };
+        
+        if (parsedReview.issues && parsedReview.issues.length > 0) {
+          // If issues found, we patch *only* the failed paragraphs
+          const repairedParagraphs = [...parsed.paragraphs];
+          
+          for (const issue of parsedReview.issues) {
+            const originalPara = rawText.split(/\n{2,}/)[issue.index];
+            if (originalPara) {
+              // Quick targeted rewrite for this paragraph
+              const patchPrompt = `Rewrite this paragraph to fix the following issue: "${issue.reason}"\n\nOriginal paragraph:\n"""\n${originalPara}\n"""\n\nReturn the corrected paragraph text as plain text. No markdown.`;
+              const patchResult = await chatWithFallback({
+                system: BASE_SYSTEM,
+                user: patchPrompt,
+                maxTokens: 2000,
+                temperature: 0.7,
+              });
+              repairedParagraphs[issue.index] = {
+                index: issue.index,
+                text: patchResult.text.trim(),
+                changes: repairedParagraphs[issue.index]?.changes              };
+            }
+          }
+
+          // Rebuild the text from repaired paragraphs
+          const repairedJoined = repairedParagraphs.map((p) => p.text).join("\n\n");
+          const repairedRestored = restore(repairedJoined, spans);
+          // We also need to re-verify spans
+          const repairedSpanCheck = verifySpansStrict(repairedJoined, spans);
+          if (repairedSpanCheck.ok) {
+            restoredText = repairedRestored;
+            finalChanges.push(...parsedReview.issues.map(i => `Fixed: ${i.reason}`));
+          }
+        }
+      } catch {
+        // If the reviewer fails, we proceed with the original rewrite (graceful degradation)
+      }
+    }
+    // --- End Step 8 ---
 
     return NextResponse.json({
       ok: true,
       action: "rewrite",
       original: rawText,
       rewritten: restoredText,
-      paragraphs: parsed.paragraphs, // Pass the Zod-validated paragraphs array (includes optional 'changes')
+      paragraphs: parsed.paragraphs,
       provider: lastProvider,
       model: lastModel,
       before: computeMetrics(rawText),
       after: computeMetrics(restoredText),
       spansProtected: spans.length,
       profileUsed,
+      changes: finalChanges.length > 0 ? finalChanges : undefined,
     });
   }
 

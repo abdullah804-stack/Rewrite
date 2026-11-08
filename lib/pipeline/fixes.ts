@@ -6,6 +6,33 @@ export type FixSuggestion = {
   display: string;
 };
 
+// Step 11: Phrases that are universally bad (fluff, corporate jargon, AI-isms)
+// and can be safely removed or replaced without destroying context.
+const STRONGLY_GENERIC_PHRASES = new Set([
+  "in today's rapidly evolving world",
+  "in the ever-evolving landscape",
+  "it is important to note that",
+  "it is worth noting that",
+  "delve into",
+  "tapestry of",
+  "navigate the complexities",
+  "unlock the potential",
+  "at the end of the day",
+  "think outside the box",
+  "take it to the next level",
+  "in conclusion",
+  "to sum up",
+  "first and foremost",
+  "last but not least",
+  "needless to say",
+  "it goes without saying",
+  "fast-paced world",
+  "game-changer",
+  "cutting-edge",
+  "synergy",
+  "paradigm shift",
+]);
+
 export function suggestFix(hit: LintHit): FixSuggestion {
   const entry = findPhraseEntry(hit.phrase);
   const replacements = entry?.replacements ?? hit.replacements;
@@ -63,8 +90,20 @@ export function applyAllFixes(text: string): { result: string; appliedCount: num
   let applied = 0;
 
   for (const hit of sorted) {
+    const phraseLower = hit.phrase.toLowerCase();
+
+    // Step 11: Skip context-dependent phrases like "Furthermore", "Robust", 
+    // or "Significantly" unless they are in the strongly generic list.
+    // Use substring matching because the lint engine may match longer phrases
+    // (e.g., "delve into the details" instead of just "delve into").
+    const isStronglyGeneric = Array.from(STRONGLY_GENERIC_PHRASES).some((p) =>
+      phraseLower.includes(p)
+    );
+    if (!isStronglyGeneric) {
+      continue;
+    }
+
     const suggestion = suggestFix(hit);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     result = applyFix(result, hit, suggestion.replacement);
     applied += 1;
   }

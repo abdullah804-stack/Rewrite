@@ -1,3 +1,8 @@
+// Step 12: Renamed to Source & Claim Checks (Audit §9C)
+// The old "Claim" terminology implied fact-checking. We now use "Source checks".
+// Note: We DO NOT verify if the source exists or is true. We only check if
+// a citation-like string (URL, year, "According to X") is nearby.
+
 export type ClaimKind =
   | "percentage"
   | "currency"
@@ -7,17 +12,18 @@ export type ClaimKind =
   | "expert-reference"
   | "quote";
 
-export type ClaimFlag = {
+export type SourceCheckFlag = {
   kind: ClaimKind;
   text: string;
   start: number;
   end: number;
   hasSource: boolean;
+  status: "source_found" | "source_missing";
   reason: string;
 };
 
-export type ClaimResult = {
-  flags: ClaimFlag[];
+export type SourceCheckResult = {
+  flags: SourceCheckFlag[];
   unsourcedCount: number;
   sourcedCount: number;
 };
@@ -33,7 +39,7 @@ const SOURCE_HINTS: RegExp[] = [
   /\bfrom\s+[A-Z][a-zA-Z]+/g,
 ];
 
-const CLAIM_PATTERNS: {
+const CHECK_PATTERNS: {
   kind: ClaimKind;
   regex: RegExp;
   reason: string;
@@ -41,32 +47,32 @@ const CLAIM_PATTERNS: {
   {
     kind: "percentage",
     regex: /\b\d+(?:\.\d+)?\s?%/g,
-    reason: "Percentage claim — verify the source",
+    reason: "Percentage detected — verify the source",
   },
   {
     kind: "currency",
     regex: /\$\s?\d[\d,]*(?:\.\d+)?(?:\s?(?:million|billion|thousand|k|M|B))?/g,
-    reason: "Currency figure — verify the source",
+    reason: "Currency figure detected — verify the source",
   },
   {
     kind: "study-reference",
     regex: /\b(?:studies|research|surveys?|data|reports?)\s+(?:show|shows|suggest|suggests|indicate|indicates|found|find|reveal|reveals)\b/gi,
-    reason: "Study reference with no citation nearby",
+    reason: "Study reference detected — no citation nearby",
   },
   {
     kind: "expert-reference",
     regex: /\b(?:experts?|scientists?|researchers?|analysts?|officials?)\s+(?:say|says|believe|believes|agree|agrees|warn|warns|claim|claims)\b/gi,
-    reason: "Expert reference with no name nearby",
+    reason: "Expert reference detected — no name nearby",
   },
   {
     kind: "date",
     regex: /\b(?:in|since|by|during|from)\s+(?:19|20)\d{2}\b/gi,
-    reason: "Date reference — confirm it is accurate",
+    reason: "Date detected — confirm it is accurate",
   },
   {
     kind: "statistic",
     regex: /\b\d{1,3}(?:,\d{3})+\b/g,
-    reason: "Large figure — verify the source",
+    reason: "Large figure detected — verify the source",
   },
 ];
 
@@ -96,7 +102,6 @@ function hasSourceInSentence(text: string, start: number, end: number): boolean 
   const bounds = sentenceBounds(text, start);
   const sentence = text.slice(bounds.start, bounds.end);
 
-  // if the claim itself spans the whole sentence (unlikely), just test the sentence
   void end;
 
   for (const pattern of SOURCE_HINTS) {
@@ -107,10 +112,10 @@ function hasSourceInSentence(text: string, start: number, end: number): boolean 
   return false;
 }
 
-export function findClaims(text: string): ClaimResult {
-  const flags: ClaimFlag[] = [];
+export function findSourceChecks(text: string): SourceCheckResult {
+  const flags: SourceCheckFlag[] = [];
 
-  for (const { kind, regex, reason } of CLAIM_PATTERNS) {
+  for (const { kind, regex, reason } of CHECK_PATTERNS) {
     const re = new RegExp(regex.source, regex.flags);
     let match: RegExpExecArray | null;
 
@@ -129,6 +134,7 @@ export function findClaims(text: string): ClaimResult {
         start,
         end,
         hasSource: sourced,
+        status: sourced ? "source_found" : "source_missing",
         reason,
       });
     }
@@ -142,7 +148,7 @@ export function findClaims(text: string): ClaimResult {
   return { flags, unsourcedCount, sourcedCount };
 }
 
-export function claimKindLabel(kind: ClaimKind): string {
+export function sourceCheckKindLabel(kind: ClaimKind): string {
   const labels: Record<ClaimKind, string> = {
     percentage: "Percentage",
     currency: "Currency",
