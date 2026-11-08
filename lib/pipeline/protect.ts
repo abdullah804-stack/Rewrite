@@ -21,13 +21,19 @@ export type ProtectedText = {
   spans: ProtectedSpan[];
 };
 
+// Step 2.5: the `number` pattern previously matched any single digit (\d),
+// which froze labels like "01" in "Step 01" and prevented legitimate rewrites.
+// Now requires 2+ leading digits, or a decimal value, or a thousands-grouped
+// value. Small ordinal-style numbers (01, 1, 2) are left alone.
 const PATTERNS: { kind: ProtectedSpan["kind"]; regex: RegExp }[] = [
   { kind: "url", regex: /https?:\/\/[^\s)\]}"'<>]+/g },
   { kind: "email", regex: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g },
   { kind: "currency", regex: /\$\s?\d[\d,]*(?:\.\d+)?(?:\s?(?:million|billion|thousand|k|M|B))?/g },
   { kind: "percent", regex: /\d+(?:\.\d+)?\s?%/g },
   { kind: "year", regex: /\b(?:19|20)\d{2}\b/g },
-  { kind: "number", regex: /\b\d[\d,]*(?:\.\d+)?\b/g },
+  // Multi-digit numbers, decimals, and thousands-grouped values.
+  // Does NOT match single digits like "1" or "01".
+  { kind: "number", regex: /\b\d{2,}[\d,]*(?:\.\d+)?\b/g },
   { kind: "quote", regex: /"[^"\n]{1,200}"/g },
   { kind: "citation", regex: /\([A-Z][a-zA-Z]+(?:\s+et\s+al\.)?,\s*\d{4}\)/g },
 ];

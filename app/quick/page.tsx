@@ -25,28 +25,65 @@ type RewriteResponse = {
   after: Metrics;
   spansProtected: number;
   profileUsed: { name: string; avatar: string } | null;
+  changes?: string[]; // Step 7: Editorial Diagnostics
   error?: string;
 };
 
+// ---------------------------------------------------------------------------
+// Step 5: Sentence-aware chunking (Audit §3C)
+// Splits by paragraph first, but if a single paragraph exceeds maxWords, 
+// it splits by sentence boundaries. Never breaks a sentence in half.
+// ---------------------------------------------------------------------------
 function chunkText(text: string, maxWords = 800): string[] {
   const paragraphs = text.split(/\n{2,}/);
   const chunks: string[] = [];
   let currentChunk: string[] = [];
   let currentWords = 0;
 
-  for (const p of paragraphs) {
-    const words = p.trim().split(/\s+/).length;
-    if (currentWords + words > maxWords && currentChunk.length > 0) {
+  const flush = () => {
+    if (currentChunk.length > 0) {
       chunks.push(currentChunk.join("\n\n"));
       currentChunk = [];
       currentWords = 0;
     }
+  };
+
+  for (const p of paragraphs) {
+    const words = p.trim().split(/\s+/).length;
+    
+    // If it's a huge paragraph, split by sentences
+    if (words > maxWords) {
+      flush(); // Empty the current chunk first
+      
+      const sentences = p.match(/[^.!?]+[.!?]+(?=\s|$)/g) || [p];
+      let sentenceChunk: string[] = [];
+      let sentenceWords = 0;
+
+      for (const s of sentences) {
+        const sWords = s.trim().split(/\s+/).length;
+        if (sentenceWords + sWords > maxWords && sentenceChunk.length > 0) {
+          chunks.push(sentenceChunk.join(" ").trim());
+          sentenceChunk = [];
+          sentenceWords = 0;
+        }
+        sentenceChunk.push(s.trim());
+        sentenceWords += sWords;
+      }
+      if (sentenceChunk.length > 0) {
+        chunks.push(sentenceChunk.join(" ").trim());
+      }
+      continue;
+    }
+
+    // Normal paragraph logic
+    if (currentWords + words > maxWords && currentChunk.length > 0) {
+      flush();
+    }
     currentChunk.push(p);
     currentWords += words;
   }
-  if (currentChunk.length > 0) {
-    chunks.push(currentChunk.join("\n\n"));
-  }
+  
+  flush();
   return chunks;
 }
 
@@ -132,11 +169,18 @@ export default function QuickPage() {
 
     try {
       const chunks = chunkText(text, 800);
+      
+      // Step 5: Global Context Injection
+      // Grab the first ~300 words of the original doc so the AI knows the overarching topic,
+      // even when processing chunk 5 of 6.
+      const globalContext = text.split(/\s+/).slice(0, 300).join(" ");
+
       let fullRewritten = "";
       let lastProvider = "";
       let lastModel = "";
       let totalSpans = 0;
       let usedProfile = null;
+      let allChanges: string[] = [];
 
       for (let i = 0; i < chunks.length; i++) {
         if (chunks.length > 1) setProgress({ current: i + 1, total: chunks.length });
@@ -146,6 +190,7 @@ export default function QuickPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ 
             text: chunks[i], 
+            context: globalContext, // Send global context for every chunk
             intensity, 
             profileId, 
             preset, 
@@ -173,6 +218,13 @@ export default function QuickPage() {
         lastModel = data.model;
         totalSpans += data.spansProtected;
         if (data.profileUsed) usedProfile = data.profileUsed;
+
+        // Step 7: Collect editorial diagnostics
+        if (data.paragraphs) {
+          data.paragraphs.forEach((p: any) => {
+            if (p.changes) allChanges.push(...p.changes);
+          });
+        }
       }
 
       const finalData: RewriteResponse = {
@@ -185,6 +237,7 @@ export default function QuickPage() {
         after: analyzeText(fullRewritten, "general").metrics,
         spansProtected: totalSpans,
         profileUsed: usedProfile,
+        changes: allChanges.length > 0 ? allChanges : undefined,
       };
 
       setResult(finalData);
@@ -436,6 +489,7 @@ export default function QuickPage() {
                 context={result.original}
                 profileId={profileId}
                 onCopyAccepted={handleCopyText}
+                changes={result.changes}
               />
             )}
           </div>

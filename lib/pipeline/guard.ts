@@ -1,19 +1,37 @@
-import { redis, incrementWithTtl, dailyKey, getCount } from "../ratelimit";
+import { redis, dailyKey, getCount } from "../ratelimit";
 
 export type GuardResult =
   | { ok: true }
   | { ok: false; reason: string; retryAfterSeconds?: number };
 
-/** Per-user daily rewrite word budget (signed-in users). */
-export async function checkUserWordBudget(
+// ---------------------------------------------------------------------------
+// Step 4B: Atomic Quota Reservations (Audit §3D)
+// Instead of checking then recording later (which allows race conditions),
+// we reserve the quota atomically up front. If the request fails or hits cache,
+// the caller refunds the reservation.
+// ---------------------------------------------------------------------------
+
+export async function reserveUserWords(
   userId: string,
   requestedWords: number,
   limit: number
 ): Promise<GuardResult> {
   const key = dailyKey("quota:user", userId);
-  const used = await getCount(key);
+  const ttl = secondsUntilMidnightUTC() + 60;
 
-  if (used + requestedWords > limit) {
+  // Atomically add the words. If the key doesn't exist, it creates it at `requestedWords`.
+  const newTotal = await redis.incrby(key, requestedWords);
+
+  // If this was the first time creating the key, set the expiration
+  if (newTotal === requestedWords) {
+    await redis.expire(key, ttl);
+  }
+
+  // If the new total exceeds the limit, we immediately roll back the addition
+  if (newTotal > limit) {
+    await redis.decrby(key, requestedWords);
+    const used = await getCount(key);
+    
     return {
       ok: false,
       reason: `Daily limit reached (${used}/${limit} words used). Sign in tomorrow or bring your own key.`,
@@ -24,24 +42,30 @@ export async function checkUserWordBudget(
   return { ok: true };
 }
 
-export async function recordUserWords(
+export async function refundUserWords(
   userId: string,
   words: number
 ): Promise<void> {
+  if (words <= 0) return;
   const key = dailyKey("quota:user", userId);
-  await incrementWithTtl(key, secondsUntilMidnightUTC() + 60);
-  await redis.incrby(key, words - 1);
+  await redis.decrby(key, words).catch(() => {});
 }
 
-/** Anonymous per-IP request count. */
-export async function checkAnonRunBudget(
+export async function reserveAnonRun(
   ip: string,
   limit: number
 ): Promise<GuardResult> {
   const key = dailyKey("quota:anon", ip);
-  const used = await getCount(key);
+  const ttl = secondsUntilMidnightUTC() + 60;
 
-  if (used >= limit) {
+  const newTotal = await redis.incrby(key, 1);
+
+  if (newTotal === 1) {
+    await redis.expire(key, ttl);
+  }
+
+  if (newTotal > limit) {
+    await redis.decrby(key, 1);
     return {
       ok: false,
       reason: `Anonymous limit reached (${limit}/day). Sign in for more.`,
@@ -52,12 +76,15 @@ export async function checkAnonRunBudget(
   return { ok: true };
 }
 
-export async function recordAnonRun(ip: string): Promise<void> {
+export async function refundAnonRun(ip: string): Promise<void> {
   const key = dailyKey("quota:anon", ip);
-  await incrementWithTtl(key, secondsUntilMidnightUTC() + 60);
+  await redis.decrby(key, 1).catch(() => {});
 }
 
-/** Global circuit breaker — track per-provider call counts. */
+// ---------------------------------------------------------------------------
+// Provider Capacity (Global circuit breaker)
+// ---------------------------------------------------------------------------
+
 export async function checkProviderCapacity(
   providerId: string,
   dailyLimit: number
@@ -80,7 +107,11 @@ export async function recordProviderCall(
   providerId: string
 ): Promise<void> {
   const key = dailyKey("capacity:provider", providerId);
-  await incrementWithTtl(key, secondsUntilMidnightUTC() + 60);
+  const ttl = secondsUntilMidnightUTC() + 60;
+  const newTotal = await redis.incr(key);
+  if (newTotal === 1) {
+    await redis.expire(key, ttl);
+  }
 }
 
 function secondsUntilMidnightUTC(): number {

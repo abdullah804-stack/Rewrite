@@ -59,12 +59,14 @@ export function DiffView({
   context,
   profileId,
   onCopyAccepted,
+  changes,
 }: {
   original: string;
   rewritten: string;
   context?: string;
   profileId?: string | null;
   onCopyAccepted: (text: string) => void;
+  changes?: string[]; // Step 7: Editorial Diagnostics
 }) {
   const initial: DiffResult = useMemo(
     () => diffSentences(original, rewritten),
@@ -188,6 +190,18 @@ export function DiffView({
 
   return (
     <div>
+      {/* Step 7: Editorial Diagnostics */}
+      {changes && changes.length > 0 && (
+        <div className="mb-4 p-3 rounded-lg border border-yellow-200 bg-yellow-50 text-yellow-800 text-sm">
+          <div className="font-semibold mb-1">Editor's Notes</div>
+          <ul className="list-disc list-inside space-y-0.5">
+            {changes.map((change, i) => (
+              <li key={i}>{change}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <ExportMenu
           text={assembleAccepted(diff)}

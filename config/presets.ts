@@ -7,22 +7,22 @@ export const PRESETS: Record<
   blog: {
     name: "Blog post",
     instruction:
-      "Write in a clear, engaging, and conversational tone. Use short paragraphs (1-3 sentences). Start with a strong hook. Avoid corporate jargon.",
+      "Genre: Blog post. Format for a general online audience. Use a clear, engaging, and conversational tone. Keep paragraphs relatively short (1-3 sentences) for easy reading. Avoid corporate jargon, but do not force artificial hooks or fragments.",
   },
   email: {
     name: "Email",
     instruction:
-      "Write clearly and concisely. Get to the point quickly. Use a professional but friendly tone. Short paragraphs, scannable format.",
+      "Genre: Professional email. Focus on clarity, conciseness, and immediate context. The reader should understand the purpose quickly. Keep the formatting scannable, but maintain a natural, professional tone.",
   },
   linkedin: {
     name: "LinkedIn post",
     instruction:
-      "Write in a professional, insightful tone. Use short, punchy sentences. Start with a hook that stops the scroll. Use line breaks for readability.",
+      "Genre: LinkedIn post. Aim for a professional, insightful tone suited to a career-focused network. Use line breaks for readability. Avoid clickbait or formulaic 'scroll-stopping' hooks; focus on the substance of the insight.",
   },
   newsletter: {
     name: "Newsletter",
     instruction:
-      "Write in a warm, personal tone. Speak directly to the reader. Use a conversational voice, but stay focused.",
+      "Genre: Newsletter. Adopt a warm, personal tone that speaks directly to the reader. Maintain a conversational voice while keeping the content focused and valuable.",
   },
   custom: {
     name: "Custom / None",

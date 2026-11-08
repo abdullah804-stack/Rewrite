@@ -208,6 +208,10 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// OpenRouter secondary fallback — used only if the primary OpenRouter model
+// (Nemotron 3 Ultra) fails. This is a known, pinned model, never a routing alias.
+const OPENROUTER_SECONDARY_MODEL = "google/gemma-4-31b-it:free";
+
 export async function chatWithFallback(
   opts: Omit<ChatOptions, "providerId">,
   order: ProviderId[] = ["groq", "openrouter"]
@@ -219,9 +223,85 @@ export async function chatWithFallback(
       return await chat({ ...opts, providerId });
     } catch (err) {
       lastError = err as Error;
+
+      // If OpenRouter's primary model failed, try its pinned secondary model
+      // before giving up on OpenRouter entirely.
+      if (providerId === "openrouter") {
+        try {
+          const provider = getProvider("openrouter");
+          const apiKey = process.env[provider.envKey];
+          if (!apiKey) throw new Error("Missing OpenRouter API key");
+          return await chatOpenAICompatibleWithModel(
+            provider,
+            apiKey,
+            OPENROUTER_SECONDARY_MODEL,
+            opts
+          );
+        } catch (secondaryErr) {
+          lastError = secondaryErr as Error;
+        }
+      }
+
       continue;
     }
   }
 
   throw lastError ?? new Error("All providers failed");
+}
+
+// Extracted from chatOpenAICompatible so we can pass an explicit model
+// for the OpenRouter secondary fallback without changing the provider config.
+async function chatOpenAICompatibleWithModel(
+  provider: ProviderConfig,
+  apiKey: string,
+  model: string,
+  opts: Omit<ChatOptions, "providerId">
+): Promise<ChatResult> {
+  const url = `${provider.baseUrl}/chat/completions`;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: "system", content: opts.system },
+        { role: "user", content: opts.user },
+      ],
+      max_tokens: opts.maxTokens ?? 2000,
+      temperature: opts.temperature ?? 0.7,
+      top_p: 0.9,
+      frequency_penalty: 0.2,
+      response_format: { type: "json_object" },
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`${provider.name} error: ${response.status} ${error}`);
+  }
+
+  const raw = await response.text();
+  if (!raw || raw.trim().length === 0) {
+    throw new Error(`${provider.name} returned an empty response body.`);
+  }
+
+  let data: { choices?: { message?: { content?: string } }[] };
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    throw new Error(
+      `${provider.name} returned non-JSON response: ${raw.slice(0, 200)}`
+    );
+  }
+
+  const text = data?.choices?.[0]?.message?.content;
+  if (typeof text !== "string" || text.length === 0) {
+    throw new Error(`${provider.name} returned an empty response.`);
+  }
+
+  return { text, provider: provider.name, model };
 }
