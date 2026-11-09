@@ -156,9 +156,8 @@ async function chatOpenAICompatible(
         ],
         max_tokens: opts.maxTokens ?? 2000,
         temperature: opts.temperature ?? 0.7,
-        top_p: 0.9,
-        frequency_penalty: 0.2,
-        response_format: { type: "json_object" } // Force JSON output
+        // Step 19: Removed top_p and frequency_penalty (Audit §11 / §2)
+        response_format: { type: "json_object" },
       }),
     });
 
@@ -224,8 +223,6 @@ export async function chatWithFallback(
     } catch (err) {
       lastError = err as Error;
 
-      // If OpenRouter's primary model failed, try its pinned secondary model
-      // before giving up on OpenRouter entirely.
       if (providerId === "openrouter") {
         try {
           const provider = getProvider("openrouter");
@@ -273,8 +270,7 @@ async function chatOpenAICompatibleWithModel(
       ],
       max_tokens: opts.maxTokens ?? 2000,
       temperature: opts.temperature ?? 0.7,
-      top_p: 0.9,
-      frequency_penalty: 0.2,
+      // Step 21: Removed top_p and frequency_penalty (Audit §11 / §2)
       response_format: { type: "json_object" },
     }),
   });

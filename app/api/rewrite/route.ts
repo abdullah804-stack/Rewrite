@@ -415,29 +415,49 @@ export async function POST(request: Request) {
       quotaReserved = true;
     }
 
-    let profileRecord: { name: string; profile: unknown } | null = null;
+        let profileRecord: { name: string; profile: unknown } | null = null;
     if (profileId && session?.user?.id) {
-      const record = await prisma.voiceProfile.findFirst({
-        where: { id: profileId, userId: session.user.id },
+      // Step 20: Explicit ownership check for profile
+      const record = await prisma.voiceProfile.findUnique({
+        where: { id: profileId },
       });
-      if (record) {
-        profileRecord = { name: record.name, profile: record.profile };
+      if (!record) {
+        return NextResponse.json({ error: "Voice profile not found." }, { status: 404 });
       }
+      if (record.userId !== session.user.id) {
+        return NextResponse.json({ error: "Voice profile access denied." }, { status: 403 });
+      }
+      profileRecord = { name: record.name, profile: record.profile };
     }
 
     let glossaryBlock = "";
     let glossaryRecord = null;
 
     if (glossaryId && session?.user?.id) {
-      glossaryRecord = await prisma.glossary.findFirst({
-        where: { id: glossaryId, userId: session.user.id },
+      // Step 20: Explicit ownership check for glossary
+      const record = await prisma.glossary.findUnique({
+        where: { id: glossaryId },
       });
-      if (glossaryRecord) glossaryBlock = buildGlossaryPrompt(glossaryRecord);
+      if (!record) {
+        return NextResponse.json({ error: "Glossary not found." }, { status: 404 });
+      }
+      if (record.userId !== session.user.id) {
+        return NextResponse.json({ error: "Glossary access denied." }, { status: 403 });
+      }
+      glossaryRecord = record;
+      glossaryBlock = buildGlossaryPrompt(glossaryRecord);
     } else if (body.projectId && session?.user?.id) {
+      // Step 20: Explicit ownership check for project (fixes findUnique vulnerability)
       const project = await prisma.project.findUnique({
-        where: { id: body.projectId, userId: session.user.id },
+        where: { id: body.projectId },
       });
-      if (project?.glossary) {
+      if (!project) {
+        return NextResponse.json({ error: "Project not found." }, { status: 404 });
+      }
+      if (project.userId !== session.user.id) {
+        return NextResponse.json({ error: "Project access denied." }, { status: 403 });
+      }
+      if (project.glossary) {
         glossaryRecord = project.glossary as any;
         glossaryBlock = buildGlossaryPrompt(glossaryRecord);
       }
@@ -706,7 +726,7 @@ Return JSON: { "paragraphs": [{ "index": 0, "text": "..." }] }`;
     let finalChanges = parsed.paragraphs
       .flatMap((p: any) => p.changes || []);
 
-    // --- Step 8: Independent Editorial Review (Audit §2 & §6) ---
+        // --- Step 8: Independent Editorial Review (Audit §2 & §6) ---
     // Only run for balanced/strong intensity (cost control).
     // Ask the reviewer to identify *only* paragraphs with significant issues.
     if (intensity !== "light") {
@@ -717,41 +737,60 @@ Return JSON: { "paragraphs": [{ "index": 0, "text": "..." }] }`;
           system: REVIEW_SYSTEM,
           user: reviewPrompt,
           maxTokens: 1000,
-          temperature: 0.2, // Reviewer should be precise
+          temperature: 0.2,
         });
 
         const parsedReview = parseJsonLoose(reviewResult.text) as { issues?: { index: number; reason: string }[] };
         
         if (parsedReview.issues && parsedReview.issues.length > 0) {
-          // If issues found, we patch *only* the failed paragraphs
           const repairedParagraphs = [...parsed.paragraphs];
+          const successfulRepairs: string[] = [];
           
           for (const issue of parsedReview.issues) {
             const originalPara = rawText.split(/\n{2,}/)[issue.index];
-            if (originalPara) {
-              // Quick targeted rewrite for this paragraph
-              const patchPrompt = `Rewrite this paragraph to fix the following issue: "${issue.reason}"\n\nOriginal paragraph:\n"""\n${originalPara}\n"""\n\nReturn the corrected paragraph text as plain text. No markdown.`;
+            if (!originalPara) continue;
+
+            // Mask the original paragraph so protected spans are preserved in the patch
+            const maskedParaObj = protect(originalPara);
+            const maskedPara = maskedParaObj.masked;
+            const paraSpans = maskedParaObj.spans;
+
+            try {
+              const patchPrompt = `Rewrite this paragraph to fix the following issue: "${issue.reason}"\n\nOriginal paragraph:\n"""\n${maskedPara}\n"""\n\nReturn the corrected paragraph text as plain text. No markdown.`;
               const patchResult = await chatWithFallback({
                 system: BASE_SYSTEM,
                 user: patchPrompt,
                 maxTokens: 2000,
                 temperature: 0.7,
               });
-              repairedParagraphs[issue.index] = {
-                index: issue.index,
-                text: patchResult.text.trim(),
-                changes: repairedParagraphs[issue.index]?.changes              };
+
+              const patchedText = patchResult.text.trim();
+              
+              // Verify spans in the patched paragraph before accepting it
+              const patchedSpanCheck = verifySpansStrict(patchedText, paraSpans);
+              if (patchedSpanCheck.ok) {
+                repairedParagraphs[issue.index] = {
+                  index: issue.index,
+                  text: patchedText,
+                  changes: repairedParagraphs[issue.index]?.changes,
+                };
+                successfulRepairs.push(`Fixed: ${issue.reason}`);
+              }
+              // If span check fails, we keep the original paragraph (do nothing)
+            } catch {
+              // If the patch fails, keep the original paragraph (do nothing)
             }
           }
 
-          // Rebuild the text from repaired paragraphs
-          const repairedJoined = repairedParagraphs.map((p) => p.text).join("\n\n");
-          const repairedRestored = restore(repairedJoined, spans);
-          // We also need to re-verify spans
-          const repairedSpanCheck = verifySpansStrict(repairedJoined, spans);
-          if (repairedSpanCheck.ok) {
-            restoredText = repairedRestored;
-            finalChanges.push(...parsedReview.issues.map(i => `Fixed: ${i.reason}`));
+          if (successfulRepairs.length > 0) {
+            const repairedJoined = repairedParagraphs.map((p) => p.text).join("\n\n");
+            const repairedRestored = restore(repairedJoined, spans);
+            const repairedSpanCheck = verifySpansStrict(repairedJoined, spans);
+            
+            if (repairedSpanCheck.ok) {
+              restoredText = repairedRestored;
+              finalChanges.push(...successfulRepairs);
+            }
           }
         }
       } catch {
@@ -812,7 +851,7 @@ async function handleRegen(
     system: REGEN_SYSTEM,
     user: userPrompt,
     maxTokens: 400,
-    temperature: 0.95,
+        temperature: 0.7,
   });
 
   let parsed: { text?: string };
@@ -869,7 +908,7 @@ async function handleSelection(
     system: SELECTION_SYSTEM,
     user: userPrompt,
     maxTokens: 800,
-    temperature: 0.85,
+        temperature: 0.7,
   });
 
   let parsed: { text?: string };
