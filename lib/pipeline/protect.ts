@@ -21,6 +21,16 @@ export type ProtectedText = {
   spans: ProtectedSpan[];
 };
 
+// Step A: Normalize curly quotes to straight quotes before protection.
+// Wikipedia and SEC text often use " " and ' ' which the regex misses.
+// The model also tends to convert straight → curly when rewriting.
+// By normalizing upfront, the tokens stay stable.
+function normalizeQuotes(input: string): string {
+  return input
+    .replace(/[\u201C\u201D]/g, '"')   // curly double → straight double
+    .replace(/[\u2018\u2019]/g, "'"); // curly single → straight single
+}
+
 // Step 10: Added `heading` and `code` protection (Audit §3A)
 // Order matters: Fenced code blocks must be caught before inline code or URLs
 // so they don't get split up by inner matches.
@@ -43,13 +53,16 @@ const PATTERNS: { kind: ProtectedSpan["kind"]; regex: RegExp }[] = [
   { kind: "year", regex: /\b(?:19|20)\d{2}\b/g },
   // 9. Multi-digit numbers (excludes single digits like "01")
   { kind: "number", regex: /\b\d{2,}[\d,]*(?:\.\d+)?\b/g },
-  // 10. Quotes
+  // 10. Quotes — now handles both straight and curly (because we normalized)
   { kind: "quote", regex: /"[^"\n]{1,200}"/g },
   // 11. Citations
   { kind: "citation", regex: /\([A-Z][a-zA-Z]+(?:\s+et\s+al\.)?,\s*\d{4}\)/g },
 ];
 
 export function protect(input: string): ProtectedText {
+  // Step A: normalize curly quotes before any regex runs
+  const normalized = normalizeQuotes(input);
+
   type RawMatch = {
     kind: ProtectedSpan["kind"];
     value: string;
@@ -62,7 +75,7 @@ export function protect(input: string): ProtectedText {
   for (const { kind, regex } of PATTERNS) {
     const re = new RegExp(regex.source, regex.flags);
     let m: RegExpExecArray | null;
-    while ((m = re.exec(input)) !== null) {
+    while ((m = re.exec(normalized)) !== null) {
       matches.push({
         kind,
         value: m[0],
@@ -91,7 +104,7 @@ export function protect(input: string): ProtectedText {
   const spans: ProtectedSpan[] = [];
 
   accepted.forEach((m, i) => {
-    masked += input.slice(cursor, m.start);
+    masked += normalized.slice(cursor, m.start);
     const token = `⟦P${i + 1}⟧`;
     masked += token;
     spans.push({
@@ -104,7 +117,7 @@ export function protect(input: string): ProtectedText {
     cursor = m.end;
   });
 
-  masked += input.slice(cursor);
+  masked += normalized.slice(cursor);
 
   return { masked, spans };
 }

@@ -1,0 +1,9 @@
+Here is an example of a simple function:
+
+```js
+function add(a, b) {
+ return a + b;
+}
+```
+
+This function takes two arguments and returns their sum. It works with integers and floats.

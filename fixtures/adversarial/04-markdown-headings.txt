@@ -1,0 +1,11 @@
+# Introduction
+
+This is the first paragraph of the document. It sets up the problem.
+
+## Background
+
+This section provides context. It explains why the problem matters.
+
+### Details
+
+Here are the specific details you need to know.

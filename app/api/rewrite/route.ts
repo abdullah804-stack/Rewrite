@@ -55,8 +55,6 @@ const INTENSITY_RULES: Record<string, string> = {
 };
 
 // Step 16: Prompt versioning (Audit §9E #9)
-// Bump this whenever BASE_SYSTEM or REVIEW_SYSTEM changes significantly.
-// This invalidates the cache so users don't get stale outputs.
 const PROMPT_VERSION = "v3-2026-11";
 const BASE_SYSTEM = `You are an experienced human editor.
 
@@ -118,20 +116,29 @@ For each paragraph, you may optionally include a "changes" array (up to 3 short 
 No commentary. No markdown fences.`;
 
 // ---------------------------------------------------------------------------
-// Step 8: Reviewer Prompt (Audit §2 & §6)
+// Step C: Stronger reviewer prompt with explicit dimensions.
 // ---------------------------------------------------------------------------
-const REVIEW_SYSTEM = `You are an independent editorial reviewer.
+const REVIEW_SYSTEM = `You are an independent editorial reviewer evaluating a rewrite against its original.
 
-Your task is to evaluate a rewritten draft and identify ONLY the paragraphs that have significant issues, such as:
-- Awkward or unnatural phrasing.
-- Loss of original meaning or context.
-- Inconsistent tone or voice.
-- Newly introduced unsupported claims.
-- Broken protected tokens.
+You MUST evaluate four dimensions, each as "pass" or "fail":
+1. naturalness: Does the rewrite sound like a human editor wrote it? (Not AI-ish, not stilted.)
+2. voice: Does the rewrite match the target voice, if one is supplied? (Ignore if no voice block.)
+3. meaning: Are all facts, numbers, claims, and qualifications from the original preserved? (Fail on any invented or removed claim.)
+4. grammar: Is the rewrite free of grammar, punctuation, and spelling errors?
 
-Do NOT suggest changes for stylistic preferences alone. If a paragraph is clear and preserves meaning, leave it alone.
-If no paragraphs have significant issues, return { "issues": [] }.
-Otherwise, return { "issues": [{ "index": 0, "reason": "Short explanation of the issue" }] }.
+Additionally, list any paragraphs that have specific fixable issues (only for naturalness, voice, or grammar failures).
+
+Return JSON in exactly this shape:
+{
+  "naturalness": "pass" | "fail",
+  "voice": "pass" | "fail",
+  "meaning": "pass" | "fail",
+  "grammar": "pass" | "fail",
+  "issues": [{ "index": 0, "reason": "..." }]
+}
+
+If everything passes, return issues: [].
+Do NOT suggest changes for stylistic preference alone. Only flag actual failures.
 Return valid JSON only. No commentary.`;
 
 // ---------------------------------------------------------------------------
@@ -354,7 +361,6 @@ export async function POST(request: Request) {
   try {
     const session = await auth();
     
-    // Step 4C: Validate request body with Zod
     const rawBody = await request.json().catch(() => ({}));
     const parsedBody = RewriteRequestSchema.safeParse(rawBody);
     
@@ -397,7 +403,6 @@ export async function POST(request: Request) {
 
     const anonIp = session?.user?.id ? null : clientIp(request);
 
-    // Step 4B: Reserve quota up front.
     let quotaReserved = false;
     if (session?.user?.id) {
       const budget = await reserveUserWords(
@@ -415,9 +420,8 @@ export async function POST(request: Request) {
       quotaReserved = true;
     }
 
-        let profileRecord: { name: string; profile: unknown } | null = null;
+    let profileRecord: { name: string; profile: unknown } | null = null;
     if (profileId && session?.user?.id) {
-      // Step 20: Explicit ownership check for profile
       const record = await prisma.voiceProfile.findUnique({
         where: { id: profileId },
       });
@@ -434,7 +438,6 @@ export async function POST(request: Request) {
     let glossaryRecord = null;
 
     if (glossaryId && session?.user?.id) {
-      // Step 20: Explicit ownership check for glossary
       const record = await prisma.glossary.findUnique({
         where: { id: glossaryId },
       });
@@ -447,7 +450,6 @@ export async function POST(request: Request) {
       glossaryRecord = record;
       glossaryBlock = buildGlossaryPrompt(glossaryRecord);
     } else if (body.projectId && session?.user?.id) {
-      // Step 20: Explicit ownership check for project (fixes findUnique vulnerability)
       const project = await prisma.project.findUnique({
         where: { id: body.projectId },
       });
@@ -499,14 +501,12 @@ export async function POST(request: Request) {
       );
     }
 
-    // --- CACHING LOGIC (Step 4A fix) ---
     const glossaryHash = glossaryBlock 
       ? createHash("sha256").update(glossaryBlock).digest("hex") 
       : null;
       
     const primaryModelName = "openai/gpt-oss-120b"; 
 
-    // Step 16: Include PROMPT_VERSION in the cache key
     const cacheKey = hashRequest(
       PROMPT_VERSION,
       rawText,
@@ -524,7 +524,6 @@ export async function POST(request: Request) {
     if (cachedData) {
       const validation = validateGlossary(cachedData.rewritten, glossaryRecord);
       if (validation.ok) {
-        // Step 4B: Refund the quota because this was a cache hit.
         if (session?.user?.id && quotaReserved) {
           await refundUserWords(session.user.id, wordCount);
         } else if (anonIp && quotaReserved) {
@@ -533,7 +532,6 @@ export async function POST(request: Request) {
         return NextResponse.json({ ...cachedData, provider: "Cache" });
       }
     }
-    // --------------------------------------------------------------------
 
     let response;
     try {
@@ -650,7 +648,6 @@ Return JSON: { "paragraphs": [{ "index": 0, "text": "..." }] }`;
     lastProvider = result.provider;
     lastModel = result.model;
 
-    // Step 4C: Validate AI response with Zod
     let parsed: any;
     try {
       const looseJson = parseJsonLoose(result.text);
@@ -708,8 +705,6 @@ Return JSON: { "paragraphs": [{ "index": 0, "text": "..." }] }`;
       continue;
     }
 
-    // Step 16: Paragraph completeness check (Audit §9E #3)
-    // If the AI dropped or merged paragraphs, we reject and retry.
     if (parsed.paragraphs.length !== maskedParagraphs.length) {
       if (strict) {
         return NextResponse.json(
@@ -726,11 +721,9 @@ Return JSON: { "paragraphs": [{ "index": 0, "text": "..." }] }`;
     let finalChanges = parsed.paragraphs
       .flatMap((p: any) => p.changes || []);
 
-        // --- Step 8: Independent Editorial Review (Audit §2 & §6) ---
-    // Only run for balanced/strong intensity (cost control).
-    // Ask the reviewer to identify *only* paragraphs with significant issues.
+    // --- Step C: Independent Editorial Review ---
     if (intensity !== "light") {
-      const reviewPrompt = `Original draft:\n"""\n${rawText}\n"""\n\nRewritten draft:\n"""\n${restoredText}\n"""\n\nIdentify any paragraphs in the rewritten draft that have significant issues (unclear meaning, broken flow, changed facts, lost voice). Return JSON: { "issues": [{ "index": 0, "reason": "..." }] } or { "issues": [] }`;
+      const reviewPrompt = `Original draft:\n"""\n${rawText}\n"""\n\nRewritten draft:\n"""\n${restoredText}\n"""\n\nEvaluate the rewrite on the four dimensions. Return JSON: { "naturalness": "pass" | "fail", "voice": "pass" | "fail", "meaning": "pass" | "fail", "grammar": "pass" | "fail", "issues": [{ "index": 0, "reason": "..." }] }`;
       
       try {
         const reviewResult = await chatWithFallback({
@@ -740,17 +733,37 @@ Return JSON: { "paragraphs": [{ "index": 0, "text": "..." }] }`;
           temperature: 0.2,
         });
 
-        const parsedReview = parseJsonLoose(reviewResult.text) as { issues?: { index: number; reason: string }[] };
-        
-        if (parsedReview.issues && parsedReview.issues.length > 0) {
+        type ReviewVerdict = {
+          naturalness?: "pass" | "fail";
+          voice?: "pass" | "fail";
+          meaning?: "pass" | "fail";
+          grammar?: "pass" | "fail";
+          issues?: { index: number; reason: string }[];
+        };
+
+        const verdict = parseJsonLoose(reviewResult.text) as ReviewVerdict;
+
+        if (verdict.meaning === "fail") {
+          if (strict) {
+            return NextResponse.json(
+              {
+                error:
+                  "The reviewer detected a meaning change in the rewrite. Please try again or rephrase the input.",
+              },
+              { status: 502 }
+            );
+          }
+          continue;
+        }
+
+        if (verdict.issues && verdict.issues.length > 0) {
           const repairedParagraphs = [...parsed.paragraphs];
           const successfulRepairs: string[] = [];
           
-          for (const issue of parsedReview.issues) {
+          for (const issue of verdict.issues) {
             const originalPara = rawText.split(/\n{2,}/)[issue.index];
             if (!originalPara) continue;
 
-            // Mask the original paragraph so protected spans are preserved in the patch
             const maskedParaObj = protect(originalPara);
             const maskedPara = maskedParaObj.masked;
             const paraSpans = maskedParaObj.spans;
@@ -765,8 +778,6 @@ Return JSON: { "paragraphs": [{ "index": 0, "text": "..." }] }`;
               });
 
               const patchedText = patchResult.text.trim();
-              
-              // Verify spans in the patched paragraph before accepting it
               const patchedSpanCheck = verifySpansStrict(patchedText, paraSpans);
               if (patchedSpanCheck.ok) {
                 repairedParagraphs[issue.index] = {
@@ -776,9 +787,8 @@ Return JSON: { "paragraphs": [{ "index": 0, "text": "..." }] }`;
                 };
                 successfulRepairs.push(`Fixed: ${issue.reason}`);
               }
-              // If span check fails, we keep the original paragraph (do nothing)
             } catch {
-              // If the patch fails, keep the original paragraph (do nothing)
+              // If the patch fails, keep the original paragraph
             }
           }
 
@@ -797,7 +807,7 @@ Return JSON: { "paragraphs": [{ "index": 0, "text": "..." }] }`;
         // If the reviewer fails, we proceed with the original rewrite (graceful degradation)
       }
     }
-    // --- End Step 8 ---
+    // --- End Step C ---
 
     return NextResponse.json({
       ok: true,
@@ -851,7 +861,7 @@ async function handleRegen(
     system: REGEN_SYSTEM,
     user: userPrompt,
     maxTokens: 400,
-        temperature: 0.7,
+    temperature: 0.7,
   });
 
   let parsed: { text?: string };
@@ -908,7 +918,7 @@ async function handleSelection(
     system: SELECTION_SYSTEM,
     user: userPrompt,
     maxTokens: 800,
-        temperature: 0.7,
+    temperature: 0.7,
   });
 
   let parsed: { text?: string };

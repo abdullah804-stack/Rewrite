@@ -206,9 +206,15 @@ Return JSON with a "paragraphs" array.`;
   const t0 = Date.now();
 
   try {
-    // 3-second delay for OpenRouter to respect the per-minute rate limit
+    // Rate-limit courtesy: 6 seconds between Groq calls keeps us under 8k tokens/min
+    // (assuming average ~1.2k tokens per call → ~7,200 tokens/min).
+    if (providerId === "groq") {
+      await new Promise((r) => setTimeout(r, 6000));
+    }
+    // OpenRouter: 4 seconds between calls (same reasoning, but they also have a
+    // 50 req/day cap, so this is a soft gate).
     if (providerId === "openrouter") {
-      await new Promise((r) => setTimeout(r, 3000));
+      await new Promise((r) => setTimeout(r, 4000));
     }
 
     const result = await chatWithFallback(
@@ -342,6 +348,7 @@ async function main() {
 
   const folders = [
     "ai-drafts",
+ "genres",
     "messy",
     "adversarial",
     "clean",

@@ -1,3 +1,0 @@
-<!-- TODO: Adversarial and formatting cases sample 3 of 15 -->
-
-Paste a real adversarial and formatting cases sample here.

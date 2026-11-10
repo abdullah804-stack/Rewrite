@@ -8,7 +8,7 @@ Here's what we shipped this week:
 
 | Feature | Status | Owner |
 |---------|--------|-------|
-| Export  | ✅ Done | Alex  |
-| Import  | 🚧 WIP  | Sam   |
+| Export | ✅ Done | Alex |
+| Import | 🚧 WIP | Sam |
 
 > Note: Don't forget to run the migration script before deploying.

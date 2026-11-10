@@ -1,3 +1,0 @@
-<!-- TODO: Voice-matching samples sample 13 of 15 -->
-
-Paste a real voice-matching samples sample here.

@@ -1,0 +1,7 @@
+Here are the key points to remember:
+
+1. Always read the documentation.
+2. Never skip the tests.
+3. Measure performance before optimizing.
+
+These rules have served us well since 2018.
