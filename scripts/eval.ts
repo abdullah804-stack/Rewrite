@@ -238,8 +238,16 @@ Return JSON with a "paragraphs" array.`;
       parsed = JSON.parse(match[0]);
     }
 
+    // Defensive check: model may return JSON without a `paragraphs` array
+    // (e.g., if it decided to refuse the request or return a different shape).
+    if (!parsed || !Array.isArray(parsed.paragraphs)) {
+      throw new Error(
+        `Model response missing 'paragraphs' array. Got: ${JSON.stringify(parsed).slice(0, 200)}`
+      );
+    }
+
     const joined = parsed.paragraphs
-      .map((p: { text: string }) => p.text)
+      .map((p: { text: string }) => p.text ?? "")
       .join("\n\n");
 
     let restored = joined;
