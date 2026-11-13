@@ -27,19 +27,19 @@ type Action = "rewrite" | "regen" | "selection";
 
 // Step 4C: Zod Request Schema
 const RewriteRequestSchema = z.object({
-  action: z.enum(["rewrite", "regen", "selection"]).optional(),
+  action: z.enum(["rewrite", "regen", "selection"]).nullish(),
   text: z.string().min(1, "Text is required"),
-  context: z.string().optional(),
-  sentenceIndex: z.number().optional(),
-  intensity: z.enum(["light", "balanced", "strong"]).optional(),
-  profileId: z.string().optional(),
-  glossaryId: z.string().optional(),
-  projectId: z.string().optional(),
-  preset: z.string().optional(),
-  seoSafe: z.boolean().optional(),
-  toneFormality: z.number().min(0).max(10).optional(),
-  toneDirectness: z.number().min(0).max(10).optional(),
-});
+  context: z.string().nullish(),
+  sentenceIndex: z.number().nullish(),
+  intensity: z.enum(["light", "balanced", "strong"]).nullish(),
+  profileId: z.string().nullish(),
+  glossaryId: z.string().nullish(),
+  projectId: z.string().nullish(),
+  preset: z.string().nullish(),
+  seoSafe: z.boolean().nullish(),
+  toneFormality: z.number().min(0).max(10).nullish(),
+  toneDirectness: z.number().min(0).max(10).nullish(),
+}).passthrough();
 
 // ---------------------------------------------------------------------------
 // Step 2: editorial prompt
