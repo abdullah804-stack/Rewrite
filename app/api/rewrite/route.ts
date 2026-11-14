@@ -5,6 +5,7 @@ import { z } from "zod";
 import { prisma } from "../../../lib/prisma";
 import { protect, restore, type ProtectedSpan } from "../../../lib/pipeline/protect";
 import { chatWithFallback } from "../../../lib/ai/chat";
+import { getProvider, getProviderOrder, hasApiKey, type ProviderId } from "../../../lib/ai/providers";
 import { computeMetrics } from "../../../lib/pipeline/metrics";
 import type { VoiceProfile } from "../../../lib/ai/schemas";
 import { RewriteOutputSchema } from "../../../lib/ai/schemas";
@@ -13,7 +14,7 @@ import { PRESETS, type PresetId } from "../../../config/presets";
 import { hashRequest, getCachedResponse, setCachedResponse } from "../../../lib/ai/cache";
 import { reserveUserWords, refundUserWords, reserveAnonRun, refundAnonRun, clientIp } from "../../../lib/pipeline/guard";
 import { getLimits } from "../../../config/plans";
-import { analyzeText, type TellReport, injectStructuralChaos } from "../../../lib/pipeline/aiTells";
+import { analyzeText, type TellReport } from "../../../lib/pipeline/aiTells";
 import { makeStylePlan, renderStylePlan, type Intensity } from "../../../lib/pipeline/stylePlan";
 
 export const runtime = "nodejs";
@@ -34,6 +35,8 @@ const RewriteRequestSchema = z.object({
   seoSafe: z.boolean().nullish(),
   toneFormality: z.number().min(0).max(10).nullish(),
   toneDirectness: z.number().min(0).max(10).nullish(),
+  // Benchmark-only: when it equals the BENCH_KEY env var, the request skips the cache and the quota.
+  benchKey: z.string().nullish(),
 }).passthrough();
 
 const INTENSITY_RULES: Record<Intensity, string> = {
@@ -44,9 +47,11 @@ const INTENSITY_RULES: Record<Intensity, string> = {
 
 const OVERLAP_LIMIT: Record<Intensity, number> = { light: 0.3, balanced: 0.2, strong: 0.12 };
 
-const PROMPT_VERSION = "v13-2026-11";
+const PROMPT_VERSION = "v14-2026-11"; // bumped: output no longer goes through the random injector
 const TARGET_SCORE = 2;
 const REPAIR_TIME_BUDGET_MS = 34_000;
+// Do not start another generation round (or try another provider) after this point; the route limit is 60s.
+const GENERATION_DEADLINE_MS = 38_000;
 
 const BASE_SYSTEM = `You are a writer reworking a draft in your own words. You are not an assistant explaining things; you are producing a piece of writing a real person could have written.
 
@@ -175,7 +180,10 @@ export async function POST(request: Request) {
 
     userId = session?.user?.id ?? null;
     anonIp = userId ? null : clientIp(request);
-    if (userId) {
+    const benchBypass = !!process.env.BENCH_KEY && body.benchKey === process.env.BENCH_KEY;
+    if (benchBypass) {
+      // Benchmark run: no quota reservation, so repeated runs do not eat the daily budget.
+    } else if (userId) {
       const budget = await reserveUserWords(userId, wordCount, limits.rewriteWordsPerDay);
       if (!budget.ok) return NextResponse.json({ error: budget.reason }, { status: 429 });
       quotaReserved = true;
@@ -217,9 +225,10 @@ export async function POST(request: Request) {
     }
 
     const glossaryHash = glossaryBlock ? createHash("sha256").update(glossaryBlock).digest("hex") : null;
-    const primaryModelName = "DeepSeek-V4.1-Flash";
+    // The cache key follows the configured provider chain, so changing providers or AI_PROVIDER_ORDER never serves old text.
+    const primaryModelName = getProviderOrder().map((id) => `${id}:${getProvider(id).model}`).join("|");
     const cacheKey = hashRequest(PROMPT_VERSION, rawText, intensity, body.profileId ?? null, presetId, body.seoSafe ?? false, toneFormality, body.toneDirectness ?? 5, glossaryHash, primaryModelName);
-    const cachedData = await getCachedResponse<any>(cacheKey);
+    const cachedData = benchBypass ? null : await getCachedResponse<any>(cacheKey);
 
     if (cachedData && validateGlossary(cachedData.rewritten, glossaryRecord).ok) {
       await refund();
@@ -235,8 +244,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Validation failed." }, { status: 502 });
     }
 
-    await setCachedResponse(cacheKey, data);
-    if (userId) {
+    if (!benchBypass) await setCachedResponse(cacheKey, data);
+    if (userId && !benchBypass) {
       prisma.usageEvent.create({ data: { userId, kind: action, words: wordCount, provider: data.provider || null, day: new Date().toISOString().slice(0, 10) } }).catch(() => {});
     }
     return NextResponse.json(data);
@@ -263,12 +272,13 @@ type Candidate = {
   restored: string;
   provider: string;
   model: string;
+  providerId: ProviderId;
   report: TellReport;
 };
 
 const GEN_PARAMS = { temperature: 1.0, topP: 0.95, frequencyPenalty: 0.4, presencePenalty: 0.3 };
 
-function buildCandidate(resultText: string, provider: string, model: string, ctx: Ctx): Candidate | null {
+function buildCandidate(resultText: string, provider: string, model: string, providerId: ProviderId, ctx: Ctx): Candidate | null {
   let parsed: any;
   try { parsed = RewriteOutputSchema.parse(parseJsonLoose(resultText)); } catch { return null; }
   if (!parsed.paragraphs || parsed.paragraphs.length !== ctx.expectedParas) return null;
@@ -283,7 +293,7 @@ function buildCandidate(resultText: string, provider: string, model: string, ctx
   const report = analyzeText(restored, ctx.rawText, { maxOverlap: ctx.overlapLimit });
   if (report.numbersMissing.length > 0) return null;
 
-  return { paragraphs: parsed.paragraphs, tokenized, restored, provider, model, report };
+  return { paragraphs: parsed.paragraphs, tokenized, restored, provider, model, providerId, report };
 }
 
 async function extractClaims(paras: string[]): Promise<string[][] | null> {
@@ -340,22 +350,40 @@ async function handleFullRewrite(args: {
       claims.map((c, i) => `[Paragraph ${i}]\n${c.map((x) => `- ${x}`).join("\n")}`).join("\n\n")
     : `Rewrite the draft below.\n\nDraft:\n"""\n${maskedParagraphs.map((p, i) => `[Paragraph ${i}]\n${p}`).join("\n\n")}\n"""`;
 
-  const generate = async (seed: string): Promise<Candidate | null> => {
+  // Every candidate in a request comes from the SAME provider, and the repair pass stays on it too.
+  // Mixing models inside one request (and between requests) was producing inconsistent style.
+  let transportFailed = false; // the provider errored or timed out (as opposed to returning unusable text)
+  const generate = async (seed: string, providerId: ProviderId): Promise<Candidate | null> => {
     const plan = makeStylePlan({ seed, intensity, formality: toneFormality, preset: presetId });
     const user = `${material}\n\nIntensity: ${INTENSITY_RULES[intensity]}\n${renderStylePlan(plan)}${extraPrompt}\n\nReturn valid JSON with a "paragraphs" array (exactly ${ctx.expectedParas} paragraph(s), in order).`;
     try {
-      const r = await chatWithFallback({ system: BASE_SYSTEM, user, maxTokens: 8000, ...GEN_PARAMS });
-      return buildCandidate(r.text, r.provider, r.model, ctx);
-    } catch { return null; }
+      const r = await chatWithFallback({ system: BASE_SYSTEM, user, maxTokens: 8000, ...GEN_PARAMS }, [providerId]);
+      return buildCandidate(r.text, r.provider, r.model, r.providerId, ctx);
+    } catch { transportFailed = true; return null; }
   };
 
   const n = intensity === "light" ? 1 : 2;
   let best: Candidate | null = null;
-  for (let round = 0; round < 2 && !best; round++) {
-    const batch = await Promise.all(Array.from({ length: n }, (_, i) => generate(`${seedBase}:${round}:${i}`)));
-    for (const c of batch) if (c && (!best || c.report.score < best.report.score)) best = c;
+  const skippedProviders: string[] = [];
+  for (const providerId of getProviderOrder()) {
+    if (!hasApiKey(providerId)) { skippedProviders.push(`${providerId} (no API key)`); continue; }
+    transportFailed = false;
+    for (let round = 0; round < 2 && !best; round++) {
+      // A provider that errored or timed out hands over to the next one straight away.
+      // A second round on the same provider is only for unusable output (bad JSON, dropped spans).
+      if (round > 0 && (transportFailed || elapsed() > GENERATION_DEADLINE_MS)) break;
+      const batch = await Promise.all(Array.from({ length: n }, (_, i) => generate(`${seedBase}:${providerId}:${round}:${i}`, providerId)));
+      for (const c of batch) if (c && (!best || c.report.score < best.report.score)) best = c;
+    }
+    if (best) break;
+    skippedProviders.push(`${providerId} (${transportFailed ? "error or timeout" : "no valid output"})`);
+    if (elapsed() > GENERATION_DEADLINE_MS) break;
   }
-  if (!best) return NextResponse.json({ error: "Rewrite failed: model output invalid, dropped protected spans, or changed a number." }, { status: 502 });
+  if (!best) {
+    return NextResponse.json({
+      error: `Rewrite failed: model output invalid, dropped protected spans, or changed a number. Providers tried: ${skippedProviders.join(", ") || "none"}.`,
+    }, { status: 502 });
+  }
 
   const cost = (c: Candidate, iss: string[]) => c.report.score + iss.length * 2;
   let issues = elapsed() < REPAIR_TIME_BUDGET_MS ? await reviewMeaning(rawText, best.restored) : [];
@@ -371,21 +399,22 @@ async function handleFullRewrite(args: {
       .join("\n\n");
     const user = `Problems to fix:\n${problems.map((p) => `- ${p}`).join("\n")}\n\nCurrent text:\n"""\n${current}\n"""\n\nReturn JSON with the same ${ctx.expectedParas} paragraph(s).`;
     try {
-      const r = await chatWithFallback({ system: REPAIR_SYSTEM, user, maxTokens: 8000, ...GEN_PARAMS, temperature: 0.8 });
-      const fixed = buildCandidate(r.text, r.provider, r.model, ctx);
+      const r = await chatWithFallback({ system: REPAIR_SYSTEM, user, maxTokens: 8000, ...GEN_PARAMS, temperature: 0.8 }, [best.providerId]);
+      const fixed = buildCandidate(r.text, r.provider, r.model, r.providerId, ctx);
       if (!fixed) break;
       const fixedIssues = elapsed() < REPAIR_TIME_BUDGET_MS + 8_000 ? await reviewMeaning(rawText, fixed.restored) : issues;
       if (cost(fixed, fixedIssues) < cost(best, issues)) { best = fixed; issues = fixedIssues; } else break;
     } catch { break; }
   }
 
-   // APPLY STRUCTURAL CHAOS FOR ALL MODES
-  // This guarantees we break the AI's sentence math, regardless of the topic.
-  let finalOutput = injectStructuralChaos(best.restored);
+  // The text that was scored, repaired and checked is the text the user gets.
+  // Nothing edits it afterwards: the old random post-processing broke grammar ("aI", "nASA"),
+  // inserted the same stock phrases into every output, and made `rewritten` disagree with `paragraphs`.
+  const finalOutput = best.restored;
 
   return NextResponse.json({
     ok: true, action: "rewrite", original: rawText, rewritten: finalOutput, paragraphs: best.paragraphs,
-    provider: best.provider, model: best.model, before: computeMetrics(rawText), after: computeMetrics(finalOutput),
+    provider: best.provider, model: best.model, providerId: best.providerId, providerFallback: skippedProviders, before: computeMetrics(rawText), after: computeMetrics(finalOutput),
     spansProtected: spans.length, profileUsed,
     tells: {
       score: best.report.score,

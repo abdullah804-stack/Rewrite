@@ -1,4 +1,4 @@
-import { getProvider, type ProviderId, type ProviderConfig } from "./providers";
+import { getProvider, getProviderOrder, hasApiKey, type ProviderId, type ProviderConfig } from "./providers";
 
 export type ChatOptions = {
   providerId: ProviderId;
@@ -9,12 +9,21 @@ export type ChatOptions = {
   topP?: number;              // NEW
   frequencyPenalty?: number;  // NEW
   presencePenalty?: number;   // NEW
+  /** Abort the request after this many ms so a hung provider cannot eat the whole route budget. */
+  timeoutMs?: number;
 };
+
+const DEFAULT_TIMEOUT_MS = 25_000;
+const signalFor = (opts: { timeoutMs?: number }) => AbortSignal.timeout(opts.timeoutMs ?? DEFAULT_TIMEOUT_MS);
 
 export type ChatResult = {
   text: string;
   provider: string;
   model: string;
+  /** Machine id of the provider that answered, for pinning follow-up calls to the same model. */
+  providerId: ProviderId;
+  /** Providers that were tried first and failed, with a short reason. Only set after a fallback. */
+  fellBackFrom?: string[];
 };
 
 // Providers known to accept frequency/presence penalties on /chat/completions.
@@ -55,6 +64,7 @@ async function chatGoogle(provider: ProviderConfig, apiKey: string, opts: ChatOp
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    signal: signalFor(opts),
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: opts.system }] },
       contents: [{ role: "user", parts: [{ text: opts.user }] }],
@@ -69,7 +79,7 @@ async function chatGoogle(provider: ProviderConfig, apiKey: string, opts: ChatOp
   const data = await response.json();
   const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
   if (typeof text !== "string" || text.length === 0) throw new Error("Google AI returned an empty response.");
-  return { text, provider: provider.name, model: provider.model };
+  return { text, provider: provider.name, model: provider.model, providerId: provider.id };
 }
 
 async function chatCloudflare(provider: ProviderConfig, apiKey: string, opts: ChatOptions): Promise<ChatResult> {
@@ -79,6 +89,7 @@ async function chatCloudflare(provider: ProviderConfig, apiKey: string, opts: Ch
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+    signal: signalFor(opts),
     body: JSON.stringify({
       messages: [{ role: "system", content: opts.system }, { role: "user", content: opts.user }],
       max_tokens: opts.maxTokens ?? 2000, temperature: opts.temperature ?? 0.7,
@@ -88,7 +99,7 @@ async function chatCloudflare(provider: ProviderConfig, apiKey: string, opts: Ch
   const data = await response.json();
   const text = extractCloudflareText(data);
   if (!text) throw new Error(`Cloudflare returned an unrecognized shape.`);
-  return { text, provider: provider.name, model: provider.model };
+  return { text, provider: provider.name, model: provider.model, providerId: provider.id };
 }
 
 function extractCloudflareText(data: unknown): string | null {
@@ -130,6 +141,7 @@ async function chatOpenAICompatible(provider: ProviderConfig, apiKey: string, op
     const response = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      signal: signalFor(opts),
       body: JSON.stringify(body),
     });
 
@@ -148,7 +160,7 @@ async function chatOpenAICompatible(provider: ProviderConfig, apiKey: string, op
     const text = data?.choices?.[0]?.message?.content;
     if (typeof text !== "string" || text.length === 0) { if (attempt < 2) { await sleep(800); continue; } throw new Error(`${provider.name} returned empty.`); }
 
-    return { text, provider: provider.name, model: provider.model };
+    return { text, provider: provider.name, model: provider.model, providerId: provider.id };
   }
   throw new Error(`${provider.name} failed after retries.`);
 }
@@ -157,29 +169,51 @@ function sleep(ms: number): Promise<void> { return new Promise((resolve) => setT
 
 const OPENROUTER_SECONDARY_MODEL = "google/gemma-4-31b-it:free";
 
+/**
+ * Tries providers in order. The default order comes from getProviderOrder()
+ * (DeepSeek, then Groq, then OpenRouter; override with AI_PROVIDER_ORDER).
+ * Pass a single-element array to pin a call to one provider with no fallback.
+ */
 export async function chatWithFallback(
   opts: Omit<ChatOptions, "providerId">,
-  order: ProviderId[] = ["groq", "openrouter"]): Promise<ChatResult> {
+  order: ProviderId[] = getProviderOrder()
+): Promise<ChatResult> {
   let lastError: Error | null = null;
+  const failures: string[] = [];
+  const noteFailure = (id: string, err: unknown) => {
+    const msg = err instanceof Error ? err.message : String(err);
+    failures.push(`${id}: ${msg.slice(0, 120)}`);
+    console.warn(`[ai] ${id} failed, trying next provider: ${msg.slice(0, 200)}`);
+  };
+
   for (const providerId of order) {
+    if (!hasApiKey(providerId)) {
+      failures.push(`${providerId}: no API key`);
+      lastError = new Error(`Missing API key for ${getProvider(providerId).name} (${getProvider(providerId).envKey})`);
+      continue;
+    }
     try {
-      return await chat({ ...opts, providerId });
+      const result = await chat({ ...opts, providerId });
+      return failures.length ? { ...result, fellBackFrom: failures } : result;
     } catch (err) {
       lastError = err as Error;
+      noteFailure(providerId, err);
       if (providerId === "openrouter") {
         try {
           const provider = getProvider("openrouter");
           const apiKey = process.env[provider.envKey];
           if (!apiKey) throw new Error("Missing OpenRouter API key");
-          return await chatOpenAICompatibleWithModel(provider, apiKey, OPENROUTER_SECONDARY_MODEL, opts);
+          const result = await chatOpenAICompatibleWithModel(provider, apiKey, OPENROUTER_SECONDARY_MODEL, opts);
+          return { ...result, fellBackFrom: failures };
         } catch (secondaryErr) {
           lastError = secondaryErr as Error;
+          noteFailure("openrouter-secondary", secondaryErr);
         }
       }
-      continue;
     }
   }
-  throw lastError ?? new Error("All providers failed");
+  const detail = failures.length ? ` (${failures.join("; ")})` : "";
+  throw new Error(`${lastError?.message ?? "All providers failed"}${detail}`);
 }
 
 async function chatOpenAICompatibleWithModel(provider: ProviderConfig, apiKey: string, model: string, opts: Omit<ChatOptions, "providerId">): Promise<ChatResult> {
@@ -187,6 +221,7 @@ async function chatOpenAICompatibleWithModel(provider: ProviderConfig, apiKey: s
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+    signal: signalFor(opts),
     body: JSON.stringify({
       model,
       messages: [{ role: "system", content: opts.system }, { role: "user", content: opts.user }],
@@ -202,5 +237,5 @@ async function chatOpenAICompatibleWithModel(provider: ProviderConfig, apiKey: s
   try { data = JSON.parse(raw); } catch { throw new Error(`${provider.name} returned non-JSON.`); }
   const text = data?.choices?.[0]?.message?.content;
   if (typeof text !== "string" || text.length === 0) throw new Error(`${provider.name} returned empty.`);
-  return { text, provider: provider.name, model };
+  return { text, provider: provider.name, model, providerId: provider.id };
 }
