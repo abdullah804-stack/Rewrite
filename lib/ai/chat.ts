@@ -210,7 +210,6 @@ const OPENROUTER_SECONDARY_MODEL = "google/gemma-4-31b-it:free";
 
 export async function chatWithFallback(
   opts: Omit<ChatOptions, "providerId">,
-  // Updated to include DeepSeek as the primary, with Groq and OpenRouter as fallbacks
   order: ProviderId[] = ["deepseek", "groq", "openrouter"]
 ): Promise<ChatResult> {
   let lastError: Error | null = null;
