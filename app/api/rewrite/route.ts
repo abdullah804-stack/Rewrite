@@ -51,17 +51,17 @@ const INTENSITY_RULES: Record<string, string> = {
   strong: "Maximally apply the Detector Evasion rules. Break every predictable pattern. The output must sound messy and human.",
 };
 
-// Step 16: Prompt versioning (Audit §9E #9)
-const PROMPT_VERSION = "v3-2026-11";
+const PROMPT_VERSION = "v4-2026-11";
+
 const BASE_SYSTEM = `You are an expert at making AI-generated text sound completely human. 
 
 YOUR GOAL: Evade AI detectors like Stealth Writer by breaking their statistical patterns.
 
 RULES FOR WRITING:
-1. BURSTINESS: Mix very short sentences (2-5 words) with very long ones (20+ words). Do not use uniform sentence lengths.
+1. BURSTINESS: Mix very short sentences (2-5 words) with very long ones (20+ words).
 2. VOCABULARY: Delete AI buzzwords (Furthermore, Moreover, Ultimately, Delve, Landscape). Use casual, direct verbs.
 3. TRANSITIONS: Start sentences with "And", "But", "So", or "Honestly". 
-4. HUMAN FLAWS: Occasionally use a sentence fragment (e.g., "Because it works."). Use contractions (it's, don't, can't).
+4. HUMAN FLAWS: Occasionally use a sentence fragment. Use contractions (it's, don't).
 5. NO JARGON: Sound like you are explaining this to a friend.
 
 PROTECTED TOKENS (CRITICAL)
@@ -78,18 +78,17 @@ Here is the exact format you must follow:
   "paragraphs": [
     { "index": 0, "text": "Your rewritten text goes here." }
   ]
-}`;// ---------------------------------------------------------------------------
-// Step C: Stronger reviewer prompt with explicit dimensions.
-// ---------------------------------------------------------------------------
+}`;
+
 const REVIEW_SYSTEM = `You are an independent editorial reviewer evaluating a rewrite against its original.
 
 You MUST evaluate four dimensions, each as "pass" or "fail":
-1. naturalness: Does the rewrite sound like a human editor wrote it? (Not AI-ish, not stilted.)
-2. voice: Does the rewrite match the target voice, if one is supplied? (Ignore if no voice block.)
-3. meaning: Are all facts, numbers, claims, and qualifications from the original preserved? (Fail on any invented or removed claim.)
-4. grammar: Is the rewrite free of grammar, punctuation, and spelling errors?
+1. naturalness: Does the rewrite sound like a human editor wrote it?
+2. voice: Does the rewrite match the target voice?
+3. meaning: Are all facts and qualifications preserved?
+4. grammar: Is the rewrite free of grammar errors?
 
-Additionally, list any paragraphs that have specific fixable issues (only for naturalness, voice, or grammar failures).
+Additionally, list any paragraphs that have specific fixable issues.
 
 Return JSON in exactly this shape:
 {
@@ -99,9 +98,7 @@ Return JSON in exactly this shape:
   "grammar": "pass" | "fail",
   "issues": [{ "index": 0, "reason": "..." }]
 }
-
-If everything passes, return issues: [].
-Do NOT suggest changes for stylistic preference alone. Only flag actual failures.
+Do NOT suggest changes for stylistic preference alone.
 Return valid JSON only. No commentary.`;
 
 // ---------------------------------------------------------------------------
@@ -119,9 +116,7 @@ function verifySpansStrict(
   unknownTokens: number;
 } {
   const expectedTokens = spans.map((s) => s.token);
-  const foundTokens = Array.from(rewritten.matchAll(/⟦P\d+⟧/g)).map(
-    (m) => m[0]
-  );
+  const foundTokens = Array.from(rewritten.matchAll(/⟦P\d+⟧/g)).map((m) => m[0]);
 
   let missing = 0;
   let duplicated = 0;
@@ -146,16 +141,10 @@ function verifySpansStrict(
     reordered = true;
   }
 
-  const unknownTokens = foundTokens.filter(
-    (t) => !expectedTokens.includes(t)
-  ).length;
+  const unknownTokens = foundTokens.filter((t) => !expectedTokens.includes(t)).length;
 
   return {
-    ok:
-      missing === 0 &&
-      duplicated === 0 &&
-      unknownTokens === 0 &&
-      !reordered,
+    ok: missing === 0 && duplicated === 0 && unknownTokens === 0 && !reordered,
     missing,
     duplicated,
     reordered,
@@ -184,57 +173,24 @@ function buildVoiceBlock(profile: VoiceProfile): string {
     const lo = Math.max(1, Math.round(m.sentenceLenMean - m.sentenceLenSd));
     const hi = Math.round(m.sentenceLenMean + m.sentenceLenSd);
     lines.push(
-      `- Sentence length: typically around ${Math.round(
-        m.sentenceLenMean
-      )} words (range ~${lo}–${hi}). This is a description of the writer's habit, not a target to force.`
+      `- Sentence length: typically around ${Math.round(m.sentenceLenMean)} words (range ~${lo}–${hi}).`
     );
   }
 
-  if (m.contractionRate > 0) {
-    lines.push(
-      `- Contraction rate: roughly ${Math.round(
-        m.contractionRate * 100
-      )}% of words. This is descriptive, not a target.`
-    );
-  }
-
-  if (m.firstPersonRate > 0) {
-    lines.push(
-      `- First-person usage: roughly ${Math.round(
-        m.firstPersonRate * 100
-      )}% of words. Do not add first-person language unless the draft already uses it.`
-    );
-  }
-
-  if (i.signatureMoves.length > 0) {
-    lines.push(`- Signature moves: ${i.signatureMoves.join("; ")}`);
-  }
-
-  if (i.neverDoes.length > 0) {
-    lines.push(`- Things this writer avoids: ${i.neverDoes.join("; ")}`);
-  }
-
+  if (m.contractionRate > 0) lines.push(`- Contraction rate: roughly ${Math.round(m.contractionRate * 100)}%.`);
+  if (m.firstPersonRate > 0) lines.push(`- First-person usage: roughly ${Math.round(m.firstPersonRate * 100)}%.`);
+  if (i.signatureMoves.length > 0) lines.push(`- Signature moves: ${i.signatureMoves.join("; ")}`);
+  if (i.neverDoes.length > 0) lines.push(`- Things this writer avoids: ${i.neverDoes.join("; ")}`);
+  
   if (m.favoredWords.length > 0) {
-    lines.push(
-      `- Words the writer tends to favor (do not inject them, only allow them where natural): ${m.favoredWords
-        .slice(0, 12)
-        .join(", ")}`
-    );
+    lines.push(`- Words the writer favors: ${m.favoredWords.slice(0, 12).join(", ")}`);
   }
-
   if (m.avoidedWords.length > 0) {
-    lines.push(
-      `- Words the writer tends to avoid: ${m.avoidedWords
-        .slice(0, 12)
-        .join(", ")}`
-    );
+    lines.push(`- Words the writer avoids: ${m.avoidedWords.slice(0, 12).join(", ")}`);
   }
-
   if (profile.exemplars.length > 0) {
     lines.push("");
-    lines.push(
-      "Writing exemplars from this writer (style reference only, do not copy sentences):"
-    );
+    lines.push("Writing exemplars (style reference only):");
     profile.exemplars.slice(0, 3).forEach((ex, idx) => {
       lines.push(`Example ${idx + 1}:\n"""\n${ex}\n"""`);
     });
@@ -246,29 +202,15 @@ function buildVoiceBlock(profile: VoiceProfile): string {
 function buildToneBlock(formality: number = 5, directness: number = 5): string {
   const lines = ["", "Target Tone:"];
 
-  if (formality <= 3)
-    lines.push(
-      "- Formality: Casual and conversational. Use contractions and everyday language."
-    );
-  else if (formality >= 8)
-    lines.push(
-      "- Formality: Professional and polished. Avoid slang and heavy contractions."
-    );
+  if (formality <= 3) lines.push("- Formality: Casual and conversational. Use contractions and everyday language.");
+  else if (formality >= 8) lines.push("- Formality: Professional and polished. Avoid slang and heavy contractions.");
   else lines.push("- Formality: Balanced and natural.");
 
-  if (directness <= 3)
-    lines.push(
-      "- Directness: Soft and diplomatic. Use hedges and gentle phrasing."
-    );
-  else if (directness >= 8)
-    lines.push(
-      "- Directness: Blunt and direct. Get straight to the point with no fluff."
-    );
+  if (directness <= 3) lines.push("- Directness: Soft and diplomatic. Use hedges and gentle phrasing.");
+  else if (directness >= 8) lines.push("- Directness: Blunt and direct. Get straight to the point with no fluff.");
   else lines.push("- Directness: Confident and clear.");
 
-  lines.push(
-    "(Tone instructions have lower priority than meaning, format, and the explicitly selected voice.)"
-  );
+  lines.push("(Tone instructions have lower priority than meaning, format, and the explicitly selected voice.)");
 
   return lines.join("\n");
 }
@@ -308,9 +250,7 @@ function backToProtectedTokens(
   let usedFallback = false;
   spans.forEach((span, i) => {
     const placeholder = `[FACT_${i + 1}]`;
-    if (!result.includes(placeholder)) {
-      usedFallback = true;
-    }
+    if (!result.includes(placeholder)) usedFallback = true;
     result = result.split(placeholder).join(span.token);
   });
   return { text: result, usedFallback };
@@ -323,15 +263,11 @@ function backToProtectedTokens(
 export async function POST(request: Request) {
   try {
     const session = await auth();
-    
     const rawBody = await request.json().catch(() => ({}));
     const parsedBody = RewriteRequestSchema.safeParse(rawBody);
     
     if (!parsedBody.success) {
-      return NextResponse.json(
-        { error: "Invalid request payload", details: parsedBody.error.format() },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid request payload" }, { status: 400 });
     }
 
     const body = parsedBody.data;
@@ -349,51 +285,31 @@ export async function POST(request: Request) {
     const limits = getLimits(session?.user?.id ?? null);
 
     if (wordCount > limits.maxWordsPerRun) {
-      return NextResponse.json(
-        { error: `Text exceeds ${limits.maxWordsPerRun} word limit.` },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: `Text exceeds ${limits.maxWordsPerRun} word limit.` }, { status: 400 });
     }
 
     if (!session?.user && wordCount > limits.anonymousWordsPerRun) {
-      return NextResponse.json(
-        {
-          error: `Sign in to rewrite more than ${limits.anonymousWordsPerRun} words.`,
-        },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: `Sign in to rewrite more than ${limits.anonymousWordsPerRun} words.` }, { status: 401 });
     }
 
     const anonIp = session?.user?.id ? null : clientIp(request);
 
     let quotaReserved = false;
     if (session?.user?.id) {
-      const budget = await reserveUserWords(
-        session.user.id,
-        wordCount,
-        limits.rewriteWordsPerDay
-      );
-      if (!budget.ok)
-        return NextResponse.json({ error: budget.reason }, { status: 429 });
+      const budget = await reserveUserWords(session.user.id, wordCount, limits.rewriteWordsPerDay);
+      if (!budget.ok) return NextResponse.json({ error: budget.reason }, { status: 429 });
       quotaReserved = true;
     } else if (anonIp) {
       const anonBudget = await reserveAnonRun(anonIp, limits.anonymousRunsPerDay);
-      if (!anonBudget.ok)
-        return NextResponse.json({ error: anonBudget.reason }, { status: 429 });
+      if (!anonBudget.ok) return NextResponse.json({ error: anonBudget.reason }, { status: 429 });
       quotaReserved = true;
     }
 
     let profileRecord: { name: string; profile: unknown } | null = null;
     if (profileId && session?.user?.id) {
-      const record = await prisma.voiceProfile.findUnique({
-        where: { id: profileId },
-      });
-      if (!record) {
-        return NextResponse.json({ error: "Voice profile not found." }, { status: 404 });
-      }
-      if (record.userId !== session.user.id) {
-        return NextResponse.json({ error: "Voice profile access denied." }, { status: 403 });
-      }
+      const record = await prisma.voiceProfile.findUnique({ where: { id: profileId } });
+      if (!record) return NextResponse.json({ error: "Voice profile not found." }, { status: 404 });
+      if (record.userId !== session.user.id) return NextResponse.json({ error: "Voice profile access denied." }, { status: 403 });
       profileRecord = { name: record.name, profile: record.profile };
     }
 
@@ -401,27 +317,15 @@ export async function POST(request: Request) {
     let glossaryRecord = null;
 
     if (glossaryId && session?.user?.id) {
-      const record = await prisma.glossary.findUnique({
-        where: { id: glossaryId },
-      });
-      if (!record) {
-        return NextResponse.json({ error: "Glossary not found." }, { status: 404 });
-      }
-      if (record.userId !== session.user.id) {
-        return NextResponse.json({ error: "Glossary access denied." }, { status: 403 });
-      }
+      const record = await prisma.glossary.findUnique({ where: { id: glossaryId } });
+      if (!record) return NextResponse.json({ error: "Glossary not found." }, { status: 404 });
+      if (record.userId !== session.user.id) return NextResponse.json({ error: "Glossary access denied." }, { status: 403 });
       glossaryRecord = record;
       glossaryBlock = buildGlossaryPrompt(glossaryRecord);
     } else if (body.projectId && session?.user?.id) {
-      const project = await prisma.project.findUnique({
-        where: { id: body.projectId },
-      });
-      if (!project) {
-        return NextResponse.json({ error: "Project not found." }, { status: 404 });
-      }
-      if (project.userId !== session.user.id) {
-        return NextResponse.json({ error: "Project access denied." }, { status: 403 });
-      }
+      const project = await prisma.project.findUnique({ where: { id: body.projectId } });
+      if (!project) return NextResponse.json({ error: "Project not found." }, { status: 404 });
+      if (project.userId !== session.user.id) return NextResponse.json({ error: "Project access denied." }, { status: 403 });
       if (project.glossary) {
         glossaryRecord = project.glossary as any;
         glossaryBlock = buildGlossaryPrompt(glossaryRecord);
@@ -435,74 +339,36 @@ export async function POST(request: Request) {
 
     let seoBlock = "";
     if (seoSafe) {
-      seoBlock =
-        "\n\nSEO-Safe Mode: Do NOT change any Markdown headings (lines starting with #). Do NOT change the casing or phrasing of the main topic keywords.";
+      seoBlock = "\n\nSEO-Safe Mode: Do NOT change any Markdown headings.";
     }
 
     const toneBlock = buildToneBlock(formality, directness);
     const profileUsed = profileRecord ? { name: profileRecord.name } : null;
 
-    const extraPrompt =
-      toneBlock +
-      glossaryBlock +
-      presetBlock +
-      seoBlock +
-      (profileRecord
-        ? "\n" + buildVoiceBlock(profileRecord.profile as VoiceProfile)
-        : "");
+    const extraPrompt = toneBlock + glossaryBlock + presetBlock + seoBlock +
+      (profileRecord ? "\n" + buildVoiceBlock(profileRecord.profile as VoiceProfile) : "");
 
-    if (action === "regen") {
-      return await handleRegen(rawText, body.context ?? "", extraPrompt, profileUsed);
-    }
+    if (action === "regen") return await handleRegen(rawText, body.context ?? "", extraPrompt, profileUsed);
+    if (action === "selection") return await handleSelection(rawText, body.context ?? "", extraPrompt, profileUsed);
 
-    if (action === "selection") {
-      return await handleSelection(
-        rawText,
-        body.context ?? "",
-        extraPrompt,
-        profileUsed
-      );
-    }
-
-    const glossaryHash = glossaryBlock 
-      ? createHash("sha256").update(glossaryBlock).digest("hex") 
-      : null;
-      
+    const glossaryHash = glossaryBlock ? createHash("sha256").update(glossaryBlock).digest("hex") : null;
     const primaryModelName = "DeepSeek-V4.1-Flash"; 
-    const cacheKey = hashRequest(
-      PROMPT_VERSION,
-      rawText,
-      intensity,
-      profileId ?? null,
-      presetId,
-      seoSafe,
-      formality,
-      directness,
-      glossaryHash,
-      primaryModelName
-    );
+
+    const cacheKey = hashRequest(PROMPT_VERSION, rawText, intensity, profileId ?? null, presetId, seoSafe, formality, directness, glossaryHash, primaryModelName);
     const cachedData = await getCachedResponse<any>(cacheKey);
 
     if (cachedData) {
       const validation = validateGlossary(cachedData.rewritten, glossaryRecord);
       if (validation.ok) {
-        if (session?.user?.id && quotaReserved) {
-          await refundUserWords(session.user.id, wordCount);
-        } else if (anonIp && quotaReserved) {
-          await refundAnonRun(anonIp);
-        }
+        if (session?.user?.id && quotaReserved) await refundUserWords(session.user.id, wordCount);
+        else if (anonIp && quotaReserved) await refundAnonRun(anonIp);
         return NextResponse.json({ ...cachedData, provider: "Cache" });
       }
     }
 
     let response;
     try {
-      response = await handleFullRewrite(
-        rawText,
-        intensity,
-        extraPrompt,
-        profileUsed
-      );
+      response = await handleFullRewrite(rawText, intensity, extraPrompt, profileUsed);
     } catch (err) {
       if (session?.user?.id && quotaReserved) await refundUserWords(session.user.id, wordCount);
       else if (anonIp && quotaReserved) await refundAnonRun(anonIp);
@@ -521,40 +387,22 @@ export async function POST(request: Request) {
     if (!validation.ok) {
       if (session?.user?.id && quotaReserved) await refundUserWords(session.user.id, wordCount);
       else if (anonIp && quotaReserved) await refundAnonRun(anonIp);
-      return NextResponse.json(
-        { error: `Validation failed: ${validation.error}` },
-        { status: 502 }
-      );
+      return NextResponse.json({ error: `Validation failed: ${validation.error}` }, { status: 502 });
     }
 
     await setCachedResponse(cacheKey, data);
 
     if (session?.user?.id) {
-      prisma.usageEvent
-        .create({
-          data: {
-            userId: session.user.id,
-            kind: action,
-            words: wordCount,
-            provider: data.provider || null,
-            day: new Date().toISOString().slice(0, 10),
-          },
-        })
-        .catch(() => {});
+      prisma.usageEvent.create({
+        data: { userId: session.user.id, kind: action, words: wordCount, provider: data.provider || null, day: new Date().toISOString().slice(0, 10) },
+      }).catch(() => {});
     }
 
     return NextResponse.json(data);
   } catch (err) {
     const msg = (err as Error).message;
-    if (
-      msg.includes("All providers failed") ||
-      msg.includes("429") ||
-      msg.includes("503")
-    ) {
-      return NextResponse.json(
-        { error: "All providers are currently at capacity. Please try again." },
-        { status: 503 }
-      );
+    if (msg.includes("All providers failed") || msg.includes("429") || msg.includes("503")) {
+      return NextResponse.json({ error: "All providers are currently at capacity. Please try again." }, { status: 503 });
     }
     return NextResponse.json({ error: msg }, { status: 500 });
   }
@@ -564,24 +412,14 @@ export async function POST(request: Request) {
 // Full rewrite
 // ---------------------------------------------------------------------------
 
-async function handleFullRewrite(
-  rawText: string,
-  intensity: string,
-  extraPrompt: string,
-  profileUsed: { name: string } | null
-) {
+async function handleFullRewrite(rawText: string, intensity: string, extraPrompt: string, profileUsed: { name: string } | null) {
   const { masked, spans } = protect(rawText);
   const aiReadyText = toAiPlaceholders(masked, spans);
-  const maskedParagraphs = aiReadyText
-    .split(/\n{2,}/)
-    .map((p) => p.trim())
-    .filter((p) => p.length > 0);
+  const maskedParagraphs = aiReadyText.split(/\n{2,}/).map((p) => p.trim()).filter((p) => p.length > 0);
 
   const buildUserPrompt = (strict: boolean) => {
     const strictBlock = strict
-      ? `\n\nCRITICAL: The previous attempt changed the order of the ⟦P…⟧ tokens. The tokens MUST appear in the exact order they were given: ${spans
-          .map((s) => s.token)
-          .join(", ")}. Do not move a token across sentence boundaries.`
+      ? `\n\nCRITICAL: The previous attempt changed the order of the ⟦P…⟧ tokens. The tokens MUST appear in the exact order they were given: ${spans.map((s) => s.token).join(", ")}.`
       : "";
 
     return `Rewrite the following draft.
@@ -593,7 +431,7 @@ Draft:
 ${maskedParagraphs.map((p, i) => `[Paragraph ${i}]\n${p}`).join("\n\n")}
 """
 
-Return JSON: { "paragraphs": [{ "index": 0, "text": "..." }] }`;
+Return valid JSON with a "paragraphs" array.`;
   };
 
   const attempts = [false, true];
@@ -614,107 +452,48 @@ Return JSON: { "paragraphs": [{ "index": 0, "text": "..." }] }`;
     try {
       const looseJson = parseJsonLoose(result.text);
       const zodResult = RewriteOutputSchema.safeParse(looseJson);
-      
       if (!zodResult.success) {
-        if (strict) {
-           return NextResponse.json(
-            { error: "Model returned invalid JSON schema after retry." },
-            { status: 502 }
-          );
-        }
+        if (strict) return NextResponse.json({ error: "Model returned invalid JSON schema after retry." }, { status: 502 });
         continue;
       }
       parsed = zodResult.data;
     } catch {
-      if (strict) {
-        return NextResponse.json(
-          { error: "Model returned malformed JSON after retry." },
-          { status: 502 }
-        );
-      }
+      if (strict) return NextResponse.json({ error: "Model returned malformed JSON after retry." }, { status: 502 });
       continue;
     }
 
     const joined = parsed.paragraphs.map((p: any) => p.text ?? "").join("\n\n");
-    const { text: tokenized, usedFallback } = backToProtectedTokens(
-      joined,
-      spans
-    );
+    const { text: tokenized, usedFallback } = backToProtectedTokens(joined, spans);
 
     if (usedFallback) {
-      if (strict) {
-        return NextResponse.json(
-          {
-            error:
-              "Model dropped a protected placeholder after retry. Please rephrase or try again.",
-          },
-          { status: 502 }
-        );
-      }
+      if (strict) return NextResponse.json({ error: "Model dropped a protected placeholder after retry." }, { status: 502 });
       continue;
     }
 
     const spanCheck = verifySpansStrict(tokenized, spans);
     if (!spanCheck.ok) {
-      if (strict) {
-        return NextResponse.json(
-          {
-            error: `Protected-token check failed after retry (missing=${spanCheck.missing}, duplicated=${spanCheck.duplicated}, reordered=${spanCheck.reordered}, unknown=${spanCheck.unknownTokens}).`,
-          },
-          { status: 502 }
-        );
-      }
+      if (strict) return NextResponse.json({ error: `Protected-token check failed after retry.` }, { status: 502 });
       continue;
     }
 
     if (parsed.paragraphs.length !== maskedParagraphs.length) {
-      if (strict) {
-        return NextResponse.json(
-          {
-            error: `Paragraph completeness check failed after retry (expected ${maskedParagraphs.length}, got ${parsed.paragraphs.length}).`,
-          },
-          { status: 502 }
-        );
-      }
+      if (strict) return NextResponse.json({ error: `Paragraph completeness check failed.` }, { status: 502 });
       continue;
     }
 
     let restoredText = restore(tokenized, spans);
-    let finalChanges = parsed.paragraphs
-      .flatMap((p: any) => p.changes || []);
+    let finalChanges = parsed.paragraphs.flatMap((p: any) => p.changes || []);
 
-    // --- Step C: Independent Editorial Review ---
+    // Independent Reviewer
     if (intensity !== "light") {
       const reviewPrompt = `Original draft:\n"""\n${rawText}\n"""\n\nRewritten draft:\n"""\n${restoredText}\n"""\n\nEvaluate the rewrite on the four dimensions. Return JSON: { "naturalness": "pass" | "fail", "voice": "pass" | "fail", "meaning": "pass" | "fail", "grammar": "pass" | "fail", "issues": [{ "index": 0, "reason": "..." }] }`;
       
       try {
-        const reviewResult = await chatWithFallback({
-          system: REVIEW_SYSTEM,
-          user: reviewPrompt,
-          maxTokens: 1000,
-          temperature: 0.2,
-        });
-
-        type ReviewVerdict = {
-          naturalness?: "pass" | "fail";
-          voice?: "pass" | "fail";
-          meaning?: "pass" | "fail";
-          grammar?: "pass" | "fail";
-          issues?: { index: number; reason: string }[];
-        };
-
-        const verdict = parseJsonLoose(reviewResult.text) as ReviewVerdict;
+        const reviewResult = await chatWithFallback({ system: REVIEW_SYSTEM, user: reviewPrompt, maxTokens: 1000, temperature: 0.2 });
+        const verdict = parseJsonLoose(reviewResult.text) as any;
 
         if (verdict.meaning === "fail") {
-          if (strict) {
-            return NextResponse.json(
-              {
-                error:
-                  "The reviewer detected a meaning change in the rewrite. Please try again or rephrase the input.",
-              },
-              { status: 502 }
-            );
-          }
+          if (strict) return NextResponse.json({ error: "The reviewer detected a meaning change. Please try again." }, { status: 502 });
           continue;
         }
 
@@ -725,72 +504,39 @@ Return JSON: { "paragraphs": [{ "index": 0, "text": "..." }] }`;
           for (const issue of verdict.issues) {
             const originalPara = rawText.split(/\n{2,}/)[issue.index];
             if (!originalPara) continue;
-
             const maskedParaObj = protect(originalPara);
-            const maskedPara = maskedParaObj.masked;
-            const paraSpans = maskedParaObj.spans;
-
+            
             try {
-              const patchPrompt = `Rewrite this paragraph to fix the following issue: "${issue.reason}"\n\nOriginal paragraph:\n"""\n${maskedPara}\n"""\n\nReturn the corrected paragraph text as plain text. No markdown.`;
-              const patchResult = await chatWithFallback({
-                system: BASE_SYSTEM,
-                user: patchPrompt,
-                maxTokens: 2000,
-                temperature: 0.7,
-              });
-
+              const patchPrompt = `Rewrite this paragraph to fix the following issue: "${issue.reason}"\n\nOriginal paragraph:\n"""\n${maskedParaObj.masked}\n"""\n\nReturn the corrected paragraph text as plain text. No markdown.`;
+              const patchResult = await chatWithFallback({ system: BASE_SYSTEM, user: patchPrompt, maxTokens: 2000, temperature: 0.7 });
               const patchedText = patchResult.text.trim();
-              const patchedSpanCheck = verifySpansStrict(patchedText, paraSpans);
-              if (patchedSpanCheck.ok) {
-                repairedParagraphs[issue.index] = {
-                  index: issue.index,
-                  text: patchedText,
-                  changes: repairedParagraphs[issue.index]?.changes,
-                };
+              if (verifySpansStrict(patchedText, maskedParaObj.spans).ok) {
+                repairedParagraphs[issue.index] = { index: issue.index, text: patchedText, changes: repairedParagraphs[issue.index]?.changes };
                 successfulRepairs.push(`Fixed: ${issue.reason}`);
               }
-            } catch {
-              // If the patch fails, keep the original paragraph
-            }
+            } catch {}
           }
 
           if (successfulRepairs.length > 0) {
             const repairedJoined = repairedParagraphs.map((p) => p.text).join("\n\n");
             const repairedRestored = restore(repairedJoined, spans);
-            const repairedSpanCheck = verifySpansStrict(repairedJoined, spans);
-            
-            if (repairedSpanCheck.ok) {
+            if (verifySpansStrict(repairedJoined, spans).ok) {
               restoredText = repairedRestored;
               finalChanges.push(...successfulRepairs);
             }
           }
         }
-      } catch {
-        // If the reviewer fails, we proceed with the original rewrite (graceful degradation)
-      }
+      } catch {}
     }
-    // --- End Step C ---
 
     return NextResponse.json({
-      ok: true,
-      action: "rewrite",
-      original: rawText,
-      rewritten: restoredText,
-      paragraphs: parsed.paragraphs,
-      provider: lastProvider,
-      model: lastModel,
-      before: computeMetrics(rawText),
-      after: computeMetrics(restoredText),
-      spansProtected: spans.length,
-      profileUsed,
-      changes: finalChanges.length > 0 ? finalChanges : undefined,
+      ok: true, action: "rewrite", original: rawText, rewritten: restoredText, paragraphs: parsed.paragraphs,
+      provider: lastProvider, model: lastModel, before: computeMetrics(rawText), after: computeMetrics(restoredText),
+      spansProtected: spans.length, profileUsed, changes: finalChanges.length > 0 ? finalChanges : undefined,
     });
   }
 
-  return NextResponse.json(
-    { error: "Rewrite failed after retry." },
-    { status: 502 }
-  );
+  return NextResponse.json({ error: "Rewrite failed after retry." }, { status: 502 });
 }
 
 // ---------------------------------------------------------------------------
@@ -806,116 +552,54 @@ const SELECTION_SYSTEM = `You rewrite a selected passage. Rewrite only the selec
 1. Preserve meaning and protected tokens exactly, in their original order.
 2. Return JSON only: { "text": "..." }`;
 
-async function handleRegen(
-  sentence: string,
-  context: string,
-  extraPrompt: string,
-  profileUsed: { name: string } | null
-) {
+async function handleRegen(sentence: string, context: string, extraPrompt: string, profileUsed: { name: string } | null) {
   const { masked, spans } = protect(sentence);
   const { masked: maskedContext } = protect(context);
-  const userPrompt = `Regenerate this sentence:\n"""\n${masked}\n"""\nContext:\n"""\n${maskedContext.slice(
-    0,
-    1500
-  )}\n"""\n${extraPrompt}\n\nReturn JSON: { "text": "..." }`;
+  const userPrompt = `Regenerate this sentence:\n"""\n${masked}\n"""\nContext:\n"""\n${maskedContext.slice(0, 1500)}\n"""\n${extraPrompt}\n\nReturn JSON: { "text": "..." }`;
 
-  const result = await chatWithFallback({
-    system: REGEN_SYSTEM,
-    user: userPrompt,
-    maxTokens: 400,
-    temperature: 0.7,
-  });
-
+  const result = await chatWithFallback({ system: REGEN_SYSTEM, user: userPrompt, maxTokens: 400, temperature: 0.7 });
   let parsed: { text?: string };
-  try {
-    parsed = parseJsonLoose(result.text) as typeof parsed;
-  } catch {
-    return NextResponse.json(
-      { error: "Model returned invalid JSON." },
-      { status: 502 }
-    );
+  try { parsed = parseJsonLoose(result.text) as typeof parsed; } catch {
+    return NextResponse.json({ error: "Model returned invalid JSON." }, { status: 502 });
   }
 
   if (typeof parsed.text !== "string") {
-    return NextResponse.json(
-      { error: "Model returned an unexpected JSON shape." },
-      { status: 502 }
-    );
+    return NextResponse.json({ error: "Model returned an unexpected JSON shape." }, { status: 502 });
   }
 
-  const { text: tokenized, usedFallback } = backToProtectedTokens(
-    parsed.text,
-    spans
-  );
+  const { text: tokenized, usedFallback } = backToProtectedTokens(parsed.text, spans);
   if (usedFallback || !verifySpansStrict(tokenized, spans).ok) {
     return NextResponse.json({ error: "Dropped spans." }, { status: 502 });
   }
 
   return NextResponse.json({
-    ok: true,
-    action: "regen",
-    original: sentence,
-    rewritten: restore(tokenized, spans),
-    provider: result.provider,
-    model: result.model,
-    spansProtected: spans.length,
-    profileUsed,
+    ok: true, action: "regen", original: sentence, rewritten: restore(tokenized, spans),
+    provider: result.provider, model: result.model, spansProtected: spans.length, profileUsed,
   });
 }
 
-async function handleSelection(
-  selection: string,
-  context: string,
-  extraPrompt: string,
-  profileUsed: { name: string } | null
-) {
+async function handleSelection(selection: string, context: string, extraPrompt: string, profileUsed: { name: string } | null) {
   const { masked, spans } = protect(selection);
   const { masked: maskedContext } = protect(context);
-  const userPrompt = `Rewrite this selection:\n"""\n${masked}\n"""\nContext:\n"""\n${maskedContext.slice(
-    0,
-    1500
-  )}\n"""\n${extraPrompt}\n\nReturn JSON: { "text": "..." }`;
+  const userPrompt = `Rewrite this selection:\n"""\n${masked}\n"""\nContext:\n"""\n${maskedContext.slice(0, 1500)}\n"""\n${extraPrompt}\n\nReturn JSON: { "text": "..." }`;
 
-  const result = await chatWithFallback({
-    system: SELECTION_SYSTEM,
-    user: userPrompt,
-    maxTokens: 800,
-    temperature: 0.7,
-  });
-
+  const result = await chatWithFallback({ system: SELECTION_SYSTEM, user: userPrompt, maxTokens: 800, temperature: 0.7 });
   let parsed: { text?: string };
-  try {
-    parsed = parseJsonLoose(result.text) as typeof parsed;
-  } catch {
-    return NextResponse.json(
-      { error: "Model returned invalid JSON." },
-      { status: 502 }
-    );
+  try { parsed = parseJsonLoose(result.text) as typeof parsed; } catch {
+    return NextResponse.json({ error: "Model returned invalid JSON." }, { status: 502 });
   }
 
   if (typeof parsed.text !== "string") {
-    return NextResponse.json(
-      { error: "Model returned an unexpected JSON shape." },
-      { status: 502 }
-    );
+    return NextResponse.json({ error: "Model returned an unexpected JSON shape." }, { status: 502 });
   }
 
-  const { text: tokenized, usedFallback } = backToProtectedTokens(
-    parsed.text,
-    spans
-  );
+  const { text: tokenized, usedFallback } = backToProtectedTokens(parsed.text, spans);
   if (usedFallback || !verifySpansStrict(tokenized, spans).ok) {
     return NextResponse.json({ error: "Dropped spans." }, { status: 502 });
   }
 
   return NextResponse.json({
-    ok: true,
-    action: "selection",
-    original: selection,
-    rewritten: restore(tokenized, spans),
-    provider: result.provider,
-    model: result.model,
-    spansProtected: spans.length,
-    profileUsed,
+    ok: true, action: "selection", original: selection, rewritten: restore(tokenized, spans),
+    provider: result.provider, model: result.model, spansProtected: spans.length, profileUsed,
   });
 }
