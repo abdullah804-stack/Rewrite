@@ -40,12 +40,12 @@ const INTENSITY_RULES: Record<string, string> = {
   strong: "Maximally apply the Detector Evasion rules. Break every predictable pattern. The output must sound messy and human.",
 };
 
-const PROMPT_VERSION = "v5-2026-11";
+const PROMPT_VERSION = "v6-2026-11";
 
 const BASE_SYSTEM = `You are an expert at rewriting text to sound like a real human typing quickly and casually. 
 
 YOUR TASK:
-Completely rewrite the provided text. You are FORBIDDEN from keeping any original sentences exactly as they are. 
+Completely rewrite the provided text. You are FORBIDDEN from keeping any original sentences exactly as they are. If your output shares more than 3 consecutive words with the original text, you fail the task.
 
 RULES FOR HUMAN CHAOS (EVADING AI DETECTORS):
 1. Use run-on sentences with commas instead of periods. 
@@ -53,8 +53,8 @@ RULES FOR HUMAN CHAOS (EVADING AI DETECTORS):
 3. Start sentences with "And", "But", "So".
 4. Use dashes ( — ) and parentheses to interrupt your own thoughts mid-sentence.
 5. Use contractions (it's, don't, can't).
-6. Never use AI words (Furthermore, Moreover, Delve, Landscape).
-7. Keep placeholders like ⟦P1⟧ exactly as they are.
+6. NEVER USE: "Furthermore", "Moreover", "Ultimately", "In conclusion", "Delve", "Landscape", "Paramount".
+7. Keep placeholders like ⟦P1⟧ exactly as they are, in order.
 
 OUTPUT FORMAT (CRITICAL)
 You MUST return valid JSON matching this exact structure. Do not break the JSON syntax.
@@ -63,6 +63,7 @@ You MUST return valid JSON matching this exact structure. Do not break the JSON 
     { "index": 0, "text": "Your completely rewritten text goes here." }
   ]
 }`;
+
 const REVIEW_SYSTEM = `You are an independent editorial reviewer evaluating a rewrite against its original.
 You MUST evaluate four dimensions, each as "pass" or "fail":
 1. naturalness
@@ -236,6 +237,7 @@ async function handleFullRewrite(rawText: string, intensity: string, extraPrompt
 
   const attempts = [false, true];
   for (const strict of attempts) {
+    // CRITICAL FIX: We MUST pass system: BASE_SYSTEM here!
     const result = await chatWithFallback({ system: BASE_SYSTEM, user: buildUserPrompt(), maxTokens: 8000, temperature: 0.7 });
 
     let parsed: any;
@@ -247,6 +249,13 @@ async function handleFullRewrite(rawText: string, intensity: string, extraPrompt
     }
 
     const joined = parsed.paragraphs.map((p: any) => p.text ?? "").join("\n\n");
+    
+    // LAZY MODEL CHECK
+    if (joined.trim() === rawText.trim()) {
+      if (strict) return NextResponse.json({ error: "Model refused to rewrite the text." }, { status: 502 });
+      continue;
+    }
+
     const { text: tokenized, usedFallback } = backToProtectedTokens(joined, spans);
     if (usedFallback || !verifySpansStrict(tokenized, spans).ok) {
       if (strict) return NextResponse.json({ error: "Protected spans dropped." }, { status: 502 });
@@ -260,8 +269,9 @@ async function handleFullRewrite(rawText: string, intensity: string, extraPrompt
     let restoredText = restore(tokenized, spans);
     let finalChanges = parsed.paragraphs.flatMap((p: any) => p.changes || []);
 
-    // Independent Reviewer
-    if (intensity !== "light" && !extraPrompt.includes("Aggressive Humanizer")) {      const reviewPrompt = `Original:\n${rawText}\n\nRewritten:\n${restoredText}\n\nEvaluate on naturalness, voice, meaning, grammar. Return JSON: { "naturalness": "pass"|"fail", "voice": "pass"|"fail", "meaning": "pass"|"fail", "grammar": "pass"|"fail", "issues": [{ "index": 0, "reason": "..." }] }`;
+    // SKIP REVIEWER FOR HUMANIZER
+    if (intensity !== "light" && !extraPrompt.includes("Aggressive Humanizer")) {
+      const reviewPrompt = `Original:\n${rawText}\n\nRewritten:\n${restoredText}\n\nEvaluate on naturalness, voice, meaning, grammar. Return JSON: { "naturalness": "pass"|"fail", "voice": "pass"|"fail", "meaning": "pass"|"fail", "grammar": "pass"|"fail", "issues": [{ "index": 0, "reason": "..." }] }`;
       try {
         const verdict = parseJsonLoose((await chatWithFallback({ system: REVIEW_SYSTEM, user: reviewPrompt, maxTokens: 1000, temperature: 0.2 })).text) as any;
         if (verdict.meaning === "fail") {
