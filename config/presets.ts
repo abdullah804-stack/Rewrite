@@ -1,9 +1,14 @@
-export type PresetId = "blog" | "email" | "linkedin" | "newsletter" | "custom";
+export type PresetId = "blog" | "email" | "linkedin" | "newsletter" | "human" | "custom";
 
 export const PRESETS: Record<
   PresetId,
   { name: string; instruction: string }
 > = {
+  human: {
+    name: "Human / Conversational",
+    instruction:
+      "Genre: General human writing. Write like a real human explaining something to a smart friend over coffee. Be professional but natural. Be clear, direct, conversational, and real. Avoid buzzwords, corporate jargon, and em dashes. Never sound like a press release. Do not use robotic transitions or overly formal vocabulary.",
+  },
   blog: {
     name: "Blog post",
     instruction:
