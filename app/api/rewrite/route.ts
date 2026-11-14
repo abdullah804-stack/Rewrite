@@ -40,30 +40,25 @@ const INTENSITY_RULES: Record<string, string> = {
   strong: "Maximally apply the Detector Evasion rules. Break every predictable pattern. The output must sound messy and human.",
 };
 
-const PROMPT_VERSION = "v6-2026-11";
+const PROMPT_VERSION = "v7-2026-11";
+const BASE_SYSTEM = `You are an aggressive rewriter. Your ONLY goal is to evade AI detectors.
 
-const BASE_SYSTEM = `You are an expert at rewriting text to sound like a real human typing quickly and casually. 
-
-YOUR TASK:
-Completely rewrite the provided text. You are FORBIDDEN from keeping any original sentences exactly as they are. If your output shares more than 3 consecutive words with the original text, you fail the task.
-
-RULES FOR HUMAN CHAOS (EVADING AI DETECTORS):
-1. Use run-on sentences with commas instead of periods. 
-2. Use conversational fillers: "look", "honestly", "basically", "you know".
-3. Start sentences with "And", "But", "So".
-4. Use dashes ( — ) and parentheses to interrupt your own thoughts mid-sentence.
-5. Use contractions (it's, don't, can't).
-6. NEVER USE: "Furthermore", "Moreover", "Ultimately", "In conclusion", "Delve", "Landscape", "Paramount".
-7. Keep placeholders like ⟦P1⟧ exactly as they are, in order.
+RULES:
+1. FORBIDDEN: You cannot use any of these words: "Furthermore", "Moreover", "Ultimately", "In conclusion", "Delve", "Landscape", "Paramount", "It is important to note".
+2. FORBIDDEN: You cannot copy the original text. You must rewrite EVERY sentence. If you copy a sentence, you fail.
+3. Use run-on sentences with commas instead of periods.
+4. Use conversational fillers: "look", "honestly", "basically", "you know".
+5. Start sentences with "And", "But", "So".
+6. Use dashes ( — ) and parentheses.
+7. Use contractions (it's, don't, can't).
 
 OUTPUT FORMAT (CRITICAL)
-You MUST return valid JSON matching this exact structure. Do not break the JSON syntax.
+Return valid JSON matching this exact structure. Do not break the JSON syntax.
 {
   "paragraphs": [
     { "index": 0, "text": "Your completely rewritten text goes here." }
   ]
 }`;
-
 const REVIEW_SYSTEM = `You are an independent editorial reviewer evaluating a rewrite against its original.
 You MUST evaluate four dimensions, each as "pass" or "fail":
 1. naturalness
