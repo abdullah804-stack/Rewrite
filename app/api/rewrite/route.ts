@@ -44,13 +44,15 @@ const PROMPT_VERSION = "v5-2026-11";
 
 const BASE_SYSTEM = `You are an expert at rewriting text to sound human and evade AI detectors.
 
+YOUR TASK:
+Completely rewrite the provided text. You are FORBIDDEN from keeping any original sentences exactly as they are. If you keep a sentence the same, you fail the task. 
+
 INSTRUCTIONS:
-1. Completely rewrite the provided text. Do NOT copy the original sentences.
+1. Destroy all AI buzzwords (Furthermore, Moreover, Ultimately, Delve, Landscape, Paradigm).
 2. Mix very short sentences (2-5 words) with very long ones (20+ words).
-3. Delete AI buzzwords (Furthermore, Moreover, Ultimately, Delve, Landscape).
-4. Use contractions (it's, don't) and start sentences with "And", "But", "So", or "Honestly". 
-5. Keep placeholders like ⟦P1⟧ exactly as they are, in the same order.
-6. Do NOT alter numbers, names, or citations.
+3. Use contractions (it's, don't) and start sentences with "And", "But", "So", or "Honestly". 
+4. Keep placeholders like ⟦P1⟧ exactly as they are, in the same order.
+5. Do NOT alter numbers, names, or citations.
 
 OUTPUT FORMAT (CRITICAL)
 You MUST return valid JSON matching this exact structure. Do not break the JSON syntax.
@@ -59,7 +61,6 @@ You MUST return valid JSON matching this exact structure. Do not break the JSON 
     { "index": 0, "text": "Your completely rewritten text goes here." }
   ]
 }`;
-
 const REVIEW_SYSTEM = `You are an independent editorial reviewer evaluating a rewrite against its original.
 You MUST evaluate four dimensions, each as "pass" or "fail":
 1. naturalness
@@ -257,8 +258,8 @@ async function handleFullRewrite(rawText: string, intensity: string, extraPrompt
     let restoredText = restore(tokenized, spans);
     let finalChanges = parsed.paragraphs.flatMap((p: any) => p.changes || []);
 
-    if (intensity !== "light") {
-      const reviewPrompt = `Original:\n${rawText}\n\nRewritten:\n${restoredText}\n\nEvaluate on naturalness, voice, meaning, grammar. Return JSON: { "naturalness": "pass"|"fail", "voice": "pass"|"fail", "meaning": "pass"|"fail", "grammar": "pass"|"fail", "issues": [{ "index": 0, "reason": "..." }] }`;
+    // Independent Reviewer
+    if (intensity !== "light" && !extraPrompt.includes("Aggressive Humanizer")) {      const reviewPrompt = `Original:\n${rawText}\n\nRewritten:\n${restoredText}\n\nEvaluate on naturalness, voice, meaning, grammar. Return JSON: { "naturalness": "pass"|"fail", "voice": "pass"|"fail", "meaning": "pass"|"fail", "grammar": "pass"|"fail", "issues": [{ "index": 0, "reason": "..." }] }`;
       try {
         const verdict = parseJsonLoose((await chatWithFallback({ system: REVIEW_SYSTEM, user: reviewPrompt, maxTokens: 1000, temperature: 0.2 })).text) as any;
         if (verdict.meaning === "fail") {

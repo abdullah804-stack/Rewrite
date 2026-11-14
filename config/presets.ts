@@ -10,9 +10,9 @@ export const PRESETS: Record<
       "Genre: General human writing. Write like a real human explaining something to a smart friend over coffee. Be professional but natural. Be clear, direct, conversational, and real. Avoid buzzwords, corporate jargon, and em dashes. Never sound like a press release. Do not use robotic transitions or overly formal vocabulary.",
   },
   humanizer: {
-    name: "Aggressive Humanizer (Detector Evasion)",
+    name: "Aggressive Humanizer",
     instruction:
-      "You are a human writing a rough draft. Break the rules. Start sentences with And, But, or So. Use short fragments. Do not use perfect grammar. Use contractions. Make the sentence lengths wildly different. Do not sound professional. Sound like a real person typing quickly on a keyboard.",
+      "You are a human writing a rough draft. Break the rules. Start sentences with And, But, or So. Use short fragments. Do not use perfect grammar. Make sentence lengths wildly different. FORBIDDEN: Do not copy the original text. Every single sentence must be restructured to sound casual and messy.",
   },
   blog: {
     name: "Blog post",
