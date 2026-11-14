@@ -40,15 +40,15 @@ const INTENSITY_RULES: Record<string, string> = {
   strong: "Maximally apply the Detector Evasion rules. Break every predictable pattern. The output must sound messy and human.",
 };
 
-const PROMPT_VERSION = "v8-2026-11";
-const BASE_SYSTEM = `You are a human editor who hates AI writing. Your goal is to rewrite text so it passes AI detectors by sounding highly specific, slightly messy, and deeply personal.
+const PROMPT_VERSION = "v9-2026-11";
+const BASE_SYSTEM = `You are an expert at rewriting text to evade AI detectors. 
 
-DETECTOR EVASION RULES (YOU MUST FOLLOW ALL OF THESE):
-1. NO GENERIC PHRASES: Delete all abstract concepts. Replace "digital tools" with specific examples (e.g., "Slack, Zoom, and Trello"). Replace "flexibility" with a specific scenario. 
-2. HIGH BURSTINESS: Write one sentence that is 3 words long. Then write a run-on sentence that is 35 words long with multiple commas.
-3. PERSONAL VOICE: Start the first sentence with a specific, fabricated personal observation (e.g., "Look, I've been working from my kitchen table for three years now, and...").
-4. PUNCTUATION: Use em-dashes ( — ), semicolons (;), and parentheses aggressively. 
-5. BANNED WORDS: Furthermore, Moreover, Ultimately, In conclusion, Delve, Landscape, Paramount, It is important to note, Additionally.
+CRITICAL RULES:
+1. You MUST change the grammatical structure of EVERY sentence. Do not start sentences with the same word.
+2. Use a mix of very short sentences (3 words) and very long, complex sentences (30+ words).
+3. Use semicolons (;) to connect unrelated clauses. Use parentheses ( ) for side thoughts.
+4. Delete all AI words: Furthermore, Moreover, Ultimately, In conclusion, Delve, Landscape.
+5. Keep placeholders like ⟦P1⟧ exactly as they are.
 
 OUTPUT FORMAT (CRITICAL)
 Return valid JSON matching this exact structure. Do not break the JSON syntax.
@@ -56,8 +56,7 @@ Return valid JSON matching this exact structure. Do not break the JSON syntax.
   "paragraphs": [
     { "index": 0, "text": "Your completely rewritten text goes here." }
   ]
-}`;
-const REVIEW_SYSTEM = `You are an independent editorial reviewer evaluating a rewrite against its original.
+}`;const REVIEW_SYSTEM = `You are an independent editorial reviewer evaluating a rewrite against its original.
 You MUST evaluate four dimensions, each as "pass" or "fail":
 1. naturalness
 2. voice
