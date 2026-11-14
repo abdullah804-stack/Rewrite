@@ -34,6 +34,8 @@ const RewriteRequestSchema = z.object({
   seoSafe: z.boolean().nullish(),
   toneFormality: z.number().min(0).max(10).nullish(),
   toneDirectness: z.number().min(0).max(10).nullish(),
+  // Benchmark-only: when it equals the BENCH_KEY env var, the request skips the cache and the quota.
+  benchKey: z.string().nullish(),
 }).passthrough();
 
 const INTENSITY_RULES: Record<Intensity, string> = {
@@ -175,7 +177,10 @@ export async function POST(request: Request) {
 
     userId = session?.user?.id ?? null;
     anonIp = userId ? null : clientIp(request);
-    if (userId) {
+    const benchBypass = !!process.env.BENCH_KEY && body.benchKey === process.env.BENCH_KEY;
+    if (benchBypass) {
+      // Benchmark run: no quota reservation, so repeated runs do not eat the daily budget.
+    } else if (userId) {
       const budget = await reserveUserWords(userId, wordCount, limits.rewriteWordsPerDay);
       if (!budget.ok) return NextResponse.json({ error: budget.reason }, { status: 429 });
       quotaReserved = true;
@@ -219,7 +224,7 @@ export async function POST(request: Request) {
     const glossaryHash = glossaryBlock ? createHash("sha256").update(glossaryBlock).digest("hex") : null;
     const primaryModelName = "DeepSeek-V4.1-Flash";
     const cacheKey = hashRequest(PROMPT_VERSION, rawText, intensity, body.profileId ?? null, presetId, body.seoSafe ?? false, toneFormality, body.toneDirectness ?? 5, glossaryHash, primaryModelName);
-    const cachedData = await getCachedResponse<any>(cacheKey);
+    const cachedData = benchBypass ? null : await getCachedResponse<any>(cacheKey);
 
     if (cachedData && validateGlossary(cachedData.rewritten, glossaryRecord).ok) {
       await refund();
@@ -235,8 +240,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Validation failed." }, { status: 502 });
     }
 
-    await setCachedResponse(cacheKey, data);
-    if (userId) {
+    if (!benchBypass) await setCachedResponse(cacheKey, data);
+    if (userId && !benchBypass) {
       prisma.usageEvent.create({ data: { userId, kind: action, words: wordCount, provider: data.provider || null, day: new Date().toISOString().slice(0, 10) } }).catch(() => {});
     }
     return NextResponse.json(data);

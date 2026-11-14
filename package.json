@@ -11,6 +11,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "eval": "tsx scripts/eval.ts",
+    "bench": "tsx bench/run-bench.ts",
+    "bench:analyze": "tsx bench/analyze-results.ts",
+    "bench:gen": "tsx bench/gen-corpus.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {
