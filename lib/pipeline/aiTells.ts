@@ -299,41 +299,52 @@ export function analyzeText(text: string, original: string, opts: TellOptions = 
   };
 }
 
-// THE HUMAN NOISE INJECTOR
-export function injectHumanNoise(text: string): string {
-  let noisy = text;
+// THE UNIVERSAL AI-DETECTOR KILLER
+// This doesn't care about the topic. It mechanically breaks AI sentence structures.
+export function injectStructuralChaos(text: string): string {
+  let result = text;
 
-  // 1. Randomly lowercase the first letter of sentences
-  noisy = noisy.replace(/([.!?]\s+)([A-Z])/g, (match, punctuation, letter) => {
-    // 20% chance to lowercase the first letter
-    return Math.random() < 0.2 ? punctuation + letter.toLowerCase() : match;
-  });
+  // 1. FORCE SENTENCE FRAGMENTS
+  // Find sentences that start with "If", "When", or "Because" and cut them in half.
+  result = result.replace(/\b(If|When|Because) ([^,]{10,40}), ([^.!?]{10,60}[.!?])/gi, "$1 $2. $3");
 
-  // 2. Randomly change a period to a comma (run-on sentences)
-  noisy = noisy.replace(/\./g, (match) => {
-    // 15% chance to turn a period into a comma
-    return Math.random() < 0.15 ? "," : match;
-  });
-
-  // 3. Inject a rare typo into common words (changes perplexity)
-  const typos: Record<string, string> = {
-    "the ": "teh ",
-    "and ": "adn ",
-    "that ": "taht ",
-    "with ": "wtih ",
-    "because ": "becuase "
-  };
-  
-  for (const [word, typo] of Object.entries(typos)) {
-    if (noisy.includes(word) && Math.random() < 0.1) {
-      noisy = noisy.replace(word, typo);
+  // 2. FORCE RUN-ON SENTENCES
+  // Replace 20% of periods with a comma and a conjunction.
+  result = result.replace(/\.\s+([A-Z])/g, (match, letter) => {
+    if (Math.random() < 0.2) {
+      const conjunctions = [", but ", ", and ", ", so ", "; "];
+      const conj = conjunctions[Math.floor(Math.random() * conjunctions.length)];
+      return conj + letter.toLowerCase();
     }
+    return match;
+  });
+
+  // 3. DESTROY THE FIRST SENTENCE
+  // AI always starts with a perfect summary. Let's force a conversational opener.
+  const sentences = result.split(/(?<=[.!?])\s+/);
+  if (sentences.length > 1) {
+    const openers = ["Honestly, ", "Look, ", "I'll be blunt: ", "Here's the thing: ", "Basically, "];
+    const randomOpener = openers[Math.floor(Math.random() * openers.length)];
+    sentences[0] = randomOpener + sentences[0].charAt(0).toLowerCase() + sentences[0].slice(1);
   }
 
-  // 4. Randomly insert a conversational dash
-  noisy = noisy.replace(/\s(but|so|and)\s/g, (match) => {
-    return Math.random() < 0.3 ? " — " : match;
-  });
+  // 4. KILL THE TIDY CONCLUSION
+  // AI always ends with "In conclusion" or "Ultimately". Delete those.
+  const lastIndex = sentences.length - 1;
+  if (lastIndex > 0) {
+    sentences[lastIndex] = sentences[lastIndex]
+      .replace(/^(In conclusion|Ultimately|To sum up|Thus|Therefore),?\s*/i, "")
+      .replace(/^([A-Z])/, (m) => m.toLowerCase());
+  }
 
-  return noisy;
+  // 5. INSERT RANDOM PARENTHETICALS
+  // Humans add side thoughts. We will inject one into a random sentence.
+  if (sentences.length > 2) {
+    const sideThoughts = ["(which is crazy)", "(at least in my experience)", "(believe it or not)", "(and that's the scary part)"];
+    const randomThought = sideThoughts[Math.floor(Math.random() * sideThoughts.length)];
+    const midIndex = Math.floor(sentences.length / 2);
+    sentences[midIndex] = sentences[midIndex].replace(/\.\s*$/, ` ${randomThought}.`);
+  }
+
+  return sentences.join(" ");
 }

@@ -13,7 +13,7 @@ import { PRESETS, type PresetId } from "../../../config/presets";
 import { hashRequest, getCachedResponse, setCachedResponse } from "../../../lib/ai/cache";
 import { reserveUserWords, refundUserWords, reserveAnonRun, refundAnonRun, clientIp } from "../../../lib/pipeline/guard";
 import { getLimits } from "../../../config/plans";
-import { analyzeText, type TellReport, injectHumanNoise } from "../../../lib/pipeline/aiTells";
+import { analyzeText, type TellReport, injectStructuralChaos } from "../../../lib/pipeline/aiTells";
 import { makeStylePlan, renderStylePlan, type Intensity } from "../../../lib/pipeline/stylePlan";
 
 export const runtime = "nodejs";
@@ -379,11 +379,9 @@ async function handleFullRewrite(args: {
     } catch { break; }
   }
 
-  // APPLY HUMAN NOISE INJECTOR ONLY FOR STEALTH/HUMANIZER
-  let finalOutput = best.restored;
-  if (extraPrompt.includes("Stealth Mode") || extraPrompt.includes("Humanizer") || extraPrompt.includes("humanizer")) {
-    finalOutput = injectHumanNoise(finalOutput);
-  }
+   // APPLY STRUCTURAL CHAOS FOR ALL MODES
+  // This guarantees we break the AI's sentence math, regardless of the topic.
+  let finalOutput = injectStructuralChaos(best.restored);
 
   return NextResponse.json({
     ok: true, action: "rewrite", original: rawText, rewritten: finalOutput, paragraphs: best.paragraphs,
