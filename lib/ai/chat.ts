@@ -6,6 +6,9 @@ export type ChatOptions = {
   user: string;
   maxTokens?: number;
   temperature?: number;
+  topP?: number;              // NEW
+  frequencyPenalty?: number;  // NEW
+  presencePenalty?: number;   // NEW
 };
 
 export type ChatResult = {
@@ -13,6 +16,20 @@ export type ChatResult = {
   provider: string;
   model: string;
 };
+
+// Providers known to accept frequency/presence penalties on /chat/completions.
+// Groq is left out on purpose: unsupported params can make requests fail.
+const PENALTY_PROVIDERS = new Set<string>(["deepseek", "openrouter"]);
+
+function samplingParams(provider: ProviderConfig, opts: Omit<ChatOptions, "providerId">) {
+  const p: Record<string, number> = {};
+  if (opts.topP !== undefined) p.top_p = opts.topP;
+  if (PENALTY_PROVIDERS.has(provider.id)) {
+    if (opts.frequencyPenalty !== undefined) p.frequency_penalty = opts.frequencyPenalty;
+    if (opts.presencePenalty !== undefined) p.presence_penalty = opts.presencePenalty;
+  }
+  return p;
+}
 
 export async function chat(opts: ChatOptions): Promise<ChatResult> {
   const provider = getProvider(opts.providerId);
@@ -41,7 +58,11 @@ async function chatGoogle(provider: ProviderConfig, apiKey: string, opts: ChatOp
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: opts.system }] },
       contents: [{ role: "user", parts: [{ text: opts.user }] }],
-      generationConfig: { maxOutputTokens: opts.maxTokens ?? 2000, temperature: opts.temperature ?? 0.7 },
+      generationConfig: {
+        maxOutputTokens: opts.maxTokens ?? 2000,
+        temperature: opts.temperature ?? 0.7,
+        ...(opts.topP !== undefined ? { topP: opts.topP } : {}),
+      },
     }),
   });
   if (!response.ok) throw new Error(`Google AI error: ${response.status} ${await response.text()}`);
@@ -98,8 +119,9 @@ async function chatOpenAICompatible(provider: ProviderConfig, apiKey: string, op
       messages: [{ role: "system", content: opts.system }, { role: "user", content: opts.user }],
       max_tokens: opts.maxTokens ?? 2000,
       temperature: opts.temperature ?? 0.7,
+      ...samplingParams(provider, opts),
     };
-    
+
     // ONLY enforce json_object format if we are NOT using DeepSeek (TokenLab breaks on it)
     if (provider.id !== "deepseek") {
       body.response_format = { type: "json_object" };
@@ -171,6 +193,7 @@ async function chatOpenAICompatibleWithModel(provider: ProviderConfig, apiKey: s
       messages: [{ role: "system", content: opts.system }, { role: "user", content: opts.user }],
       max_tokens: opts.maxTokens ?? 2000,
       temperature: opts.temperature ?? 0.7,
+      ...samplingParams(provider, opts),
       response_format: { type: "json_object" },
     }),
   });

@@ -1,46 +1,40 @@
 export type PresetId = "human" | "humanizer" | "stealth" | "blog" | "email" | "linkedin" | "newsletter" | "custom";
 
-export const PRESETS: Record<
-  PresetId,
-  { name: string; instruction: string }
-> = {
+export const PRESETS: Record<PresetId, { name: string; instruction: string }> = {
   human: {
     name: "Human / Conversational",
     instruction:
-      "Genre: General human writing. Write like a real human explaining something to a smart friend over coffee. Be professional but natural. Be clear, direct, conversational, and real. Avoid buzzwords, corporate jargon, and em dashes. Never sound like a press release. Do not use robotic transitions or overly formal vocabulary.",
+      "Genre: General human writing. Write like a real person explaining something to a smart friend over coffee. Be clear, direct and natural. Avoid buzzwords, corporate jargon and em dashes. Never sound like a press release or use robotic transitions.",
   },
   humanizer: {
     name: "Aggressive Humanizer",
     instruction:
-      "You are a human writing a rough draft. Break the rules. Start sentences with And, But, or So. Use short fragments. Do not use perfect grammar. Make sentence lengths wildly different. FORBIDDEN: Do not copy the original text. Every single sentence must be restructured to sound casual and messy.",
+      "Genre: loose, conversational first draft. Relaxed grammar is fine. Sentence lengths should be uneven, with an occasional fragment. Every sentence must be restructured; do not follow the original's order or phrasing. Choose fresh wording every time and never fall back on stock filler phrases.",
   },
   stealth: {
     name: "Stealth Mode (Anti-Detector)",
     instruction:
-      "Roleplay: You are a freelance writer named Alex who is typing a quick email on an iPhone. You hate corporate speak. You use words like 'basically', 'honestly', 'a total mess', 'crazy', and 'it sucks'. You use exclamation marks. You write short, punchy thoughts. You do NOT use big words. You do NOT write perfect sentences.",
+      "Genre: a busy, plain-spoken person typing a quick note. Direct, a little informal, small asides, no corporate or academic vocabulary. Do not force slang or profanity; let the topic decide how casual to get. Never reuse the same filler phrase twice.",
   },
   blog: {
     name: "Blog post",
     instruction:
-      "Genre: Blog post. Format for a general online audience. Use a clear, engaging, and conversational tone. Keep paragraphs relatively short (1-3 sentences) for easy reading. Avoid corporate jargon, but do not force artificial hooks or fragments.",
+      "Genre: Blog post for a general online audience. Clear, engaging and conversational. Keep paragraphs short (1-3 sentences). Avoid corporate jargon and do not force artificial hooks.",
   },
   email: {
     name: "Email",
     instruction:
-      "Genre: Professional email. Focus on clarity, conciseness, and immediate context. The reader should understand the purpose quickly. Keep the formatting scannable, but maintain a natural, professional tone.",
+      "Genre: Professional email. Be clear and concise, with the purpose obvious quickly. Scannable, natural and professional.",
   },
   linkedin: {
     name: "LinkedIn post",
     instruction:
-      "Genre: LinkedIn post. Aim for a professional, insightful tone suited to a career-focused network. Use line breaks for readability. Avoid clickbait or formulaic 'scroll-stopping' hooks; focus on the substance of the insight.",
+      "Genre: LinkedIn post. Professional, insightful, career-focused. Use line breaks for readability. Avoid clickbait and formulaic scroll-stopping hooks; focus on the substance.",
   },
   newsletter: {
     name: "Newsletter",
     instruction:
-      "Genre: Newsletter. Adopt a warm, personal tone that speaks directly to the reader. Maintain a conversational voice while keeping the content focused and valuable.",
+      "Genre: Newsletter. Warm, personal, speaking directly to the reader. Conversational but focused and valuable.",
   },
-  custom: {
-    name: "Custom / None",
-    instruction: "",
-  },
+  custom: { name: "Custom / None", instruction: "" },
 };
