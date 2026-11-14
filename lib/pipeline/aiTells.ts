@@ -75,12 +75,15 @@ const SOFT_RES = SOFT_PHRASES.map((p) => ({ p, re: new RegExp(`\\b${escapeRe(p)}
 // and they read as commentary about the writer instead of the subject.
 const PERSONA_RES: RegExp[] = [
   /\bso yeah\b/i, /\bi get why\b/i, /\bheavy lifting\b/i, /\b(?:a )?(?:big|huge) deal\b/i,
-  /\bplaying catch-?up\b/i, /\bwhich is the part\b/i, /\bhonestly\b/i, /\bhere'?s the thing\b/i,
+  /\bhonestly\b/i, /\bhere'?s the thing\b/i,
   /\bthe thing is\b/i, /\bto be (?:fair|honest)\b/i, /\bfrankly\b/i, /\blet'?s be real\b/i,
   /\bat its core\b/i, /\bdrives me crazy\b/i, /\ba total mess\b/i, /\bit sucks\b/i,
   /\bmakes? (?:a )?(?:lot of )?sense to me\b/i, /\b(?:though|but|and) i'?d say\b/i,
-  /\bdoing a lot of\b/i, /\bmy (?:read|take) is\b/i, /\bif you ask me\b/i, /\bbasically\b/i,
-  /\bgenuinely\b/i, /\bwildly\b/i, /\blook,\s/i,
+  /\bmy (?:read|take) is\b/i, /\bif you ask me\b/i, /\bbasically\b/i,
+  /\bgenuinely\b/i, /\blook,\s/i,
+  // structural (topic-independent): first-person parenthetical aside, or commentary on one's own wording
+  /\([^)]{0,80}\b(?:me|my|i|i'm|i'd)\b[^)]{0,80}\)/i,
+  /["“][^"”]{3,40}["”]\s+(?:is|are)\s+(?:doing|carrying|a bit|a little)\b/i,
 ];
 
 export function splitSentences(text: string): string[] {
@@ -147,7 +150,7 @@ function mirrorsOrder(outS: string[], origS: string[]): boolean {
 
 export function analyzeText(text: string, original: string, opts: TellOptions = {}): TellReport {
   const maxOverlap = opts.maxOverlap ?? 0.2;
-  const minBurst = opts.minBurstiness ?? 0.55;
+  const minBurst = opts.minBurstiness ?? 0.4;
 
   const sents = splitSentences(text);
   const lens = sents.map(wc);
