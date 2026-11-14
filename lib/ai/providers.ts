@@ -11,8 +11,8 @@ export type ProviderConfig = {
   apiShape: "openai" | "google" | "cloudflare";
 };
 
-// Order matters for reading, not for routing.
-// The actual fallback order lives in chatWithFallback() in chat.ts.
+// Order here matters for reading, not for routing.
+// The routing order comes from getProviderOrder() below.
 export const providers: ProviderConfig[] = [
   {
     id: "deepseek",
@@ -66,4 +66,29 @@ export function getProvider(id: ProviderId): ProviderConfig {
   const provider = providers.find((p) => p.id === id);
   if (!provider) throw new Error(`Unknown provider: ${id}`);
   return provider;
+}
+
+// DeepSeek first, then the free tiers as fallbacks.
+export const DEFAULT_PROVIDER_ORDER: ProviderId[] = ["deepseek", "groq", "openrouter"];
+
+/**
+ * The order providers are tried in. Override with the AI_PROVIDER_ORDER env var,
+ * for example "deepseek" (never fall back) or "groq,openrouter".
+ * Unknown names are ignored with a warning. An empty or fully invalid value gives the default.
+ */
+export function getProviderOrder(raw: string | undefined = process.env.AI_PROVIDER_ORDER): ProviderId[] {
+  if (!raw || !raw.trim()) return DEFAULT_PROVIDER_ORDER;
+  const names = raw.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+  const valid: ProviderId[] = [];
+  for (const name of names) {
+    const match = providers.find((p) => p.id === name);
+    if (!match) { console.warn(`[ai] AI_PROVIDER_ORDER: unknown provider "${name}" ignored`); continue; }
+    if (!valid.includes(match.id)) valid.push(match.id);
+  }
+  return valid.length ? valid : DEFAULT_PROVIDER_ORDER;
+}
+
+/** True when the provider's API key is present in the environment. */
+export function hasApiKey(id: ProviderId): boolean {
+  return !!process.env[getProvider(id).envKey];
 }
