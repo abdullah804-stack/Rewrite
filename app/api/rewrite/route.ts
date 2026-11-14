@@ -42,17 +42,19 @@ const INTENSITY_RULES: Record<string, string> = {
 
 const PROMPT_VERSION = "v5-2026-11";
 
-const BASE_SYSTEM = `You are an expert at rewriting text to sound human and evade AI detectors.
+const BASE_SYSTEM = `You are an expert at rewriting text to sound like a real human typing quickly and casually. 
 
 YOUR TASK:
-Completely rewrite the provided text. You are FORBIDDEN from keeping any original sentences exactly as they are. If you keep a sentence the same, you fail the task. 
+Completely rewrite the provided text. You are FORBIDDEN from keeping any original sentences exactly as they are. 
 
-INSTRUCTIONS:
-1. Destroy all AI buzzwords (Furthermore, Moreover, Ultimately, Delve, Landscape, Paradigm).
-2. Mix very short sentences (2-5 words) with very long ones (20+ words).
-3. Use contractions (it's, don't) and start sentences with "And", "But", "So", or "Honestly". 
-4. Keep placeholders like ⟦P1⟧ exactly as they are, in the same order.
-5. Do NOT alter numbers, names, or citations.
+RULES FOR HUMAN CHAOS (EVADING AI DETECTORS):
+1. Use run-on sentences with commas instead of periods. 
+2. Use conversational fillers: "look", "honestly", "basically", "you know".
+3. Start sentences with "And", "But", "So".
+4. Use dashes ( — ) and parentheses to interrupt your own thoughts mid-sentence.
+5. Use contractions (it's, don't, can't).
+6. Never use AI words (Furthermore, Moreover, Delve, Landscape).
+7. Keep placeholders like ⟦P1⟧ exactly as they are.
 
 OUTPUT FORMAT (CRITICAL)
 You MUST return valid JSON matching this exact structure. Do not break the JSON syntax.
