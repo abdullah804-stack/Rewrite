@@ -505,8 +505,7 @@ export async function POST(request: Request) {
       ? createHash("sha256").update(glossaryBlock).digest("hex") 
       : null;
       
-    const primaryModelName = "openai/gpt-oss-120b"; 
-
+    const primaryModelName = "DeepSeek-V4.1-Flash"; 
     const cacheKey = hashRequest(
       PROMPT_VERSION,
       rawText,

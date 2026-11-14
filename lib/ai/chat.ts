@@ -156,7 +156,6 @@ async function chatOpenAICompatible(
         ],
         max_tokens: opts.maxTokens ?? 2000,
         temperature: opts.temperature ?? 0.7,
-        // Step 19: Removed top_p and frequency_penalty (Audit §11 / §2)
         response_format: { type: "json_object" },
       }),
     });
@@ -207,13 +206,12 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// OpenRouter secondary fallback — used only if the primary OpenRouter model
-// (Nemotron 3 Ultra) fails. This is a known, pinned model, never a routing alias.
 const OPENROUTER_SECONDARY_MODEL = "google/gemma-4-31b-it:free";
 
 export async function chatWithFallback(
   opts: Omit<ChatOptions, "providerId">,
-  order: ProviderId[] = ["groq", "openrouter"]
+  // Updated to include DeepSeek as the primary, with Groq and OpenRouter as fallbacks
+  order: ProviderId[] = ["deepseek", "groq", "openrouter"]
 ): Promise<ChatResult> {
   let lastError: Error | null = null;
 
@@ -246,8 +244,6 @@ export async function chatWithFallback(
   throw lastError ?? new Error("All providers failed");
 }
 
-// Extracted from chatOpenAICompatible so we can pass an explicit model
-// for the OpenRouter secondary fallback without changing the provider config.
 async function chatOpenAICompatibleWithModel(
   provider: ProviderConfig,
   apiKey: string,
@@ -270,7 +266,6 @@ async function chatOpenAICompatibleWithModel(
       ],
       max_tokens: opts.maxTokens ?? 2000,
       temperature: opts.temperature ?? 0.7,
-      // Step 21: Removed top_p and frequency_penalty (Audit §11 / §2)
       response_format: { type: "json_object" },
     }),
   });
