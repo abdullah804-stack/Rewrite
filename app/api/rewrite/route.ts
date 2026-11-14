@@ -14,7 +14,7 @@ import { PRESETS, type PresetId } from "../../../config/presets";
 import { hashRequest, getCachedResponse, setCachedResponse } from "../../../lib/ai/cache";
 import { reserveUserWords, refundUserWords, reserveAnonRun, refundAnonRun, clientIp } from "../../../lib/pipeline/guard";
 import { getLimits } from "../../../config/plans";
-import { analyzeText, type TellReport, injectStructuralChaos } from "../../../lib/pipeline/aiTells";
+import { analyzeText, type TellReport } from "../../../lib/pipeline/aiTells";
 import { makeStylePlan, renderStylePlan, type Intensity } from "../../../lib/pipeline/stylePlan";
 
 export const runtime = "nodejs";
@@ -47,7 +47,7 @@ const INTENSITY_RULES: Record<Intensity, string> = {
 
 const OVERLAP_LIMIT: Record<Intensity, number> = { light: 0.3, balanced: 0.2, strong: 0.12 };
 
-const PROMPT_VERSION = "v13-2026-11";
+const PROMPT_VERSION = "v14-2026-11"; // bumped: output no longer goes through the random injector
 const TARGET_SCORE = 2;
 const REPAIR_TIME_BUDGET_MS = 34_000;
 // Do not start another generation round (or try another provider) after this point; the route limit is 60s.
@@ -407,9 +407,10 @@ async function handleFullRewrite(args: {
     } catch { break; }
   }
 
-   // APPLY STRUCTURAL CHAOS FOR ALL MODES
-  // This guarantees we break the AI's sentence math, regardless of the topic.
-  let finalOutput = injectStructuralChaos(best.restored);
+  // The text that was scored, repaired and checked is the text the user gets.
+  // Nothing edits it afterwards: the old random post-processing broke grammar ("aI", "nASA"),
+  // inserted the same stock phrases into every output, and made `rewritten` disagree with `paragraphs`.
+  const finalOutput = best.restored;
 
   return NextResponse.json({
     ok: true, action: "rewrite", original: rawText, rewritten: finalOutput, paragraphs: best.paragraphs,
