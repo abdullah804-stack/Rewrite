@@ -18,7 +18,7 @@ export const PLANS = {
     maxVoiceProfiles: 3,
     historyRetentionDays: 14,
     anonymousWordsPerRun: 300,
-    anonymousRunsPerDay: 3,
+    anonymousRunsPerDay: 100,
   },
 } as const;
 

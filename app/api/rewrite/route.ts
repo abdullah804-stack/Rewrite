@@ -13,7 +13,7 @@ import { PRESETS, type PresetId } from "../../../config/presets";
 import { hashRequest, getCachedResponse, setCachedResponse } from "../../../lib/ai/cache";
 import { reserveUserWords, refundUserWords, reserveAnonRun, refundAnonRun, clientIp } from "../../../lib/pipeline/guard";
 import { getLimits } from "../../../config/plans";
-import { analyzeText, type TellReport } from "../../../lib/pipeline/aiTells";
+import { analyzeText, type TellReport, injectHumanNoise } from "../../../lib/pipeline/aiTells";
 import { makeStylePlan, renderStylePlan, type Intensity } from "../../../lib/pipeline/stylePlan";
 
 export const runtime = "nodejs";
@@ -36,7 +36,6 @@ const RewriteRequestSchema = z.object({
   toneDirectness: z.number().min(0).max(10).nullish(),
 }).passthrough();
 
-// These used to reference "Detector Evasion rules" that never existed in the prompt.
 const INTENSITY_RULES: Record<Intensity, string> = {
   light: "Keep the overall order of ideas, but rewrite every sentence in fresh wording and fix any uniform rhythm.",
   balanced: "Restructure heavily: merge, split and reorder sentences so the result does not follow the draft sentence by sentence.",
@@ -46,7 +45,7 @@ const INTENSITY_RULES: Record<Intensity, string> = {
 const OVERLAP_LIMIT: Record<Intensity, number> = { light: 0.3, balanced: 0.2, strong: 0.12 };
 
 const PROMPT_VERSION = "v13-2026-11";
-const TARGET_SCORE = 2;          // stop repairing once the local tell score is at or below this
+const TARGET_SCORE = 2;
 const REPAIR_TIME_BUDGET_MS = 34_000;
 
 const BASE_SYSTEM = `You are a writer reworking a draft in your own words. You are not an assistant explaining things; you are producing a piece of writing a real person could have written.
@@ -146,7 +145,6 @@ function backToProtectedTokens(aiText: string, spans: ProtectedSpan[]) {
 }
 
 export async function POST(request: Request) {
-  // Quota bookkeeping lives outside the try block so a thrown error can still refund.
   let quotaReserved = false;
   let userId: string | null = null;
   let anonIp: string | null = null;
@@ -268,8 +266,6 @@ type Candidate = {
   report: TellReport;
 };
 
-// Temperature/top_p/penalties: higher entropy is the single biggest lever on
-// perplexity/burstiness. See the optional chat.ts patch for how these are applied.
 const GEN_PARAMS = { temperature: 1.0, topP: 0.95, frequencyPenalty: 0.4, presencePenalty: 0.3 };
 
 function buildCandidate(resultText: string, provider: string, model: string, ctx: Ctx): Candidate | null {
@@ -285,7 +281,7 @@ function buildCandidate(resultText: string, provider: string, model: string, ctx
   if (restored.trim() === ctx.rawText.trim()) return null;
 
   const report = analyzeText(restored, ctx.rawText, { maxOverlap: ctx.overlapLimit });
-  if (report.numbersMissing.length > 0) return null; // a number was lost or altered
+  if (report.numbersMissing.length > 0) return null;
 
   return { paragraphs: parsed.paragraphs, tokenized, restored, provider, model, report };
 }
@@ -338,9 +334,6 @@ async function handleFullRewrite(args: {
 
   const seedBase = createHash("sha256").update(rawText + "|" + intensity + "|" + presetId).digest("hex").slice(0, 16);
 
-  // Stage 1 (balanced/strong): turn the draft into an unordered list of plain claims, so the
-  // writer never sees the original's wording or order. This is what removes copied phrasing
-  // and sentence-by-sentence mirroring. Falls back to the draft if extraction fails.
   const claims = intensity === "light" ? null : await extractClaims(maskedParagraphs);
   const material = claims
     ? `Write the piece described below from scratch. These are the points to cover, in no required order. Do not follow this list's order or wording; build your own flow. Every point must appear.\n\n` +
@@ -356,7 +349,6 @@ async function handleFullRewrite(args: {
     } catch { return null; }
   };
 
-  // Stage 2: best-of-N candidates with different style plans
   const n = intensity === "light" ? 1 : 2;
   let best: Candidate | null = null;
   for (let round = 0; round < 2 && !best; round++) {
@@ -365,7 +357,6 @@ async function handleFullRewrite(args: {
   }
   if (!best) return NextResponse.json({ error: "Rewrite failed: model output invalid, dropped protected spans, or changed a number." }, { status: 502 });
 
-  // Stage 3: LLM meaning/clarity review + targeted repair using both local and reviewer findings
   const cost = (c: Candidate, iss: string[]) => c.report.score + iss.length * 2;
   let issues = elapsed() < REPAIR_TIME_BUDGET_MS ? await reviewMeaning(rawText, best.restored) : [];
 
@@ -388,9 +379,15 @@ async function handleFullRewrite(args: {
     } catch { break; }
   }
 
+  // APPLY HUMAN NOISE INJECTOR ONLY FOR STEALTH/HUMANIZER
+  let finalOutput = best.restored;
+  if (extraPrompt.includes("Stealth Mode") || extraPrompt.includes("Humanizer") || extraPrompt.includes("humanizer")) {
+    finalOutput = injectHumanNoise(finalOutput);
+  }
+
   return NextResponse.json({
-    ok: true, action: "rewrite", original: rawText, rewritten: best.restored, paragraphs: best.paragraphs,
-    provider: best.provider, model: best.model, before: computeMetrics(rawText), after: computeMetrics(best.restored),
+    ok: true, action: "rewrite", original: rawText, rewritten: finalOutput, paragraphs: best.paragraphs,
+    provider: best.provider, model: best.model, before: computeMetrics(rawText), after: computeMetrics(finalOutput),
     spansProtected: spans.length, profileUsed,
     tells: {
       score: best.report.score,

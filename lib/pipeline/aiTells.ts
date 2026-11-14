@@ -298,3 +298,42 @@ export function analyzeText(text: string, original: string, opts: TellOptions = 
     problems,
   };
 }
+
+// THE HUMAN NOISE INJECTOR
+export function injectHumanNoise(text: string): string {
+  let noisy = text;
+
+  // 1. Randomly lowercase the first letter of sentences
+  noisy = noisy.replace(/([.!?]\s+)([A-Z])/g, (match, punctuation, letter) => {
+    // 20% chance to lowercase the first letter
+    return Math.random() < 0.2 ? punctuation + letter.toLowerCase() : match;
+  });
+
+  // 2. Randomly change a period to a comma (run-on sentences)
+  noisy = noisy.replace(/\./g, (match) => {
+    // 15% chance to turn a period into a comma
+    return Math.random() < 0.15 ? "," : match;
+  });
+
+  // 3. Inject a rare typo into common words (changes perplexity)
+  const typos: Record<string, string> = {
+    "the ": "teh ",
+    "and ": "adn ",
+    "that ": "taht ",
+    "with ": "wtih ",
+    "because ": "becuase "
+  };
+  
+  for (const [word, typo] of Object.entries(typos)) {
+    if (noisy.includes(word) && Math.random() < 0.1) {
+      noisy = noisy.replace(word, typo);
+    }
+  }
+
+  // 4. Randomly insert a conversational dash
+  noisy = noisy.replace(/\s(but|so|and)\s/g, (match) => {
+    return Math.random() < 0.3 ? " — " : match;
+  });
+
+  return noisy;
+}
