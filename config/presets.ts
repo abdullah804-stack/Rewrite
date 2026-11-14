@@ -1,4 +1,4 @@
-export type PresetId = "blog" | "email" | "linkedin" | "newsletter" | "human" | "custom";
+export type PresetId = "human" | "humanizer" | "blog" | "email" | "linkedin" | "newsletter" | "custom";
 
 export const PRESETS: Record<
   PresetId,
@@ -8,6 +8,11 @@ export const PRESETS: Record<
     name: "Human / Conversational",
     instruction:
       "Genre: General human writing. Write like a real human explaining something to a smart friend over coffee. Be professional but natural. Be clear, direct, conversational, and real. Avoid buzzwords, corporate jargon, and em dashes. Never sound like a press release. Do not use robotic transitions or overly formal vocabulary.",
+  },
+  humanizer: {
+    name: "Aggressive Humanizer (Detector Evasion)",
+    instruction:
+      "You are a human writing a rough draft. Break the rules. Start sentences with And, But, or So. Use short fragments. Do not use perfect grammar. Use contractions. Make the sentence lengths wildly different. Do not sound professional. Sound like a real person typing quickly on a keyboard.",
   },
   blog: {
     name: "Blog post",

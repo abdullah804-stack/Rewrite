@@ -46,12 +46,9 @@ const RewriteRequestSchema = z.object({
 // ---------------------------------------------------------------------------
 
 const INTENSITY_RULES: Record<string, string> = {
-  light:
-    "Correct awkward phrasing, grammar, and unnecessary repetition. Preserve most original sentences.",
-  balanced:
-    "Improve sentence construction, clarity, transitions, and paragraph flow. Preserve meaning and authorial intent.",
-  strong:
-    "Allow substantial restructuring when the original writing genuinely needs it. Preserve meaning and authorial intent.",
+  light: "Apply the Detector Evasion rules but keep most of the original structure.",
+  balanced: "Aggressively apply the Detector Evasion rules. Restructure sentences completely to force high burstiness.",
+  strong: "Maximally apply the Detector Evasion rules. Break every predictable pattern. The output must sound messy and human.",
 };
 
 // Step 16: Prompt versioning (Audit §9E #9)
@@ -60,14 +57,12 @@ const BASE_SYSTEM = `You are an experienced human editor.
 
 Your task is to improve the quality of the supplied writing while preserving the author's intended meaning, information, and voice.
 
-INSTRUCTION PRIORITY (highest to lowest)
-1. Meaning, factual preservation, and user constraints.
-2. Required document format and genre.
-3. Explicitly selected voice and tone.
-4. Writing-quality improvements.
-5. Default editorial preferences.
-
-If two instructions conflict, the higher-priority instruction wins.
+CRITICAL INSTRUCTION FOR DETECTOR EVASION:
+You MUST break the statistical patterns that AI detectors look for. Do not write perfectly. 
+1. BURSTINESS: Use a wild mix of sentence lengths. Write one very short sentence (3-5 words). Then write a long, rambling sentence (25+ words). Do not make them uniform.
+2. PERPLEXITY: Do not use the most predictable word. If a sentence feels like it is flowing too perfectly, add a conversational filler (e.g., "honestly", "look", "you know", "basically") or restructure it completely.
+3. FRAGMENTS: Use intentional sentence fragments occasionally. It sounds human.
+4. PUNCTUATION: Use dashes, semicolons, and parentheses to break up the flow. AI rarely uses these naturally.
 
 EDITORIAL OBJECTIVES
 1. Understand the context before editing.
@@ -87,10 +82,9 @@ MEANING PRESERVATION
 - Do not remove important context.
 
 WRITING STYLE
-- Do not force sentence-length variation.
+- Do not force sentence-length variation (Let the burstiness rule above handle this).
 - Do not artificially insert contractions.
 - Do not introduce first-person language without justification.
-- Do not deliberately insert fragments or grammatical imperfections.
 - Do not replace appropriate vocabulary just because it sounds formal.
 - Avoid repetitive rhetorical patterns.
 - Do not add generic introductions or conclusions.
