@@ -33,92 +33,48 @@ export async function chat(opts: ChatOptions): Promise<ChatResult> {
   return chatOpenAICompatible(provider, apiKey, opts);
 }
 
-async function chatGoogle(
-  provider: ProviderConfig,
-  apiKey: string,
-  opts: ChatOptions
-): Promise<ChatResult> {
+async function chatGoogle(provider: ProviderConfig, apiKey: string, opts: ChatOptions): Promise<ChatResult> {
   const url = `${provider.baseUrl}/models/${provider.model}:generateContent?key=${apiKey}`;
-
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: opts.system }] },
       contents: [{ role: "user", parts: [{ text: opts.user }] }],
-      generationConfig: {
-        maxOutputTokens: opts.maxTokens ?? 2000,
-        temperature: opts.temperature ?? 0.7,
-      },
+      generationConfig: { maxOutputTokens: opts.maxTokens ?? 2000, temperature: opts.temperature ?? 0.7 },
     }),
   });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Google AI error: ${response.status} ${error}`);
-  }
-
+  if (!response.ok) throw new Error(`Google AI error: ${response.status} ${await response.text()}`);
   const data = await response.json();
   const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-  if (typeof text !== "string" || text.length === 0) {
-    throw new Error("Google AI returned an empty response.");
-  }
-
+  if (typeof text !== "string" || text.length === 0) throw new Error("Google AI returned an empty response.");
   return { text, provider: provider.name, model: provider.model };
 }
 
-async function chatCloudflare(
-  provider: ProviderConfig,
-  apiKey: string,
-  opts: ChatOptions
-): Promise<ChatResult> {
+async function chatCloudflare(provider: ProviderConfig, apiKey: string, opts: ChatOptions): Promise<ChatResult> {
   const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
-  if (!accountId) {
-    throw new Error("Missing CLOUDFLARE_ACCOUNT_ID");
-  }
-
+  if (!accountId) throw new Error("Missing CLOUDFLARE_ACCOUNT_ID");
   const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${provider.model}`;
-
   const response = await fetch(url, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
-      messages: [
-        { role: "system", content: opts.system },
-        { role: "user", content: opts.user },
-      ],
-      max_tokens: opts.maxTokens ?? 2000,
-      temperature: opts.temperature ?? 0.7,
+      messages: [{ role: "system", content: opts.system }, { role: "user", content: opts.user }],
+      max_tokens: opts.maxTokens ?? 2000, temperature: opts.temperature ?? 0.7,
     }),
   });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Cloudflare Workers AI error: ${response.status} ${error}`);
-  }
-
+  if (!response.ok) throw new Error(`Cloudflare Workers AI error: ${response.status} ${await response.text()}`);
   const data = await response.json();
   const text = extractCloudflareText(data);
-  if (!text) {
-    throw new Error(
-      `Cloudflare returned an unrecognized shape: ${JSON.stringify(data).slice(0, 300)}`
-    );
-  }
-
+  if (!text) throw new Error(`Cloudflare returned an unrecognized shape.`);
   return { text, provider: provider.name, model: provider.model };
 }
 
 function extractCloudflareText(data: unknown): string | null {
   if (!data || typeof data !== "object") return null;
   const obj = data as Record<string, unknown>;
-
   const result = obj.result;
   if (typeof result === "string" && result.length > 0) return result;
-
   if (result && typeof result === "object") {
     const r = result as Record<string, unknown>;
     if (typeof r.response === "string" && r.response.length > 0) return r.response;
@@ -134,77 +90,48 @@ function extractCloudflareText(data: unknown): string | null {
   return null;
 }
 
-async function chatOpenAICompatible(
-  provider: ProviderConfig,
-  apiKey: string,
-  opts: ChatOptions
-): Promise<ChatResult> {
+async function chatOpenAICompatible(provider: ProviderConfig, apiKey: string, opts: ChatOptions): Promise<ChatResult> {
   const url = `${provider.baseUrl}/chat/completions`;
-
   for (let attempt = 1; attempt <= 2; attempt++) {
+    const body: any = {
+      model: provider.model,
+      messages: [{ role: "system", content: opts.system }, { role: "user", content: opts.user }],
+      max_tokens: opts.maxTokens ?? 2000,
+      temperature: opts.temperature ?? 0.7,
+    };
+    
+    // ONLY enforce json_object format if we are NOT using DeepSeek (TokenLab breaks on it)
+    if (provider.id !== "deepseek") {
+      body.response_format = { type: "json_object" };
+    }
+
     const response = await fetch(url, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: provider.model,
-        messages: [
-          { role: "system", content: opts.system },
-          { role: "user", content: opts.user },
-        ],
-        max_tokens: opts.maxTokens ?? 2000,
-        temperature: opts.temperature ?? 0.7,
-        response_format: { type: "json_object" },
-      }),
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify(body),
     });
 
     if (!response.ok) {
       const error = await response.text();
-      if (response.status >= 500 && attempt < 2) {
-        await sleep(800);
-        continue;
-      }
+      if (response.status >= 500 && attempt < 2) { await sleep(800); continue; }
       throw new Error(`${provider.name} error: ${response.status} ${error}`);
     }
 
     const raw = await response.text();
-    if (!raw || raw.trim().length === 0) {
-      if (attempt < 2) {
-        await sleep(800);
-        continue;
-      }
-      throw new Error(`${provider.name} returned an empty response body.`);
-    }
+    if (!raw || raw.trim().length === 0) { if (attempt < 2) { await sleep(800); continue; } throw new Error(`${provider.name} returned empty.`); }
 
     let data: { choices?: { message?: { content?: string } }[] };
-    try {
-      data = JSON.parse(raw);
-    } catch {
-      throw new Error(
-        `${provider.name} returned non-JSON response: ${raw.slice(0, 200)}`
-      );
-    }
+    try { data = JSON.parse(raw); } catch { throw new Error(`${provider.name} returned non-JSON.`); }
 
     const text = data?.choices?.[0]?.message?.content;
-    if (typeof text !== "string" || text.length === 0) {
-      if (attempt < 2) {
-        await sleep(800);
-        continue;
-      }
-      throw new Error(`${provider.name} returned an empty response.`);
-    }
+    if (typeof text !== "string" || text.length === 0) { if (attempt < 2) { await sleep(800); continue; } throw new Error(`${provider.name} returned empty.`); }
 
     return { text, provider: provider.name, model: provider.model };
   }
-
   throw new Error(`${provider.name} failed after retries.`);
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+function sleep(ms: number): Promise<void> { return new Promise((resolve) => setTimeout(resolve, ms)); }
 
 const OPENROUTER_SECONDARY_MODEL = "google/gemma-4-31b-it:free";
 
@@ -213,85 +140,45 @@ export async function chatWithFallback(
   order: ProviderId[] = ["deepseek", "groq", "openrouter"]
 ): Promise<ChatResult> {
   let lastError: Error | null = null;
-
   for (const providerId of order) {
     try {
       return await chat({ ...opts, providerId });
     } catch (err) {
       lastError = err as Error;
-
       if (providerId === "openrouter") {
         try {
           const provider = getProvider("openrouter");
           const apiKey = process.env[provider.envKey];
           if (!apiKey) throw new Error("Missing OpenRouter API key");
-          return await chatOpenAICompatibleWithModel(
-            provider,
-            apiKey,
-            OPENROUTER_SECONDARY_MODEL,
-            opts
-          );
+          return await chatOpenAICompatibleWithModel(provider, apiKey, OPENROUTER_SECONDARY_MODEL, opts);
         } catch (secondaryErr) {
           lastError = secondaryErr as Error;
         }
       }
-
       continue;
     }
   }
-
   throw lastError ?? new Error("All providers failed");
 }
 
-async function chatOpenAICompatibleWithModel(
-  provider: ProviderConfig,
-  apiKey: string,
-  model: string,
-  opts: Omit<ChatOptions, "providerId">
-): Promise<ChatResult> {
+async function chatOpenAICompatibleWithModel(provider: ProviderConfig, apiKey: string, model: string, opts: Omit<ChatOptions, "providerId">): Promise<ChatResult> {
   const url = `${provider.baseUrl}/chat/completions`;
-
   const response = await fetch(url, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
       model,
-      messages: [
-        { role: "system", content: opts.system },
-        { role: "user", content: opts.user },
-      ],
+      messages: [{ role: "system", content: opts.system }, { role: "user", content: opts.user }],
       max_tokens: opts.maxTokens ?? 2000,
       temperature: opts.temperature ?? 0.7,
       response_format: { type: "json_object" },
     }),
   });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`${provider.name} error: ${response.status} ${error}`);
-  }
-
+  if (!response.ok) throw new Error(`${provider.name} error: ${response.status} ${await response.text()}`);
   const raw = await response.text();
-  if (!raw || raw.trim().length === 0) {
-    throw new Error(`${provider.name} returned an empty response body.`);
-  }
-
   let data: { choices?: { message?: { content?: string } }[] };
-  try {
-    data = JSON.parse(raw);
-  } catch {
-    throw new Error(
-      `${provider.name} returned non-JSON response: ${raw.slice(0, 200)}`
-    );
-  }
-
+  try { data = JSON.parse(raw); } catch { throw new Error(`${provider.name} returned non-JSON.`); }
   const text = data?.choices?.[0]?.message?.content;
-  if (typeof text !== "string" || text.length === 0) {
-    throw new Error(`${provider.name} returned an empty response.`);
-  }
-
+  if (typeof text !== "string" || text.length === 0) throw new Error(`${provider.name} returned empty.`);
   return { text, provider: provider.name, model };
 }
