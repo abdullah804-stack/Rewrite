@@ -17,7 +17,7 @@ export const PRESETS: Record<
   stealth: {
     name: "Stealth Mode (Anti-Detector)",
     instruction:
-      "You must completely destroy the sentence structure of the input text. Do NOT use conversational fillers like 'look' or 'honestly'. Instead, use these techniques: 1. Vary sentence lengths wildly (3 words, then 25 words). 2. Use semicolons (;) to join unrelated thoughts. 3. Use parentheses to add side thoughts mid-sentence. 4. Break grammar rules: start sentences with 'Which is why...', 'Because...', or 'That's why...'. 5. Avoid repeating the same sentence structure. Every sentence must start differently (e.g., start with a verb, then a noun, then an adjective).",
+      "Roleplay: You are a freelance writer named Alex who is typing a quick email on an iPhone. You hate corporate speak. You use words like 'basically', 'honestly', 'a total mess', 'crazy', and 'it sucks'. You use exclamation marks. You write short, punchy thoughts. You do NOT use big words. You do NOT write perfect sentences.",
   },
   blog: {
     name: "Blog post",
