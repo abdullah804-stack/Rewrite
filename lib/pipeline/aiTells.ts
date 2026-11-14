@@ -29,6 +29,9 @@ export type TellReport = {
   stockPatterns: number;
   emDashes: number;
   overlapWithOriginal: number;
+  copiedBigrams: string[];
+  personaInserts: string[];
+  mirrorsOriginal: boolean;
   numbersMissing: string[];
   score: number; // lower is better
   problems: string[];
@@ -67,6 +70,19 @@ const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const PHRASE_RES = AI_PHRASES.map((p) => ({ p, re: new RegExp(`\\b${escapeRe(p)}\\b`, "i") }));
 const SOFT_RES = SOFT_PHRASES.map((p) => ({ p, re: new RegExp(`\\b${escapeRe(p)}\\b`, "gi") }));
 
+
+// "Fake casual" insertions. Detectors trained on humanizer output recognise these,
+// and they read as commentary about the writer instead of the subject.
+const PERSONA_RES: RegExp[] = [
+  /\bso yeah\b/i, /\bi get why\b/i, /\bheavy lifting\b/i, /\b(?:a )?(?:big|huge) deal\b/i,
+  /\bplaying catch-?up\b/i, /\bwhich is the part\b/i, /\bhonestly\b/i, /\bhere'?s the thing\b/i,
+  /\bthe thing is\b/i, /\bto be (?:fair|honest)\b/i, /\bfrankly\b/i, /\blet'?s be real\b/i,
+  /\bat its core\b/i, /\bdrives me crazy\b/i, /\ba total mess\b/i, /\bit sucks\b/i,
+  /\bmakes? (?:a )?(?:lot of )?sense to me\b/i, /\b(?:though|but|and) i'?d say\b/i,
+  /\bdoing a lot of\b/i, /\bmy (?:read|take) is\b/i, /\bif you ask me\b/i, /\bbasically\b/i,
+  /\bgenuinely\b/i, /\bwildly\b/i, /\blook,\s/i,
+];
+
 export function splitSentences(text: string): string[] {
   return text
     .replace(/\s*\n+\s*/g, " ")
@@ -90,6 +106,44 @@ function trigrams(ws: string[]): string[] {
 }
 
 const wc = (s: string) => s.split(/\s+/).filter(Boolean).length;
+
+
+const stem = (w: string) => w.slice(0, 6);
+function contentSet(s: string): Set<string> {
+  return new Set(words(s).filter((w) => w.length >= 4 && !STOP.has(w)).map(stem));
+}
+function contentBigrams(text: string): string[] {
+  const ws = words(text);
+  const out: string[] = [];
+  for (let i = 0; i < ws.length - 1; i++) {
+    const a = ws[i], b = ws[i + 1];
+    if (a.length >= 4 && b.length >= 4 && !STOP.has(a) && !STOP.has(b)) out.push(`${a} ${b}`);
+  }
+  return out;
+}
+/** true when output sentences map one-to-one, in order, onto the original's sentences */
+function mirrorsOrder(outS: string[], origS: string[]): boolean {
+  if (outS.length < 4 || origS.length < 4) return false;
+  const oSets = origS.map(contentSet);
+  const idx: number[] = [];
+  for (const s of outS) {
+    const set = contentSet(s);
+    if (!set.size) continue;
+    let best = -1, bestScore = 0.1;
+    oSets.forEach((o, i) => {
+      let inter = 0;
+      set.forEach((x) => { if (o.has(x)) inter++; });
+      const jac = inter / (set.size + o.size - inter);
+      if (jac > bestScore) { bestScore = jac; best = i; }
+    });
+    if (best >= 0) idx.push(best);
+  }
+  if (idx.length < 4) return false;
+  let ordered = 0;
+  for (let i = 1; i < idx.length; i++) if (idx[i] >= idx[i - 1]) ordered++;
+  const distinct = new Set(idx).size;
+  return ordered / (idx.length - 1) >= 0.85 && distinct >= Math.ceil(origS.length * 0.7);
+}
 
 export function analyzeText(text: string, original: string, opts: TellOptions = {}): TellReport {
   const maxOverlap = opts.maxOverlap ?? 0.2;
@@ -160,6 +214,13 @@ export function analyzeText(text: string, original: string, opts: TellOptions = 
   const shared = outTg.filter((t) => origTg.has(t)).length;
   const overlapWithOriginal = outTg.length ? shared / outTg.length : 0;
 
+
+  // copied terminology, persona filler, structure mirroring
+  const origBg = new Set(contentBigrams(original));
+  const copiedBigrams = [...new Set(contentBigrams(text).filter((b) => origBg.has(b)))];
+  const personaInserts = PERSONA_RES.map((re) => text.match(re)?.[0]).filter((x): x is string => !!x);
+  const mirrorsOriginal = mirrorsOrder(sents, splitSentences(original));
+
   // facts: every number in the original must survive
   const nums = (original.match(/\d[\d,.]*\d|\d/g) ?? []).map((x) => x.replace(/[,.]$/, ""));
   const numbersMissing = [...new Set(nums)].filter((x) => !text.includes(x));
@@ -187,6 +248,15 @@ export function analyzeText(text: string, original: string, opts: TellOptions = 
       `${Math.round(overlapWithOriginal * 100)}% of 3-word phrases are copied from the original. Restructure the sentences rather than swapping words.`
     );
 
+  if (copiedBigrams.length > 2)
+    problems.push(`These word pairs are copied from the original; say them differently: ${copiedBigrams.slice(0, 8).join(", ")}.`);
+  if (personaInserts.length > 1)
+    problems.push(
+      `Remove filler that sounds like inserted casualness (${personaInserts.join(", ")}). Voice should come from word choice, rhythm and opinions about the subject, never from commentary about yourself or your own sentences.`
+    );
+  if (mirrorsOriginal)
+    problems.push(`The sentences follow the original one-to-one, in the same order. Lead with a different point, and merge or split so it is not one sentence per original sentence.`);
+
   const score =
     (n >= 5 && burstiness < minBurst ? (minBurst - burstiness) * 10 : 0) +
     similarRuns.length * 1.5 +
@@ -198,6 +268,9 @@ export function analyzeText(text: string, original: string, opts: TellOptions = 
     stockPatterns +
     Math.max(0, emDashes - 1) * 0.5 +
     Math.max(0, overlapWithOriginal - maxOverlap) * 10 +
+    Math.max(0, copiedBigrams.length - 2) +
+    Math.max(0, personaInserts.length - 1) * 2 +
+    (mirrorsOriginal ? 2 : 0) +
     numbersMissing.length * 5;
 
   return {
@@ -214,6 +287,9 @@ export function analyzeText(text: string, original: string, opts: TellOptions = 
     stockPatterns,
     emDashes,
     overlapWithOriginal,
+    copiedBigrams,
+    personaInserts,
+    mirrorsOriginal,
     numbersMissing,
     score,
     problems,

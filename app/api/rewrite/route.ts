@@ -45,14 +45,14 @@ const INTENSITY_RULES: Record<Intensity, string> = {
 
 const OVERLAP_LIMIT: Record<Intensity, number> = { light: 0.3, balanced: 0.2, strong: 0.12 };
 
-const PROMPT_VERSION = "v12-2026-11";
+const PROMPT_VERSION = "v13-2026-11";
 const TARGET_SCORE = 2;          // stop repairing once the local tell score is at or below this
-const REPAIR_TIME_BUDGET_MS = 38_000;
+const REPAIR_TIME_BUDGET_MS = 34_000;
 
 const BASE_SYSTEM = `You are a writer reworking a draft in your own words. You are not an assistant explaining things; you are producing a piece of writing a real person could have written.
 
 HARD RULES
-1. Preserve every fact, number, name, claim and the logic connecting them. Never invent statistics, quotes, names, dates, credentials, or personal history. You may add stance ("I'd say"), hedges, and clearly illustrative generic examples.
+1. Preserve every fact, number, name, claim and the logic connecting them. Never invent statistics, quotes, names, dates, credentials, or personal history. You may add hedges and clearly illustrative generic examples.
 2. Restructure, do not paraphrase sentence by sentence. Sentence boundaries and order should differ from the draft: merge, split, reorder.
 3. Vary rhythm hard. Mix very short sentences (2-6 words) with long ones (25+ words). Never write three consecutive sentences of similar length or shape. Vary how sentences end; not every one should close on a tidy punchline.
 4. Prefer the concrete over the abstract. Replace phrases like "sustainable practices" or "stakeholder alignment" with what they actually mean in this text.
@@ -61,6 +61,8 @@ HARD RULES
 7. Write fresh wording every time. Do not reuse any example phrases from these instructions.
 8. Keep placeholders such as [FACT_1] exactly as written.
 9. Follow the "Style plan" in the user message. It is different every run.
+10. Voice comes from word choice, rhythm and opinions about the subject. Never add commentary about yourself, your reactions, or your own wording (no self-corrections, no asides about what makes sense to you).
+11. Every sentence must be complete and every pronoun must clearly refer to one thing. Never end on a question or a fragment.
 
 OUTPUT FORMAT (CRITICAL)
 Return valid JSON, nothing else:
@@ -71,6 +73,10 @@ Return valid JSON, nothing else:
 }`;
 
 const REPAIR_SYSTEM = `You are an editor fixing specific machine-sounding patterns in a piece of writing. Fix only the listed problems. Keep all facts, numbers, meaning and placeholders such as [FACT_1] exactly as they are. Do not add new facts. Return valid JSON only: { "paragraphs": [ { "index": 0, "text": "..." } ] } with the same number of paragraphs.`;
+
+const EXTRACT_SYSTEM = `You turn a draft into a plain list of its claims so someone else can write it up from scratch. For each paragraph, list every distinct claim, argument and fact as a short, neutral statement in plain words. Do NOT reuse the draft's phrasing, jargon or stock phrases; replace them with plain equivalents. Keep numbers, names and placeholders such as [FACT_1] exactly. Do not add anything that is not in the draft. Return valid JSON only: { "paragraphs": [ { "index": 0, "claims": ["..."] } ] }`;
+
+const REVIEW_SYSTEM = `You are a strict copy editor comparing a rewrite to its original. Report only real problems: (1) a claim from the original that is missing or changed; (2) a new factual claim that is not in the original; (3) an incomplete sentence, a dangling question or fragment, or a pronoun that could refer to the wrong thing; (4) a subject mix-up (an action attributed to the wrong party). Return valid JSON only: { "issues": ["..."] }, with an empty list if there are none.`;
 
 function verifySpansStrict(rewritten: string, spans: ProtectedSpan[]) {
   const expectedTokens = spans.map((s) => s.token);
@@ -284,6 +290,35 @@ function buildCandidate(resultText: string, provider: string, model: string, ctx
   return { paragraphs: parsed.paragraphs, tokenized, restored, provider, model, report };
 }
 
+async function extractClaims(paras: string[]): Promise<string[][] | null> {
+  try {
+    const user = paras.map((p, i) => `[Paragraph ${i}]\n${p}`).join("\n\n");
+    const r = await chatWithFallback({ system: EXTRACT_SYSTEM, user, maxTokens: 3000, temperature: 0.3 });
+    const arr = (parseJsonLoose(r.text) as any)?.paragraphs;
+    if (!Array.isArray(arr) || arr.length !== paras.length) return null;
+    const out: string[][] = arr.map((p: any) =>
+      Array.isArray(p?.claims) ? p.claims.filter((c: unknown) => typeof c === "string" && (c as string).trim()) : []
+    );
+    if (!out.every((c) => c.length > 0)) return null;
+    const need = paras.join(" ").match(/\[FACT_\d+\]/g) ?? [];
+    const have = out.flat().join(" ");
+    return need.every((t) => have.includes(t)) ? out : null;
+  } catch { return null; }
+}
+
+async function reviewMeaning(original: string, rewritten: string): Promise<string[]> {
+  try {
+    const r = await chatWithFallback({
+      system: REVIEW_SYSTEM,
+      user: `Original:\n${original}\n\nRewrite:\n${rewritten}`,
+      maxTokens: 600,
+      temperature: 0.1,
+    });
+    const issues = (parseJsonLoose(r.text) as any)?.issues;
+    return Array.isArray(issues) ? issues.filter((x: unknown) => typeof x === "string").slice(0, 5) : [];
+  } catch { return []; }
+}
+
 async function handleFullRewrite(args: {
   rawText: string;
   intensity: Intensity;
@@ -294,6 +329,7 @@ async function handleFullRewrite(args: {
 }) {
   const { rawText, intensity, extraPrompt, profileUsed, presetId, toneFormality } = args;
   const startedAt = Date.now();
+  const elapsed = () => Date.now() - startedAt;
 
   const { masked, spans } = protect(rawText);
   const aiReadyText = toAiPlaceholders(masked, spans);
@@ -301,18 +337,26 @@ async function handleFullRewrite(args: {
   const ctx: Ctx = { rawText, spans, expectedParas: maskedParagraphs.length, overlapLimit: OVERLAP_LIMIT[intensity] };
 
   const seedBase = createHash("sha256").update(rawText + "|" + intensity + "|" + presetId).digest("hex").slice(0, 16);
-  const draftBlock = `Draft:\n"""\n${maskedParagraphs.map((p, i) => `[Paragraph ${i}]\n${p}`).join("\n\n")}\n"""`;
+
+  // Stage 1 (balanced/strong): turn the draft into an unordered list of plain claims, so the
+  // writer never sees the original's wording or order. This is what removes copied phrasing
+  // and sentence-by-sentence mirroring. Falls back to the draft if extraction fails.
+  const claims = intensity === "light" ? null : await extractClaims(maskedParagraphs);
+  const material = claims
+    ? `Write the piece described below from scratch. These are the points to cover, in no required order. Do not follow this list's order or wording; build your own flow. Every point must appear.\n\n` +
+      claims.map((c, i) => `[Paragraph ${i}]\n${c.map((x) => `- ${x}`).join("\n")}`).join("\n\n")
+    : `Rewrite the draft below.\n\nDraft:\n"""\n${maskedParagraphs.map((p, i) => `[Paragraph ${i}]\n${p}`).join("\n\n")}\n"""`;
 
   const generate = async (seed: string): Promise<Candidate | null> => {
     const plan = makeStylePlan({ seed, intensity, formality: toneFormality, preset: presetId });
-    const user = `Rewrite the draft below.\n\nIntensity: ${INTENSITY_RULES[intensity]}\n${renderStylePlan(plan)}${extraPrompt}\n\n${draftBlock}\n\nReturn valid JSON with a "paragraphs" array (same number of paragraphs, same order).`;
+    const user = `${material}\n\nIntensity: ${INTENSITY_RULES[intensity]}\n${renderStylePlan(plan)}${extraPrompt}\n\nReturn valid JSON with a "paragraphs" array (exactly ${ctx.expectedParas} paragraph(s), in order).`;
     try {
       const r = await chatWithFallback({ system: BASE_SYSTEM, user, maxTokens: 8000, ...GEN_PARAMS });
       return buildCandidate(r.text, r.provider, r.model, ctx);
     } catch { return null; }
   };
 
-  // 1) best-of-N: two differently-styled candidates in parallel (one for "light")
+  // Stage 2: best-of-N candidates with different style plans
   const n = intensity === "light" ? 1 : 2;
   let best: Candidate | null = null;
   for (let round = 0; round < 2 && !best; round++) {
@@ -321,20 +365,26 @@ async function handleFullRewrite(args: {
   }
   if (!best) return NextResponse.json({ error: "Rewrite failed: model output invalid, dropped protected spans, or changed a number." }, { status: 502 });
 
-  // 2) targeted repair: feed the specific measured problems back to the model
+  // Stage 3: LLM meaning/clarity review + targeted repair using both local and reviewer findings
+  const cost = (c: Candidate, iss: string[]) => c.report.score + iss.length * 2;
+  let issues = elapsed() < REPAIR_TIME_BUDGET_MS ? await reviewMeaning(rawText, best.restored) : [];
+
   for (let pass = 0; pass < 2; pass++) {
-    if (best.report.score <= TARGET_SCORE || best.report.problems.length === 0) break;
-    if (Date.now() - startedAt > REPAIR_TIME_BUDGET_MS) break;
+    const problems = [...best.report.problems, ...issues.map((i) => `Meaning/clarity: ${i}`)];
+    if ((best.report.score <= TARGET_SCORE && issues.length === 0) || problems.length === 0) break;
+    if (elapsed() > REPAIR_TIME_BUDGET_MS) break;
 
     const current = toAiPlaceholders(best.tokenized, spans)
       .split(/\n{2,}/)
       .map((p, i) => `[Paragraph ${i}]\n${p.trim()}`)
       .join("\n\n");
-    const user = `Problems to fix:\n${best.report.problems.map((p) => `- ${p}`).join("\n")}\n\nCurrent text:\n"""\n${current}\n"""\n\nReturn JSON with the same ${ctx.expectedParas} paragraph(s).`;
+    const user = `Problems to fix:\n${problems.map((p) => `- ${p}`).join("\n")}\n\nCurrent text:\n"""\n${current}\n"""\n\nReturn JSON with the same ${ctx.expectedParas} paragraph(s).`;
     try {
       const r = await chatWithFallback({ system: REPAIR_SYSTEM, user, maxTokens: 8000, ...GEN_PARAMS, temperature: 0.8 });
       const fixed = buildCandidate(r.text, r.provider, r.model, ctx);
-      if (fixed && fixed.report.score < best.report.score) best = fixed; else break;
+      if (!fixed) break;
+      const fixedIssues = elapsed() < REPAIR_TIME_BUDGET_MS + 8_000 ? await reviewMeaning(rawText, fixed.restored) : issues;
+      if (cost(fixed, fixedIssues) < cost(best, issues)) { best = fixed; issues = fixedIssues; } else break;
     } catch { break; }
   }
 
@@ -342,7 +392,12 @@ async function handleFullRewrite(args: {
     ok: true, action: "rewrite", original: rawText, rewritten: best.restored, paragraphs: best.paragraphs,
     provider: best.provider, model: best.model, before: computeMetrics(rawText), after: computeMetrics(best.restored),
     spansProtected: spans.length, profileUsed,
-    tells: { score: best.report.score, burstiness: Number(best.report.burstiness.toFixed(2)), remaining: best.report.problems },
+    tells: {
+      score: best.report.score,
+      burstiness: Number(best.report.burstiness.toFixed(2)),
+      remaining: [...best.report.problems, ...issues.map((i) => `Meaning/clarity: ${i}`)],
+      usedClaimExtraction: !!claims,
+    },
   });
 }
 

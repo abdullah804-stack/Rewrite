@@ -54,7 +54,7 @@ const STRUCTURE = [
   "Drop pure filler sentences, but never a fact, number, or argument.",
   "Turn one abstract claim into a quick concrete example (illustrative only, no invented figures).",
   "Include one parenthetical aside.",
-  "Use one rhetorical question in the middle of the piece, not at the end.",
+  "Use one rhetorical question in the middle of the piece and answer it in the next sentence. Never leave a question hanging.",
   "Split one dense idea across two sentences, and fuse two thin ones into one.",
   "Use a pronoun or short reference instead of repeating the full topic phrase.",
 ];
@@ -65,21 +65,22 @@ const ENDINGS = [
   "End by pointing at a trade-off or an unresolved piece.",
   "End mid-argument with a qualification.",
   "Do not write a concluding moral at all; stop when the last point is made.",
+  "End on a complete statement. Never end on a question or a dangling fragment.",
 ];
 
 const VOICE: Record<Register, string[]> = {
   casual: [
     "Use contractions freely.",
     "Start one or two sentences with And, But or So.",
-    "Allow one mild, offhand aside.",
-    "Pick informal wording fresh for this text; do not fall back on stock filler.",
+    "Allow one offhand aside about the subject (never about yourself or your own sentences).",
+    "Pick informal wording fresh for this text; no stock filler openers and no inserted reactions.",
     "Use at most one fragment, and only where it adds emphasis.",
   ],
   neutral: [
     "Use contractions where they sound natural.",
     "Prefer plain, everyday words over abstract nouns.",
     "Include one or two natural hedges (probably, tends to, in most cases).",
-    "Include one first-person stance (such as 'I'd say' or 'my read is'), with no invented biography.",
+    "State one opinion about the subject itself, plainly, with no 'I think' framing and no commentary about your own wording.",
     "Allow one sentence that starts with a conjunction.",
   ],
   formal: [
