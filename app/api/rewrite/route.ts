@@ -6,6 +6,7 @@ import { prisma } from "../../../lib/prisma";
 import { protect, restore, type ProtectedSpan } from "../../../lib/pipeline/protect";
 import { chatWithFallback } from "../../../lib/ai/chat";
 import { getProvider, getProviderOrder, hasApiKey, type ProviderId } from "../../../lib/ai/providers";
+import { needsRepair, rankScore, repairCost, repairModeFromEnv, repairProblems, type RepairMode } from "../../../lib/pipeline/repairPlan";
 import { defaultExemplarsEnabled, exemplarsTag, pickExemplars, renderExemplarBlock } from "../../../lib/ai/defaultVoice";
 import type { HumanExemplar } from "../../../config/human-exemplars";
 import { computeMetrics } from "../../../lib/pipeline/metrics";
@@ -41,6 +42,8 @@ const RewriteRequestSchema = z.object({
   benchKey: z.string().nullish(),
   // Benchmark-only (needs a matching benchKey): force the default human reference passages on or off for this request.
   defaultExemplars: z.boolean().nullish(),
+  // Benchmark-only (needs a matching benchKey): "fixable" or "all", overriding TELL_REPAIR for this request.
+  repairMode: z.enum(["fixable", "all"]).nullish(),
 }).passthrough();
 
 const INTENSITY_RULES: Record<Intensity, string> = {
@@ -51,8 +54,7 @@ const INTENSITY_RULES: Record<Intensity, string> = {
 
 const OVERLAP_LIMIT: Record<Intensity, number> = { light: 0.3, balanced: 0.2, strong: 0.12 };
 
-const PROMPT_VERSION = "v15-2026-11"; // bumped: new rhythm instructions and rhythm checks
-const TARGET_SCORE = 2;
+const PROMPT_VERSION = "v16-2026-11"; // bumped: tell statistics no longer drive candidate choice or repair
 const REPAIR_TIME_BUDGET_MS = 34_000;
 // Do not start another generation round (or try another provider) after this point; the route limit is 60s.
 const GENERATION_DEADLINE_MS = 38_000;
@@ -221,6 +223,7 @@ export async function POST(request: Request) {
     const profileUsed = profileRecord ? { name: profileRecord.name } : null;
     // Default human reference passages: only when no voice profile was chosen, and only when switched on
     // (DEFAULT_EXEMPLARS=on, or forced per request by the benchmark).
+    const repairMode: RepairMode = benchBypass && body.repairMode ? body.repairMode : repairModeFromEnv();
     const useExemplars = !profileRecord && (benchBypass && typeof body.defaultExemplars === "boolean" ? body.defaultExemplars : defaultExemplarsEnabled());
 
     if (action === "regen" || action === "selection") {
@@ -234,7 +237,7 @@ export async function POST(request: Request) {
     const glossaryHash = glossaryBlock ? createHash("sha256").update(glossaryBlock).digest("hex") : null;
     // The cache key follows the configured provider chain, so changing providers or AI_PROVIDER_ORDER never serves old text.
     const primaryModelName = getProviderOrder().map((id) => `${id}:${getProvider(id).model}`).join("|");
-    const cacheKey = hashRequest(useExemplars ? `${PROMPT_VERSION}:${exemplarsTag()}` : PROMPT_VERSION, rawText, intensity, body.profileId ?? null, presetId, body.seoSafe ?? false, toneFormality, body.toneDirectness ?? 5, glossaryHash, primaryModelName);
+    const cacheKey = hashRequest(`${useExemplars ? `${PROMPT_VERSION}:${exemplarsTag()}` : PROMPT_VERSION}${repairMode === "all" ? ":repair-all" : ""}`, rawText, intensity, body.profileId ?? null, presetId, body.seoSafe ?? false, toneFormality, body.toneDirectness ?? 5, glossaryHash, primaryModelName);
     const cachedData = benchBypass ? null : await getCachedResponse<any>(cacheKey);
 
     if (cachedData && validateGlossary(cachedData.rewritten, glossaryRecord).ok) {
@@ -242,7 +245,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ ...cachedData, provider: "Cache" });
     }
 
-    const response = await handleFullRewrite({ rawText, intensity, extraPrompt, profileUsed, presetId, toneFormality, useExemplars });
+    const response = await handleFullRewrite({ rawText, intensity, extraPrompt, profileUsed, presetId, toneFormality, useExemplars, repairMode });
     if (response.status !== 200) { await refund(); return response; }
 
     const data = await response.json();
@@ -342,8 +345,9 @@ async function handleFullRewrite(args: {
   presetId: PresetId;
   toneFormality: number;
   useExemplars: boolean;
+  repairMode: RepairMode;
 }) {
-  const { rawText, intensity, extraPrompt, profileUsed, presetId, toneFormality, useExemplars } = args;
+  const { rawText, intensity, extraPrompt, profileUsed, presetId, toneFormality, useExemplars, repairMode } = args;
   const startedAt = Date.now();
   const elapsed = () => Date.now() - startedAt;
 
@@ -384,7 +388,7 @@ async function handleFullRewrite(args: {
       // A second round on the same provider is only for unusable output (bad JSON, dropped spans).
       if (round > 0 && (transportFailed || elapsed() > GENERATION_DEADLINE_MS)) break;
       const batch = await Promise.all(Array.from({ length: n }, (_, i) => generate(`${seedBase}:${providerId}:${round}:${i}`, providerId)));
-      for (const c of batch) if (c && (!best || c.report.score < best.report.score)) best = c;
+      for (const c of batch) if (c && (!best || rankScore(c.report, repairMode) < rankScore(best.report, repairMode))) best = c;
     }
     if (best) break;
     skippedProviders.push(`${providerId} (${transportFailed ? "error or timeout" : "no valid output"})`);
@@ -396,12 +400,13 @@ async function handleFullRewrite(args: {
     }, { status: 502 });
   }
 
-  const cost = (c: Candidate, iss: string[]) => c.report.score + iss.length * 2;
+  const cost = (c: Candidate, iss: string[]) => repairCost(c.report, iss, repairMode);
+  let repairPasses = 0;
   let issues = elapsed() < REPAIR_TIME_BUDGET_MS ? await reviewMeaning(rawText, best.restored) : [];
 
   for (let pass = 0; pass < 2; pass++) {
-    const problems = [...best.report.problems, ...issues.map((i) => `Meaning/clarity: ${i}`)];
-    if ((best.report.score <= TARGET_SCORE && issues.length === 0) || problems.length === 0) break;
+    if (!needsRepair(best.report, issues, repairMode)) break;
+    const problems = repairProblems(best.report, issues, repairMode);
     if (elapsed() > REPAIR_TIME_BUDGET_MS) break;
 
     const current = toAiPlaceholders(best.tokenized, spans)
@@ -414,7 +419,7 @@ async function handleFullRewrite(args: {
       const fixed = buildCandidate(r.text, r.provider, r.model, r.providerId, ctx, best.references);
       if (!fixed) break;
       const fixedIssues = elapsed() < REPAIR_TIME_BUDGET_MS + 8_000 ? await reviewMeaning(rawText, fixed.restored) : issues;
-      if (cost(fixed, fixedIssues) < cost(best, issues)) { best = fixed; issues = fixedIssues; } else break;
+      if (cost(fixed, fixedIssues) < cost(best, issues)) { best = fixed; issues = fixedIssues; repairPasses++; } else break;
     } catch { break; }
   }
 
@@ -428,9 +433,16 @@ async function handleFullRewrite(args: {
     provider: best.provider, model: best.model, providerId: best.providerId, providerFallback: skippedProviders, exemplarsUsed: best.references.map((e) => e.id), before: computeMetrics(rawText), after: computeMetrics(finalOutput),
     spansProtected: spans.length, profileUsed,
     tells: {
+      // The score is a sanity check, not a target: fixScore comes from concrete defects, advisoryScore from
+      // sentence-shape statistics that are reported but not repaired in the default mode.
       score: best.report.score,
+      fixScore: Number(best.report.fixScore.toFixed(2)),
+      advisoryScore: Number(best.report.advisoryScore.toFixed(2)),
       burstiness: Number(best.report.burstiness.toFixed(2)),
+      repairMode, repairPasses,
       remaining: [...best.report.problems, ...issues.map((i) => `Meaning/clarity: ${i}`)],
+      remainingFixable: [...best.report.fixable, ...issues.map((i) => `Meaning/clarity: ${i}`)],
+      advisory: best.report.advisory,
       usedClaimExtraction: !!claims,
     },
   });

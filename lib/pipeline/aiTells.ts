@@ -86,8 +86,18 @@ export type TellReport = {
   personaInserts: string[];
   mirrorsOriginal: boolean;
   numbersMissing: string[];
-  score: number; // lower is better
+  /** fixScore + advisoryScore. Lower is better. A sanity check, not a target (see repairPlan.ts). */
+  score: number;
+  /** the part of the score that comes from concrete, fixable defects */
+  fixScore: number;
+  /** the part of the score that comes from sentence-shape statistics (reported, not chased) */
+  advisoryScore: number;
+  /** every problem message: fixable first-class defects and advisory statistics, in a stable order */
   problems: string[];
+  /** problems a repair pass should act on */
+  fixable: string[];
+  /** statistic-based observations that are reported but do not trigger repairs */
+  advisory: string[];
 };
 
 const AI_PHRASES = [
@@ -289,61 +299,75 @@ export function analyzeText(text: string, original: string, opts: TellOptions = 
   const nums = (original.match(/\d[\d,.]*\d|\d/g) ?? []).map((x) => x.replace(/[,.]$/, ""));
   const numbersMissing = [...new Set(nums)].filter((x) => !text.includes(x));
 
+  // Every problem is one of two kinds:
+  //  - "fix": a concrete, checkable defect an editor would also fix (stock phrases, em dashes, wording copied
+  //    from the original or from a reference passage, a summarizing closer, a question opener, ...).
+  //  - "advisory": a distribution statistic (sentence-length spread, short-sentence share, similar runs,
+  //    repeated openers or keywords). Nobody has shown that detectors respond to these, and chasing them made
+  //    the model write mechanically, so the pipeline reports them but does not repair or rank on them
+  //    (see lib/pipeline/repairPlan.ts).
   const problems: string[] = [];
+  const fixable: string[] = [];
+  const advisory: string[] = [];
+  const flag = (kind: "fix" | "advisory", msg: string) => {
+    problems.push(msg);
+    (kind === "fix" ? fixable : advisory).push(msg);
+  };
   if (n >= 5 && burstiness < minBurst)
-    problems.push(
+    flag("advisory", 
       `Sentence lengths are too uniform (variation ${burstiness.toFixed(2)}, want at least ${minBurst}). Merge two related sentences into a longer one, split one dense sentence, and use a short sentence only now and then.`
     );
   if (tooManyShort)
-    problems.push(
+    flag("advisory", 
       `${Math.round(shortRatio * 100)}% of the sentences are ${SHORT_WORDS} words or fewer (want at most ${Math.round(maxShortRatio * 100)}%). Join some of them to the sentence before or after, so short sentences are the exception.`
     );
   if (tooManyLongShort)
-    problems.push(
+    flag("advisory", 
       `A long sentence is followed by a very short one ${longShortPairs} times, which reads as a pattern. Keep that move to once or twice, and let the other long sentences end on a normal-length one.`
     );
   if (opensWithQuestion)
-    problems.push(`The text opens with a question. Open with a statement instead.`);
+    flag("fix", `The text opens with a question. Open with a statement instead.`);
   if (referenceCopiesFound.length)
-    problems.push(`These phrases are copied from the reference passages; write them in your own words: ${referenceCopiesFound.slice(0, 6).map((g) => `"${g}"`).join(", ")}.`);
+    flag("fix", `These phrases are copied from the reference passages; write them in your own words: ${referenceCopiesFound.slice(0, 6).map((g) => `"${g}"`).join(", ")}.`);
   if (similarRuns.length)
-    problems.push(
+    flag("advisory", 
       `These consecutive sentences have nearly the same length and shape. Merge, split, or reshape them: ${similarRuns.map((r) => `"${r}"`).join(" | ")}`
     );
   if (starterRepeat)
-    problems.push(`Too many sentences start with "${starterRepeat.word}" (${starterRepeat.count} times). Vary the openers.`);
-  if (bannedHits.length) problems.push(`Replace these stock AI words/phrases with plain wording: ${bannedHits.join(", ")}.`);
-  if (repeatedTrigrams > 2) problems.push(`The same short phrases repeat ${repeatedTrigrams} times. Reword the repeats.`);
+    flag("advisory", `Too many sentences start with "${starterRepeat.word}" (${starterRepeat.count} times). Vary the openers.`);
+  if (bannedHits.length) flag("fix", `Replace these stock AI words/phrases with plain wording: ${bannedHits.join(", ")}.`);
+  if (repeatedTrigrams > 2) flag("advisory", `The same short phrases repeat ${repeatedTrigrams} times. Reword the repeats.`);
   if (keywordRepeats.length)
-    problems.push(`Overused keywords: ${keywordRepeats.join(", ")}. Use pronouns, shorter references, or synonyms after first mention.`);
-  if (summaryCloser) problems.push(`The last sentence is a summarizing moral. End on a specific detail or a plain short sentence instead.`);
-  if (stockPatterns) problems.push(`Remove "not just X, but Y" / "whether you're X or Y" style constructions (${stockPatterns} found).`);
-  if (emDashes > 1) problems.push(`Remove em dashes (${emDashes} found). Use commas, periods or parentheses.`);
+    flag("advisory", `Overused keywords: ${keywordRepeats.join(", ")}. Use pronouns, shorter references, or synonyms after first mention.`);
+  if (summaryCloser) flag("fix", `The last sentence is a summarizing moral. End on a specific detail or a plain short sentence instead.`);
+  if (stockPatterns) flag("fix", `Remove "not just X, but Y" / "whether you're X or Y" style constructions (${stockPatterns} found).`);
+  if (emDashes > 1) flag("fix", `Remove em dashes (${emDashes} found). Use commas, periods or parentheses.`);
   if (overlapWithOriginal > maxOverlap)
-    problems.push(
+    flag("fix", 
       `${Math.round(overlapWithOriginal * 100)}% of 3-word phrases are copied from the original. Restructure the sentences rather than swapping words.`
     );
 
   if (copiedBigrams.length > 2)
-    problems.push(`These word pairs are copied from the original; say them differently: ${copiedBigrams.slice(0, 8).join(", ")}.`);
+    flag("fix", `These word pairs are copied from the original; say them differently: ${copiedBigrams.slice(0, 8).join(", ")}.`);
   if (personaInserts.length > 1)
-    problems.push(
+    flag("fix", 
       `Remove filler that sounds like inserted casualness (${personaInserts.join(", ")}). Voice should come from word choice, rhythm and opinions about the subject, never from commentary about yourself or your own sentences.`
     );
   if (mirrorsOriginal)
-    problems.push(`The sentences follow the original one-to-one, in the same order. Lead with a different point, and merge or split so it is not one sentence per original sentence.`);
+    flag("fix", `The sentences follow the original one-to-one, in the same order. Lead with a different point, and merge or split so it is not one sentence per original sentence.`);
 
-  const score =
+  const advisoryScore =
     (n >= 5 && burstiness < minBurst ? (minBurst - burstiness) * 10 : 0) +
     (tooManyShort ? (shortRatio - maxShortRatio) * 10 : 0) +
     Math.max(0, longShortPairs - maxLongShortPairs) * 1.5 +
-    (opensWithQuestion ? 1 : 0) +
-    referenceCopiesFound.length * 2 +
     similarRuns.length * 1.5 +
     (starterRepeat ? starterRepeat.count - starterLimit : 0) +
-    bannedHits.length * 2 +
     Math.max(0, repeatedTrigrams - 2) * 0.5 +
-    keywordRepeats.length +
+    keywordRepeats.length;
+  const fixScore =
+    (opensWithQuestion ? 1 : 0) +
+    referenceCopiesFound.length * 2 +
+    bannedHits.length * 2 +
     (summaryCloser ? 1.5 : 0) +
     stockPatterns +
     Math.max(0, emDashes - 1) * 0.5 +
@@ -352,6 +376,7 @@ export function analyzeText(text: string, original: string, opts: TellOptions = 
     Math.max(0, personaInserts.length - 1) * 2 +
     (mirrorsOriginal ? 2 : 0) +
     numbersMissing.length * 5;
+  const score = fixScore + advisoryScore;
 
   return {
     sentences: n,
@@ -376,6 +401,10 @@ export function analyzeText(text: string, original: string, opts: TellOptions = 
     mirrorsOriginal,
     numbersMissing,
     score,
+    fixScore,
+    advisoryScore,
     problems,
+    fixable,
+    advisory,
   };
 }

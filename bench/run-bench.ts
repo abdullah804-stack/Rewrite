@@ -14,6 +14,8 @@
  *   --delay        ms to wait between requests (default 3000, free tiers rate-limit)
  *   --exemplars    on | off: force the default human reference passages on or off (needs BENCH_KEY).
  *                  Omit to use whatever the server is configured with (DEFAULT_EXEMPLARS).
+ *   --repair       fixable | all: what the AI-tell checks may drive (needs BENCH_KEY). "fixable" is the server default;
+ *                  "all" restores the old behaviour where sentence-shape statistics also drive repair.
  *   --no-controls  skip the human and raw-AI control rows
  *   --allow-cache  allow cached answers (otherwise runs > 1 needs BENCH_KEY)
  *
@@ -49,6 +51,9 @@ const label = opt("label", "run").replace(/[^a-z0-9_-]/gi, "-");
 const limit = Number(opt("limit", "0")) || 0;
 const delay = Number(opt("delay", "3000")) || 0;
 const benchKey = process.env.BENCH_KEY ?? "";
+const repairOpt = opt("repair", "");
+if (repairOpt && !["fixable", "all"].includes(repairOpt)) { console.log("--repair must be fixable or all"); process.exit(1); }
+if (repairOpt && !benchKey) { console.log("--repair needs BENCH_KEY (the server only honours it for benchmark requests)."); process.exit(1); }
 const exemplarsOpt = opt("exemplars", "");
 if (exemplarsOpt && !["on", "off"].includes(exemplarsOpt)) { console.log("--exemplars must be on or off"); process.exit(1); }
 if (exemplarsOpt && !benchKey) { console.log("--exemplars needs BENCH_KEY (the server only honours it for benchmark requests)."); process.exit(1); }
@@ -109,7 +114,7 @@ function addRow(kind: Kind, id: string, run: string, text: string, original: str
   const cells: Record<string, string> = {
     kind, id, run, words: String(wordCount(text)),
     provider: extra.provider ?? "", model: extra.model ?? "", ms: extra.ms != null ? String(extra.ms) : "",
-    tell_score: r.score.toFixed(2), burstiness: r.burstiness.toFixed(2),
+    tell_score: r.score.toFixed(2), fix_score: r.fixScore.toFixed(2), burstiness: r.burstiness.toFixed(2),
     short_ratio: shape.shortRatio.toFixed(2), long_short_pairs: String(shape.longShortPairs),
     copied_bigrams: String(r.copiedBigrams.length), persona: String(r.personaInserts.length),
     stock: String(r.bannedHits.length), similar_runs: String(r.similarRuns.length),
@@ -137,7 +142,7 @@ async function rewriteOnce(text: string): Promise<{ data: any; status: number }>
   const res = await fetch(`${base}/api/rewrite`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...(process.env.COOKIE ? { Cookie: process.env.COOKIE } : {}) },
-    body: JSON.stringify({ text, intensity, preset, ...(benchKey ? { benchKey } : {}), ...(exemplarsOpt ? { defaultExemplars: exemplarsOpt === "on" } : {}) }),
+    body: JSON.stringify({ text, intensity, preset, ...(benchKey ? { benchKey } : {}), ...(exemplarsOpt ? { defaultExemplars: exemplarsOpt === "on" } : {}), ...(repairOpt ? { repairMode: repairOpt } : {}) }),
   });
   const data: any = await res.json().catch(() => ({}));
   return { data, status: res.status };
@@ -188,7 +193,7 @@ async function rewriteOnce(text: string): Promise<{ data: any; status: number }>
 
   const meta = {
     when: new Date().toISOString(), label, commit: gitCommit(), base, intensity, preset, runs,
-    texts: corpus.length, corpus: corpusPath, benchKeyUsed: !!benchKey, exemplars: exemplarsOpt || "server default",
+    texts: corpus.length, corpus: corpusPath, benchKeyUsed: !!benchKey, exemplars: exemplarsOpt || "server default", repair: repairOpt || "server default",
     providersUsed: Object.fromEntries(providersUsed),
   };
   fs.writeFileSync(path.join(dir, "meta.json"), JSON.stringify(meta, null, 2));

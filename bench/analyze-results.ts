@@ -59,7 +59,7 @@ function report(run: Run, detectors: string[]) {
 
   // 1) shape of outputs vs controls, needs no detector data
   console.log("\n-- Shape (means). Compare output vs human: big gaps are patterns detectors can pick up --");
-  const shapeCols = ["tell_score", "burstiness", "short_ratio", "long_short_pairs", "copied_bigrams", "persona", "stock"];
+  const shapeCols = ["tell_score", "fix_score", "burstiness", "short_ratio", "long_short_pairs", "copied_bigrams", "persona", "stock"];
   console.log(pad("kind", 10) + rpad("n", 4) + shapeCols.map((c) => rpad(c, 18)).join(""));
   for (const k of ["output", "ai_input", "human"]) {
     const rs = k === "output" ? outs : ofKind(run, k);
@@ -112,7 +112,7 @@ function report(run: Run, detectors: string[]) {
 
   // 5) which local metrics predict the detectors
   console.log("\n-- Correlation of local metrics with each detector's % human (outputs only, needs 8+ scored rows) --");
-  const metrics = ["tell_score", "burstiness", "short_ratio", "long_short_pairs", "copied_bigrams", "persona", "stock"];
+  const metrics = ["tell_score", "fix_score", "burstiness", "short_ratio", "long_short_pairs", "copied_bigrams", "persona", "stock"];
   console.log(pad("metric", 18) + detectors.map((d) => rpad(d.slice(0, 12), 14)).join(""));
   for (const m of metrics) {
     console.log(pad(m, 18) + detectors.map((d) => {
@@ -121,6 +121,25 @@ function report(run: Run, detectors: string[]) {
     }).join(""));
   }
   console.log("(A metric is only useful as a target if it correlates with the detectors. tell_score should be clearly negative.)");
+
+  // Plain-language verdict: should tell_score steer the pipeline, or stay a sanity check?
+  const MIN_ROWS = 15;
+  const rOf = (m: string, d: string) => {
+    const rs = outs.filter((r) => Number.isFinite(num(r[d])) && Number.isFinite(num(r[m])));
+    return rs.length >= MIN_ROWS ? pearson(rs.map((r) => num(r[m])), rs.map((r) => num(r[d]))) : NaN;
+  };
+  const verdictFor = (m: string) => {
+    const rs = detectors.map((d) => ({ d, r: rOf(m, d) })).filter((x) => Number.isFinite(x.r));
+    if (!rs.length) return `${m}: not enough scored rows (need ${MIN_ROWS}+ per detector) to judge.`;
+    const list = rs.map((x) => `${x.d} ${fmt(x.r, 2)}`).join(", ");
+    if (rs.some((x) => x.r >= 0.3)) return `${m}: WARNING, a higher score goes with MORE human on ${rs.filter((x) => x.r >= 0.3).map((x) => x.d).join(", ")} (${list}). These checks are working against you there.`;
+    if (rs.every((x) => Math.abs(x.r) < 0.3)) return `${m}: does not predict these detectors (${list}). Keep it as a sanity check; do not optimise it.`;
+    if (rs.filter((x) => x.r <= -0.4).length >= Math.ceil(rs.length / 2)) return `${m}: tracks the detectors (${list}); lower score means more human. It is reasonable to let it steer again: compare a run with --repair all.`;
+    return `${m}: mixed (${list}). No clear case for optimising it.`;
+  };
+  console.log("\n-- Verdict: should tell_score steer the pipeline? --");
+  console.log(verdictFor("tell_score"));
+  console.log(verdictFor("fix_score"));
 
   // 6) worst outputs
   console.log("\n-- Lowest scoring outputs (open the files in the outputs folder) --");

@@ -55,6 +55,18 @@ pnpm bench:analyze bench/runs/<off-folder> bench/runs/<on-folder>
 
 Only turn it on in production if the "on" run is clearly better, and read a few outputs by eye: the starter passages are Victorian, so check that the rewrites do not pick up old-fashioned wording. Better passages are your own modern writing: `pnpm exemplars:build --own <folder of .txt files> --register casual`. Keep those files separate from `bench/my-writing`, or the human control rows will no longer be independent of what the model was shown.
 
+## What may steer the pipeline (step 6)
+
+The AI-tell checks are split in two. **Fixable** problems are concrete defects (stock AI phrases, em dashes, copied wording, invented persona details). **Advisory** problems are sentence-shape statistics (uniform lengths, too many short sentences). By default only fixable problems and meaning issues drive candidate ranking and repair; advisory ones are reported but never sent to the model, because nobody has shown yet that they predict detector scores. The old behaviour (everything drives repair) is `TELL_REPAIR=all` on the server.
+
+```bash
+BENCH_KEY=... pnpm bench --label repair-fixable --repair fixable
+BENCH_KEY=... pnpm bench --label repair-all     --repair all
+pnpm bench:analyze bench/runs/<fixable-folder> bench/runs/<all-folder>
+```
+
+After you have 15+ scored rows per detector, the analysis ends with a "Verdict" that says whether `tell_score` tracks the detectors or should stay a sanity check.
+
 ## Rules for fair comparison
 
 - Change **one thing** per experiment, and give it a descriptive `--label`.
@@ -65,4 +77,4 @@ Only turn it on in production if the "on" run is clearly better, and read a few 
 
 ## Columns
 
-`tell_score`, `burstiness`, `copied_bigrams`, `persona`, `stock` and `similar_runs` come from `lib/pipeline/aiTells.ts`. `short_ratio` is the share of sentences with 5 words or fewer. `long_short_pairs` counts places where a sentence of 18+ words is followed by one of 5 or fewer. The analysis reports how well each one correlates with the detectors, so you can tell which are worth optimizing.
+`tell_score` (total), `fix_score` (fixable part only), `burstiness`, `copied_bigrams`, `persona`, `stock` and `similar_runs` come from `lib/pipeline/aiTells.ts`. `short_ratio` is the share of sentences with 5 words or fewer. `long_short_pairs` counts places where a sentence of 18+ words is followed by one of 5 or fewer. The analysis reports how well each one correlates with the detectors, so you can tell which are worth optimizing.
