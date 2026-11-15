@@ -17,7 +17,7 @@ export const PLANS = {
     maxWordsPerRun: 5000,
     maxVoiceProfiles: 3,
     historyRetentionDays: 14,
-    anonymousWordsPerRun: 300,
+    anonymousWordsPerRun: 1500, // TEMPORARY on humanizer-experiment so long test texts run without signing in; restore to 300 before merging
     anonymousRunsPerDay: 100,
   },
 } as const;
