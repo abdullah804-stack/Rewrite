@@ -61,7 +61,7 @@ describe("verbatim copy guard", () => {
   });
   it("route rejects candidates that paste the draft back", () => {
     const route = fs.readFileSync(path.resolve(__dirname, "../../../app/api/rewrite/route.ts"), "utf8");
-    expect(route).toMatch(/verbatimShare >= 0\.2 \|\| report\.verbatimCopies\.length >= 3\) return null/);
+    expect(route).toMatch(/verbatimShare >= 0\.2 \|\| report\.verbatimCopies\.length >= 2\) return null/);
   });
 });
 

@@ -16,7 +16,9 @@ describe("rewrite output is not post-processed at random", () => {
   it("the route returns the scored text as-is (no inject*/noise/chaos step)", () => {
     const route = read("app/api/rewrite/route.ts");
     expect(route).not.toMatch(/inject\w*\(/i);
-    expect(route).toMatch(/const finalOutput = best\.restored;/);
+    // The only post-processing is the deterministic character clean-up in typography.ts (no randomness).
+    expect(route).toMatch(/const finalOutput = restore\(normalizeTypography\(best\.tokenized\), spans\);/);
+    expect(read("lib/pipeline/typography.ts")).not.toMatch(/Math\.random|Date\.now/);
   });
 
   it("analyzeText gives identical results for identical input", () => {

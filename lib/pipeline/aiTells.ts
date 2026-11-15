@@ -19,6 +19,8 @@ export type TellOptions = {
   maxLongShortPairs?: number;
   /** reference passages shown to the model; any 5-word run copied from them is reported */
   references?: string[];
+  /** text of protected spans (quotes, citations, code, headings) that is restored verbatim and so must not count as copying */
+  ignoreVerbatim?: string[];
 };
 
 const REFERENCE_COPY_WORDS = 5;
@@ -88,6 +90,10 @@ export type TellReport = {
   inventedScenes: string[];
   /** sentences copied from the original word for word */
   verbatimCopies: string[];
+  /** sentences that open with a connecting adverb (Also, Thus, Meanwhile...) */
+  transitionStarts: string[];
+  /** output words / original words (1 when there is no original) */
+  lengthRatio: number;
   mirrorsOriginal: boolean;
   numbersMissing: string[];
   /** fixScore + advisoryScore. Lower is better. A sanity check, not a target (see repairPlan.ts). */
@@ -160,10 +166,20 @@ const SCENE_OPENER = /^(?:picture|imagine|think of|consider|suppose)\s+(?:a|an|t
 const normSentence = (x: string) => x.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
 
 /** Sentences of 8+ words that appear in the original word for word (ignoring case and punctuation). */
-export function verbatimSentences(text: string, original: string): string[] {
+export function verbatimSentences(text: string, original: string, ignore: string[] = []): string[] {
   const orig = new Set(splitSentences(original).map(normSentence));
-  return splitSentences(text).filter((x) => wc(x) >= 8 && orig.has(normSentence(x)));
+  const skip = ignore.map(normSentence).filter(Boolean);
+  return splitSentences(text).filter((x) => {
+    if (wc(x) < 8 || !orig.has(normSentence(x))) return false;
+    const n = normSentence(x);
+    return !skip.some((k) => n.includes(k));
+  });
 }
+
+// Sentences that open with a connecting adverb ("Also", "Thus", "Meanwhile"...). A few are normal; a run of
+// them is the "repeated transition phrases" pattern detectors report. "And", "But" and "So" are left alone
+// only when used sparingly, so they are not in the list.
+const TRANSITION_START = /^(?:furthermore|moreover|additionally|consequently|therefore|thus|hence|overall|ultimately|meanwhile|also|besides|however|nevertheless|nonetheless|similarly|likewise|in addition|in conclusion|in summary|most of all|above all|for example|for instance|as a result|on the other hand|usually|generally|essentially)\b/i;
 
 export function splitSentences(text: string): string[] {
   return text
@@ -309,7 +325,10 @@ export function analyzeText(text: string, original: string, opts: TellOptions = 
   const origBg = new Set(contentBigrams(original));
   const copiedBigrams = [...new Set(contentBigrams(text).filter((b) => origBg.has(b)))];
   const personaInserts = PERSONA_RES.map((re) => text.match(re)?.[0]).filter((x): x is string => !!x);
-  const verbatimCopies = original.trim() ? verbatimSentences(text, original) : [];
+  const verbatimCopies = original.trim() ? verbatimSentences(text, original, opts.ignoreVerbatim ?? []) : [];
+  const transitionStarts = sents.filter((x) => TRANSITION_START.test(x)).map((x) => x.split(/\s+/).slice(0, 2).join(" "));
+  const origWords = wc(original);
+  const lengthRatio = origWords >= 80 ? wc(text) / origWords : 1;
   const origLower = original.toLowerCase();
   const inventedScenes = sents.filter((x) => SCENE_OPENER.test(x) && !origLower.includes(x.slice(0, 20).toLowerCase()));
   const mirrorsOriginal = mirrorsOrder(sents, splitSentences(original));
@@ -374,6 +393,10 @@ export function analyzeText(text: string, original: string, opts: TellOptions = 
     );
   if (verbatimCopies.length)
     flag("fix", `${verbatimCopies.length} sentence(s) are copied from the original word for word (e.g. "${verbatimCopies[0].slice(0, 60)}..."). Rewrite every one of them.`);
+  if (transitionStarts.length >= 3 && transitionStarts.length / Math.max(1, n) > 0.15)
+    flag("fix", `${transitionStarts.length} of ${n} sentences open with a connecting word (${[...new Set(transitionStarts)].slice(0, 6).join(", ")}). Start most sentences with their subject instead and let the logic carry the link.`);
+  if (lengthRatio > 1.15)
+    flag("fix", `The rewrite is ${Math.round((lengthRatio - 1) * 100)}% longer than the draft. Cut it back to about the draft's length or shorter; say each point once, plainly.`);
   if (inventedScenes.length)
     flag("fix", `Delete the invented scene or example ("${inventedScenes[0].slice(0, 60)}..."). The draft has no such scene; add nothing it does not say.`);
   if (mirrorsOriginal)
@@ -388,6 +411,8 @@ export function analyzeText(text: string, original: string, opts: TellOptions = 
     Math.max(0, repeatedTrigrams - 2) * 0.5 +
     keywordRepeats.length;
   const fixScore =
+    (transitionStarts.length >= 3 && transitionStarts.length / Math.max(1, n) > 0.15 ? transitionStarts.length - 2 : 0) +
+    Math.max(0, lengthRatio - 1.15) * 10 +
     verbatimCopies.length * 4 +
     inventedScenes.length * 2 +
     (opensWithQuestion ? 1 : 0) +
@@ -425,6 +450,8 @@ export function analyzeText(text: string, original: string, opts: TellOptions = 
     personaInserts,
     inventedScenes,
     verbatimCopies,
+    transitionStarts,
+    lengthRatio,
     mirrorsOriginal,
     numbersMissing,
     score,

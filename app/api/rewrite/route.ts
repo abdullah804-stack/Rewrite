@@ -1,3 +1,4 @@
+import { normalizeTypography } from "@/lib/pipeline/typography";
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { createHash } from "crypto";
@@ -54,7 +55,7 @@ const INTENSITY_RULES: Record<Intensity, string> = {
 
 const OVERLAP_LIMIT: Record<Intensity, number> = { light: 0.3, balanced: 0.2, strong: 0.12 };
 
-const PROMPT_VERSION = "v17-2026-11"; // bumped: style plan no longer asks for scenes, asides, questions or invented examples
+const PROMPT_VERSION = "v18-2026-11"; // bumped: plain literal wording rule, transition/length checks, stricter copy guard
 const REPAIR_TIME_BUDGET_MS = 26_000; // no review/repair call may START after this; a call can take up to 25s and the route limit is 60s
 // Do not start another generation round (or try another provider) after this point; the route limit is 60s.
 const GENERATION_DEADLINE_MS = 28_000;
@@ -73,6 +74,7 @@ HARD RULES
 9. Follow the "Style plan" in the user message. It is different every run.
 10. Voice comes from word choice, rhythm and opinions about the subject. Never add commentary about yourself, your reactions, or your own wording (no self-corrections, no asides about what makes sense to you).
 11. Every sentence must be complete and every pronoun must clearly refer to one thing. Never end on a question or a fragment.
+12. Write plain, literal prose at roughly an 8th-grade reading level: common words, direct statements. No metaphors, idioms, vivid figurative phrases or punchy flourishes. Do not make the text longer than the draft; shorter is fine, and each point is made once. Where the draft speaks about people in general, speak to the reader directly as "you". Do not open many sentences with connecting words (also, thus, meanwhile, overall); start with the subject instead.
 
 OUTPUT FORMAT (CRITICAL)
 Return valid JSON, nothing else:
@@ -302,13 +304,14 @@ function buildCandidate(resultText: string, provider: string, model: string, pro
   const restored = restore(tokenized, ctx.spans);
   if (restored.trim() === ctx.rawText.trim()) return null;
 
-  const report = analyzeText(restored, ctx.rawText, { maxOverlap: ctx.overlapLimit, references: references.map((e) => e.text) });
+  const ignoreVerbatim = ctx.spans.filter((sp) => ["quote", "citation", "code", "heading"].includes(sp.kind)).map((sp) => sp.original);
+  const report = analyzeText(restored, ctx.rawText, { maxOverlap: ctx.overlapLimit, references: references.map((e) => e.text), ignoreVerbatim });
   if (report.numbersMissing.length > 0) return null;
   // Hard stop: a "rewrite" that pastes the draft back (a fifth or more of its sentences unchanged, or
   // two or more long ones) is a failed generation. Reject it so another candidate or provider is tried,
   // instead of repairing it or, worse, returning it.
   const verbatimShare = report.verbatimCopies.length / Math.max(1, report.sentences);
-  if (verbatimShare >= 0.2 || report.verbatimCopies.length >= 3) return null;
+  if (verbatimShare >= 0.2 || report.verbatimCopies.length >= 2) return null;
 
   return { paragraphs: parsed.paragraphs, tokenized, restored, provider, model, providerId, references, report };
 }
@@ -431,10 +434,13 @@ async function handleFullRewrite(args: {
   // The text that was scored, repaired and checked is the text the user gets.
   // Nothing edits it afterwards: the old random post-processing broke grammar ("aI", "nASA"),
   // inserted the same stock phrases into every output, and made `rewritten` disagree with `paragraphs`.
-  const finalOutput = best.restored;
+  // Only character-level typography is normalised (non-breaking hyphens, curly quotes, em dashes), on the text with
+  // protected spans still masked so quotes, URLs and code stay exactly as written.
+  const finalOutput = restore(normalizeTypography(best.tokenized), spans);
+  const finalParagraphs = best.paragraphs.map((p: any) => ({ ...p, text: typeof p?.text === "string" ? normalizeTypography(p.text) : p?.text }));
 
   return NextResponse.json({
-    ok: true, action: "rewrite", original: rawText, rewritten: finalOutput, paragraphs: best.paragraphs,
+    ok: true, action: "rewrite", original: rawText, rewritten: finalOutput, paragraphs: finalParagraphs,
     provider: best.provider, model: best.model, providerId: best.providerId, providerFallback: skippedProviders, exemplarsUsed: best.references.map((e) => e.id), before: computeMetrics(rawText), after: computeMetrics(finalOutput),
     spansProtected: spans.length, profileUsed,
     tells: {
