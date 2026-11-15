@@ -53,7 +53,7 @@ function report(run: Run, detectors: string[]) {
   const outs = outputs(run);
   const failed = run.rows.filter((r) => r.kind === "output" && r.error);
   console.log(`\n==== ${run.label}  (${run.dir}) ====`);
-  if (run.meta.commit) console.log(`commit ${run.meta.commit}, intensity ${run.meta.intensity}, preset ${run.meta.preset}, runs/text ${run.meta.runs}`);
+  if (run.meta.commit) console.log(`commit ${run.meta.commit}, intensity ${run.meta.intensity}, preset ${run.meta.preset}, runs/text ${run.meta.runs}, exemplars ${run.meta.exemplars ?? "n/a"}`);
   console.log(`outputs: ${outs.length} ok, ${failed.length} failed`);
   if (failed.length) console.log(`  failures: ${failed.slice(0, 5).map((f) => `${f.id}#${f.run} (${f.error.slice(0, 60)})`).join("; ")}`);
 

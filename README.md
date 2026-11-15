@@ -162,6 +162,7 @@ sources → protect → LLM → validate → restore → diff
 | ORM | Prisma |
 | Auth | Auth.js v5 (Google OAuth) |
 | AI providers | DeepSeek, Groq, OpenRouter (behind a provider abstraction) |
+| Human reference passages | `config/human-exemplars.ts` (generated, off by default, see `bench/README.md`) |
 | Rate limiting | Upstash Redis |
 | Validation | Zod |
 | Testing | Vitest |

@@ -43,6 +43,18 @@ pnpm bench:analyze --target 70 bench/runs/<folder>            # change the targe
 
 The "Shape" section works before you fill in any detector scores. It shows how the outputs differ from the human controls in sentence rhythm.
 
+## Testing the default human reference passages (step 5)
+
+`DEFAULT_EXEMPLARS=on` makes the server show the model two real human-written passages when the user has not chosen a voice profile. It is off by default because it has not been measured yet. Compare it on the same corpus:
+
+```bash
+BENCH_KEY=... pnpm bench --label exemplars-off --exemplars off
+BENCH_KEY=... pnpm bench --label exemplars-on  --exemplars on
+pnpm bench:analyze bench/runs/<off-folder> bench/runs/<on-folder>
+```
+
+Only turn it on in production if the "on" run is clearly better, and read a few outputs by eye: the starter passages are Victorian, so check that the rewrites do not pick up old-fashioned wording. Better passages are your own modern writing: `pnpm exemplars:build --own <folder of .txt files> --register casual`. Keep those files separate from `bench/my-writing`, or the human control rows will no longer be independent of what the model was shown.
+
 ## Rules for fair comparison
 
 - Change **one thing** per experiment, and give it a descriptive `--label`.

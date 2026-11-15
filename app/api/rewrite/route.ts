@@ -6,6 +6,8 @@ import { prisma } from "../../../lib/prisma";
 import { protect, restore, type ProtectedSpan } from "../../../lib/pipeline/protect";
 import { chatWithFallback } from "../../../lib/ai/chat";
 import { getProvider, getProviderOrder, hasApiKey, type ProviderId } from "../../../lib/ai/providers";
+import { defaultExemplarsEnabled, exemplarsTag, pickExemplars, renderExemplarBlock } from "../../../lib/ai/defaultVoice";
+import type { HumanExemplar } from "../../../config/human-exemplars";
 import { computeMetrics } from "../../../lib/pipeline/metrics";
 import type { VoiceProfile } from "../../../lib/ai/schemas";
 import { RewriteOutputSchema } from "../../../lib/ai/schemas";
@@ -37,6 +39,8 @@ const RewriteRequestSchema = z.object({
   toneDirectness: z.number().min(0).max(10).nullish(),
   // Benchmark-only: when it equals the BENCH_KEY env var, the request skips the cache and the quota.
   benchKey: z.string().nullish(),
+  // Benchmark-only (needs a matching benchKey): force the default human reference passages on or off for this request.
+  defaultExemplars: z.boolean().nullish(),
 }).passthrough();
 
 const INTENSITY_RULES: Record<Intensity, string> = {
@@ -215,6 +219,9 @@ export async function POST(request: Request) {
     const toneBlock = buildToneBlock(toneFormality, body.toneDirectness ?? 5);
     const extraPrompt = toneBlock + glossaryBlock + presetBlock + (profileRecord ? "\n" + buildVoiceBlock(profileRecord.profile as VoiceProfile) : "");
     const profileUsed = profileRecord ? { name: profileRecord.name } : null;
+    // Default human reference passages: only when no voice profile was chosen, and only when switched on
+    // (DEFAULT_EXEMPLARS=on, or forced per request by the benchmark).
+    const useExemplars = !profileRecord && (benchBypass && typeof body.defaultExemplars === "boolean" ? body.defaultExemplars : defaultExemplarsEnabled());
 
     if (action === "regen" || action === "selection") {
       const res = action === "regen"
@@ -227,7 +234,7 @@ export async function POST(request: Request) {
     const glossaryHash = glossaryBlock ? createHash("sha256").update(glossaryBlock).digest("hex") : null;
     // The cache key follows the configured provider chain, so changing providers or AI_PROVIDER_ORDER never serves old text.
     const primaryModelName = getProviderOrder().map((id) => `${id}:${getProvider(id).model}`).join("|");
-    const cacheKey = hashRequest(PROMPT_VERSION, rawText, intensity, body.profileId ?? null, presetId, body.seoSafe ?? false, toneFormality, body.toneDirectness ?? 5, glossaryHash, primaryModelName);
+    const cacheKey = hashRequest(useExemplars ? `${PROMPT_VERSION}:${exemplarsTag()}` : PROMPT_VERSION, rawText, intensity, body.profileId ?? null, presetId, body.seoSafe ?? false, toneFormality, body.toneDirectness ?? 5, glossaryHash, primaryModelName);
     const cachedData = benchBypass ? null : await getCachedResponse<any>(cacheKey);
 
     if (cachedData && validateGlossary(cachedData.rewritten, glossaryRecord).ok) {
@@ -235,7 +242,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ ...cachedData, provider: "Cache" });
     }
 
-    const response = await handleFullRewrite({ rawText, intensity, extraPrompt, profileUsed, presetId, toneFormality });
+    const response = await handleFullRewrite({ rawText, intensity, extraPrompt, profileUsed, presetId, toneFormality, useExemplars });
     if (response.status !== 200) { await refund(); return response; }
 
     const data = await response.json();
@@ -273,12 +280,14 @@ type Candidate = {
   provider: string;
   model: string;
   providerId: ProviderId;
+  /** the reference passages the model saw for this candidate (empty when the default voice is off) */
+  references: HumanExemplar[];
   report: TellReport;
 };
 
 const GEN_PARAMS = { temperature: 1.0, topP: 0.95, frequencyPenalty: 0.4, presencePenalty: 0.3 };
 
-function buildCandidate(resultText: string, provider: string, model: string, providerId: ProviderId, ctx: Ctx): Candidate | null {
+function buildCandidate(resultText: string, provider: string, model: string, providerId: ProviderId, ctx: Ctx, references: HumanExemplar[] = []): Candidate | null {
   let parsed: any;
   try { parsed = RewriteOutputSchema.parse(parseJsonLoose(resultText)); } catch { return null; }
   if (!parsed.paragraphs || parsed.paragraphs.length !== ctx.expectedParas) return null;
@@ -290,10 +299,10 @@ function buildCandidate(resultText: string, provider: string, model: string, pro
   const restored = restore(tokenized, ctx.spans);
   if (restored.trim() === ctx.rawText.trim()) return null;
 
-  const report = analyzeText(restored, ctx.rawText, { maxOverlap: ctx.overlapLimit });
+  const report = analyzeText(restored, ctx.rawText, { maxOverlap: ctx.overlapLimit, references: references.map((e) => e.text) });
   if (report.numbersMissing.length > 0) return null;
 
-  return { paragraphs: parsed.paragraphs, tokenized, restored, provider, model, providerId, report };
+  return { paragraphs: parsed.paragraphs, tokenized, restored, provider, model, providerId, references, report };
 }
 
 async function extractClaims(paras: string[]): Promise<string[][] | null> {
@@ -332,8 +341,9 @@ async function handleFullRewrite(args: {
   profileUsed: { name: string } | null;
   presetId: PresetId;
   toneFormality: number;
+  useExemplars: boolean;
 }) {
-  const { rawText, intensity, extraPrompt, profileUsed, presetId, toneFormality } = args;
+  const { rawText, intensity, extraPrompt, profileUsed, presetId, toneFormality, useExemplars } = args;
   const startedAt = Date.now();
   const elapsed = () => Date.now() - startedAt;
 
@@ -355,10 +365,11 @@ async function handleFullRewrite(args: {
   let transportFailed = false; // the provider errored or timed out (as opposed to returning unusable text)
   const generate = async (seed: string, providerId: ProviderId): Promise<Candidate | null> => {
     const plan = makeStylePlan({ seed, intensity, formality: toneFormality, preset: presetId });
-    const user = `${material}\n\nIntensity: ${INTENSITY_RULES[intensity]}\n${renderStylePlan(plan)}${extraPrompt}\n\nReturn valid JSON with a "paragraphs" array (exactly ${ctx.expectedParas} paragraph(s), in order).`;
+    const references = useExemplars ? pickExemplars(seed, plan.register) : [];
+    const user = `${material}\n\nIntensity: ${INTENSITY_RULES[intensity]}\n${renderStylePlan(plan)}${extraPrompt}${renderExemplarBlock(references)}\n\nReturn valid JSON with a "paragraphs" array (exactly ${ctx.expectedParas} paragraph(s), in order).`;
     try {
       const r = await chatWithFallback({ system: BASE_SYSTEM, user, maxTokens: 8000, ...GEN_PARAMS }, [providerId]);
-      return buildCandidate(r.text, r.provider, r.model, r.providerId, ctx);
+      return buildCandidate(r.text, r.provider, r.model, r.providerId, ctx, references);
     } catch { transportFailed = true; return null; }
   };
 
@@ -400,7 +411,7 @@ async function handleFullRewrite(args: {
     const user = `Problems to fix:\n${problems.map((p) => `- ${p}`).join("\n")}\n\nCurrent text:\n"""\n${current}\n"""\n\nReturn JSON with the same ${ctx.expectedParas} paragraph(s).`;
     try {
       const r = await chatWithFallback({ system: REPAIR_SYSTEM, user, maxTokens: 8000, ...GEN_PARAMS, temperature: 0.8 }, [best.providerId]);
-      const fixed = buildCandidate(r.text, r.provider, r.model, r.providerId, ctx);
+      const fixed = buildCandidate(r.text, r.provider, r.model, r.providerId, ctx, best.references);
       if (!fixed) break;
       const fixedIssues = elapsed() < REPAIR_TIME_BUDGET_MS + 8_000 ? await reviewMeaning(rawText, fixed.restored) : issues;
       if (cost(fixed, fixedIssues) < cost(best, issues)) { best = fixed; issues = fixedIssues; } else break;
@@ -414,7 +425,7 @@ async function handleFullRewrite(args: {
 
   return NextResponse.json({
     ok: true, action: "rewrite", original: rawText, rewritten: finalOutput, paragraphs: best.paragraphs,
-    provider: best.provider, model: best.model, providerId: best.providerId, providerFallback: skippedProviders, before: computeMetrics(rawText), after: computeMetrics(finalOutput),
+    provider: best.provider, model: best.model, providerId: best.providerId, providerFallback: skippedProviders, exemplarsUsed: best.references.map((e) => e.id), before: computeMetrics(rawText), after: computeMetrics(finalOutput),
     spansProtected: spans.length, profileUsed,
     tells: {
       score: best.report.score,

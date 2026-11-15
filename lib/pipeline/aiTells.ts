@@ -17,7 +17,29 @@ export type TellOptions = {
   maxShortRatio?: number;
   /** max number of "long sentence then very short sentence" pairs */
   maxLongShortPairs?: number;
+  /** reference passages shown to the model; any 5-word run copied from them is reported */
+  references?: string[];
 };
+
+const REFERENCE_COPY_WORDS = 5;
+const wordsOf = (t: string) => t.toLowerCase().match(/[a-z0-9']+/g) ?? [];
+
+/** Runs of 5 consecutive words that appear both in the text and in any reference passage. */
+export function referenceCopies(text: string, references: string[], n = REFERENCE_COPY_WORDS): string[] {
+  if (!references.length) return [];
+  const known = new Set<string>();
+  for (const ref of references) {
+    const w = wordsOf(ref);
+    for (let i = 0; i + n <= w.length; i++) known.add(w.slice(i, i + n).join(" "));
+  }
+  const w = wordsOf(text);
+  const found = new Set<string>();
+  for (let i = 0; i + n <= w.length; i++) {
+    const g = w.slice(i, i + n).join(" ");
+    if (known.has(g)) found.add(g);
+  }
+  return [...found];
+}
 
 /** A sentence this short or shorter counts as "very short". */
 export const SHORT_WORDS = 5;
@@ -49,6 +71,8 @@ export type TellReport = {
   longShortPairs: number;
   /** the text opens with a question although the original did not */
   opensWithQuestion: boolean;
+  /** 5-word runs copied from the reference passages shown to the model */
+  referenceCopies: string[];
   similarRuns: string[];
   starterRepeat: { word: string; count: number } | null;
   bannedHits: string[];
@@ -192,6 +216,7 @@ export function analyzeText(text: string, original: string, opts: TellOptions = 
   const { shortRatio, longShortPairs } = sentenceShape(lens);
   const tooManyShort = n >= 6 && shortRatio > maxShortRatio;
   const tooManyLongShort = longShortPairs > maxLongShortPairs;
+  const referenceCopiesFound = referenceCopies(text, opts.references ?? []);
   const opensWithQuestion = sents.length > 0 && /\?["')\]]*$/.test(sents[0].trim()) &&
     !(splitSentences(original)[0] ?? "").trim().match(/\?["')\]]*$/);
 
@@ -279,6 +304,8 @@ export function analyzeText(text: string, original: string, opts: TellOptions = 
     );
   if (opensWithQuestion)
     problems.push(`The text opens with a question. Open with a statement instead.`);
+  if (referenceCopiesFound.length)
+    problems.push(`These phrases are copied from the reference passages; write them in your own words: ${referenceCopiesFound.slice(0, 6).map((g) => `"${g}"`).join(", ")}.`);
   if (similarRuns.length)
     problems.push(
       `These consecutive sentences have nearly the same length and shape. Merge, split, or reshape them: ${similarRuns.map((r) => `"${r}"`).join(" | ")}`
@@ -311,6 +338,7 @@ export function analyzeText(text: string, original: string, opts: TellOptions = 
     (tooManyShort ? (shortRatio - maxShortRatio) * 10 : 0) +
     Math.max(0, longShortPairs - maxLongShortPairs) * 1.5 +
     (opensWithQuestion ? 1 : 0) +
+    referenceCopiesFound.length * 2 +
     similarRuns.length * 1.5 +
     (starterRepeat ? starterRepeat.count - starterLimit : 0) +
     bannedHits.length * 2 +
@@ -333,6 +361,7 @@ export function analyzeText(text: string, original: string, opts: TellOptions = 
     shortRatio,
     longShortPairs,
     opensWithQuestion,
+    referenceCopies: referenceCopiesFound,
     similarRuns,
     starterRepeat,
     bannedHits,

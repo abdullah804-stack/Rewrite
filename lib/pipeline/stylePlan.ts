@@ -19,7 +19,7 @@ export type StylePlan = {
   ending: string;
 };
 
-function rng(seed: string) {
+export function rng(seed: string) {
   let a = createHash("sha256").update(seed).digest().readUInt32LE(0);
   return () => {
     a = (a + 0x6d2b79f5) | 0;
@@ -29,7 +29,7 @@ function rng(seed: string) {
   };
 }
 
-function pickN<T>(r: () => number, arr: T[], n: number): T[] {
+export function pickN<T>(r: () => number, arr: T[], n: number): T[] {
   const copy = [...arr];
   for (let i = copy.length - 1; i > 0; i--) {
     const j = Math.floor(r() * (i + 1));
