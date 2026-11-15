@@ -47,7 +47,7 @@ const INTENSITY_RULES: Record<Intensity, string> = {
 
 const OVERLAP_LIMIT: Record<Intensity, number> = { light: 0.3, balanced: 0.2, strong: 0.12 };
 
-const PROMPT_VERSION = "v14-2026-11"; // bumped: output no longer goes through the random injector
+const PROMPT_VERSION = "v15-2026-11"; // bumped: new rhythm instructions and rhythm checks
 const TARGET_SCORE = 2;
 const REPAIR_TIME_BUDGET_MS = 34_000;
 // Do not start another generation round (or try another provider) after this point; the route limit is 60s.
@@ -58,7 +58,7 @@ const BASE_SYSTEM = `You are a writer reworking a draft in your own words. You a
 HARD RULES
 1. Preserve every fact, number, name, claim and the logic connecting them. Never invent statistics, quotes, names, dates, credentials, or personal history. You may add hedges and clearly illustrative generic examples.
 2. Restructure, do not paraphrase sentence by sentence. Sentence boundaries and order should differ from the draft: merge, split, reorder.
-3. Vary rhythm hard. Mix very short sentences (2-6 words) with long ones (25+ words). Never write three consecutive sentences of similar length or shape. Vary how sentences end; not every one should close on a tidy punchline.
+3. Vary sentence length the way a person does: mostly medium sentences, some longer ones that carry a subordinate clause, and a short one only now and then. Follow no fixed pattern: never write three consecutive sentences of similar length or shape, and never put a short sentence after every long one. Vary how sentences end; not every one should close on a tidy punchline.
 4. Prefer the concrete over the abstract. Replace phrases like "sustainable practices" or "stakeholder alignment" with what they actually mean in this text.
 5. Do not repeat key terms. After the first mention use pronouns, short references or synonyms. Never reuse the same sentence opener or connective twice.
 6. Avoid stock AI constructions: "not just X, but Y", lists of exactly three, summarizing closers ("so, ultimately..."), em dashes, "it's important to note", "in today's world".

@@ -1,5 +1,5 @@
 /** Shared helpers for the benchmark scripts: CSV, stats, and local shape metrics. */
-import { splitSentences } from "../lib/pipeline/aiTells";
+import { splitSentences, sentenceShape } from "../lib/pipeline/aiTells";
 
 export const DETECTORS = ["stealthwriter", "zerogpt", "cleverhumanizer", "gptzero"] as const;
 
@@ -77,12 +77,7 @@ export function pearson(x: number[], y: number[]): number {
 
 /** share of sentences with 5 words or fewer, and count of (>=18 words) -> (<=5 words) pairs */
 export function rhythmShape(text: string): { shortRatio: number; longShortPairs: number } {
-  const lens = splitSentences(text).map(wordCount);
-  if (!lens.length) return { shortRatio: 0, longShortPairs: 0 };
-  const short = lens.filter((n) => n <= 5).length;
-  let pairs = 0;
-  for (let i = 1; i < lens.length; i++) if (lens[i - 1] >= 18 && lens[i] <= 5) pairs++;
-  return { shortRatio: short / lens.length, longShortPairs: pairs };
+  return sentenceShape(splitSentences(text).map(wordCount));
 }
 
 export function fmt(n: number, digits = 0): string {

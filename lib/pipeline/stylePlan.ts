@@ -40,7 +40,6 @@ function pickN<T>(r: () => number, arr: T[], n: number): T[] {
 
 const OPENINGS = [
   "Open with the most concrete or surprising point, not a topic sentence.",
-  "Open with a short question a real reader would ask.",
   "Open with your stance in one plain sentence, as if continuing a conversation.",
   "Open with the consequence, then work back to the cause.",
   "Open with a qualified claim (using words like 'mostly', 'usually', 'in practice').",
@@ -49,7 +48,6 @@ const OPENINGS = [
 
 const STRUCTURE = [
   "Merge two related points into one longer sentence with a subordinate clause.",
-  "After a long sentence, put the key point in a very short one.",
   "Reorder the ideas so the least obvious point comes first.",
   "Drop pure filler sentences, but never a fact, number, or argument.",
   "Turn one abstract claim into a quick concrete example (illustrative only, no invented figures).",
@@ -109,7 +107,7 @@ export function makeStylePlan(opts: { seed: string; intensity: Intensity; formal
     structure: pickN(r, STRUCTURE, moves),
     voice: pickN(r, VOICE[register], 3),
     rhythm:
-      "Sentence lengths must vary a lot: some 2-6 words, some 25+. Never three consecutive sentences of similar length or shape.",
+      "Let sentence length drift naturally: mostly medium, a few long, a short one only now and then. No fixed pattern, and never three consecutive sentences of similar length or shape.",
     ending: pickN(r, ENDINGS, 1)[0],
   };
 }

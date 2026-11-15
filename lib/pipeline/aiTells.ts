@@ -13,13 +13,42 @@ export type TellOptions = {
   maxOverlap?: number;
   /** minimum burstiness (std/mean of sentence length) for texts with >= 5 sentences */
   minBurstiness?: number;
+  /** max share of sentences with <= SHORT_WORDS words (texts with >= 6 sentences) */
+  maxShortRatio?: number;
+  /** max number of "long sentence then very short sentence" pairs */
+  maxLongShortPairs?: number;
 };
+
+/** A sentence this short or shorter counts as "very short". */
+export const SHORT_WORDS = 5;
+/** A sentence this long or longer counts as "long" when followed by a very short one. */
+export const LONG_WORDS = 18;
+// Calibrated on fixtures/clean (real human text): share of very short sentences ranged 0-41%
+// (mean 17%) and long->short pairs 0-3 (mean 1.1). These limits sit near the top of that range,
+// so they only catch exaggerated patterns and do not fight normal writing.
+export const DEFAULT_MAX_SHORT_RATIO = 0.3;
+export const DEFAULT_MAX_LONG_SHORT_PAIRS = 2;
+
+/** Sentence-length shape: how many sentences are very short, and how often a long one is followed by a very short one. */
+export function sentenceShape(lens: number[]): { shortRatio: number; longShortPairs: number } {
+  if (!lens.length) return { shortRatio: 0, longShortPairs: 0 };
+  const short = lens.filter((x) => x <= SHORT_WORDS).length;
+  let longShortPairs = 0;
+  for (let i = 1; i < lens.length; i++) if (lens[i - 1] >= LONG_WORDS && lens[i] <= SHORT_WORDS) longShortPairs++;
+  return { shortRatio: short / lens.length, longShortPairs };
+}
 
 export type TellReport = {
   sentences: number;
   lenMean: number;
   lenStd: number;
   burstiness: number;
+  /** share of sentences with 5 words or fewer */
+  shortRatio: number;
+  /** count of (18+ word sentence) followed by (5 or fewer word sentence) */
+  longShortPairs: number;
+  /** the text opens with a question although the original did not */
+  opensWithQuestion: boolean;
   similarRuns: string[];
   starterRepeat: { word: string; count: number } | null;
   bannedHits: string[];
@@ -151,6 +180,8 @@ function mirrorsOrder(outS: string[], origS: string[]): boolean {
 export function analyzeText(text: string, original: string, opts: TellOptions = {}): TellReport {
   const maxOverlap = opts.maxOverlap ?? 0.2;
   const minBurst = opts.minBurstiness ?? 0.4;
+  const maxShortRatio = opts.maxShortRatio ?? DEFAULT_MAX_SHORT_RATIO;
+  const maxLongShortPairs = opts.maxLongShortPairs ?? DEFAULT_MAX_LONG_SHORT_PAIRS;
 
   const sents = splitSentences(text);
   const lens = sents.map(wc);
@@ -158,6 +189,11 @@ export function analyzeText(text: string, original: string, opts: TellOptions = 
   const mean = n ? lens.reduce((a, b) => a + b, 0) / n : 0;
   const std = n ? Math.sqrt(lens.reduce((a, b) => a + (b - mean) ** 2, 0) / n) : 0;
   const burstiness = mean > 0 ? std / mean : 0;
+  const { shortRatio, longShortPairs } = sentenceShape(lens);
+  const tooManyShort = n >= 6 && shortRatio > maxShortRatio;
+  const tooManyLongShort = longShortPairs > maxLongShortPairs;
+  const opensWithQuestion = sents.length > 0 && /\?["')\]]*$/.test(sents[0].trim()) &&
+    !(splitSentences(original)[0] ?? "").trim().match(/\?["')\]]*$/);
 
   // runs of 3+ consecutive sentences with near-identical length
   const similarRuns: string[] = [];
@@ -231,8 +267,18 @@ export function analyzeText(text: string, original: string, opts: TellOptions = 
   const problems: string[] = [];
   if (n >= 5 && burstiness < minBurst)
     problems.push(
-      `Sentence lengths are too uniform (variation ${burstiness.toFixed(2)}, want at least ${minBurst}). Make a few sentences very short (2-6 words) and let one or two run long (25+ words) by merging related points.`
+      `Sentence lengths are too uniform (variation ${burstiness.toFixed(2)}, want at least ${minBurst}). Merge two related sentences into a longer one, split one dense sentence, and use a short sentence only now and then.`
     );
+  if (tooManyShort)
+    problems.push(
+      `${Math.round(shortRatio * 100)}% of the sentences are ${SHORT_WORDS} words or fewer (want at most ${Math.round(maxShortRatio * 100)}%). Join some of them to the sentence before or after, so short sentences are the exception.`
+    );
+  if (tooManyLongShort)
+    problems.push(
+      `A long sentence is followed by a very short one ${longShortPairs} times, which reads as a pattern. Keep that move to once or twice, and let the other long sentences end on a normal-length one.`
+    );
+  if (opensWithQuestion)
+    problems.push(`The text opens with a question. Open with a statement instead.`);
   if (similarRuns.length)
     problems.push(
       `These consecutive sentences have nearly the same length and shape. Merge, split, or reshape them: ${similarRuns.map((r) => `"${r}"`).join(" | ")}`
@@ -262,6 +308,9 @@ export function analyzeText(text: string, original: string, opts: TellOptions = 
 
   const score =
     (n >= 5 && burstiness < minBurst ? (minBurst - burstiness) * 10 : 0) +
+    (tooManyShort ? (shortRatio - maxShortRatio) * 10 : 0) +
+    Math.max(0, longShortPairs - maxLongShortPairs) * 1.5 +
+    (opensWithQuestion ? 1 : 0) +
     similarRuns.length * 1.5 +
     (starterRepeat ? starterRepeat.count - starterLimit : 0) +
     bannedHits.length * 2 +
@@ -281,6 +330,9 @@ export function analyzeText(text: string, original: string, opts: TellOptions = 
     lenMean: mean,
     lenStd: std,
     burstiness,
+    shortRatio,
+    longShortPairs,
+    opensWithQuestion,
     similarRuns,
     starterRepeat,
     bannedHits,
