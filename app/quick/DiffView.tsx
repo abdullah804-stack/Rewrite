@@ -110,7 +110,12 @@ export function DiffView({
         }),
       });
 
-      const data = await res.json();
+      const raw = await res.text();
+      let data: any;
+      try { data = JSON.parse(raw); } catch {
+        // The server answered with a plain-text platform error (crash or timeout), not JSON.
+        throw new Error(`The server did not return a result (HTTP ${res.status}). ${res.status === 504 || /TIMEOUT/i.test(raw) ? "It ran out of time; try a shorter text." : raw.slice(0, 120)}`);
+      }
 
       if (!res.ok || !data.ok) {
         setRegenError(data.error ?? "Regenerate failed.");

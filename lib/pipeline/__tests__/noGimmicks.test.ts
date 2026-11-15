@@ -64,3 +64,20 @@ describe("verbatim copy guard", () => {
     expect(route).toMatch(/verbatimShare >= 0\.2 \|\| report\.verbatimCopies\.length >= 3\) return null/);
   });
 });
+
+describe("time budget", () => {
+  const root = path.resolve(__dirname, "../../..");
+  const route = fs.readFileSync(path.join(root, "app/api/rewrite/route.ts"), "utf8");
+  const chat = fs.readFileSync(path.join(root, "lib/ai/chat.ts"), "utf8");
+  const num = (src: string, re: RegExp) => Number(src.match(re)![1].replace(/_/g, ""));
+  const maxDuration = num(route, /maxDuration = (\d+)/) * 1000;
+  const callTimeout = num(chat, /DEFAULT_TIMEOUT_MS = ([\d_]+)/);
+  it("no model call can start so late that it runs past the route limit", () => {
+    const gen = num(route, /GENERATION_DEADLINE_MS = ([\d_]+)/);
+    const repair = num(route, /REPAIR_TIME_BUDGET_MS = ([\d_]+)/);
+    const extra = num(route, /REPAIR_TIME_BUDGET_MS \+ ([\d_]+) \?/);
+    expect(gen + callTimeout).toBeLessThan(maxDuration - 3000);
+    expect(repair + callTimeout).toBeLessThan(maxDuration - 3000);
+    expect(repair + extra + callTimeout).toBeLessThan(maxDuration - 3000);
+  });
+});

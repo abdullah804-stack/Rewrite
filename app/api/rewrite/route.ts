@@ -55,9 +55,9 @@ const INTENSITY_RULES: Record<Intensity, string> = {
 const OVERLAP_LIMIT: Record<Intensity, number> = { light: 0.3, balanced: 0.2, strong: 0.12 };
 
 const PROMPT_VERSION = "v17-2026-11"; // bumped: style plan no longer asks for scenes, asides, questions or invented examples
-const REPAIR_TIME_BUDGET_MS = 34_000;
+const REPAIR_TIME_BUDGET_MS = 26_000; // no review/repair call may START after this; a call can take up to 25s and the route limit is 60s
 // Do not start another generation round (or try another provider) after this point; the route limit is 60s.
-const GENERATION_DEADLINE_MS = 38_000;
+const GENERATION_DEADLINE_MS = 28_000;
 
 const BASE_SYSTEM = `You are a writer reworking a draft in your own words. You are not an assistant explaining things; you are producing a piece of writing a real person could have written.
 
@@ -423,7 +423,7 @@ async function handleFullRewrite(args: {
       const r = await chatWithFallback({ system: REPAIR_SYSTEM, user, maxTokens: 8000, ...GEN_PARAMS, temperature: 0.8 }, [best.providerId]);
       const fixed = buildCandidate(r.text, r.provider, r.model, r.providerId, ctx, best.references);
       if (!fixed) break;
-      const fixedIssues = elapsed() < REPAIR_TIME_BUDGET_MS + 8_000 ? await reviewMeaning(rawText, fixed.restored) : issues;
+      const fixedIssues = elapsed() < REPAIR_TIME_BUDGET_MS + 2_000 ? await reviewMeaning(rawText, fixed.restored) : issues;
       if (cost(fixed, fixedIssues) < cost(best, issues)) { best = fixed; issues = fixedIssues; repairPasses++; } else break;
     } catch { break; }
   }
