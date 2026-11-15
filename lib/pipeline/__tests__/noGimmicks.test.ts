@@ -40,3 +40,27 @@ describe("invented scene check", () => {
     expect(analyzeText("Picture a small shop owner who ignores the web. Data matters a lot.", src2).inventedScenes).toEqual([]);
   });
 });
+
+import fs from "fs";
+import path from "path";
+import { verbatimSentences } from "../aiTells";
+
+describe("verbatim copy guard", () => {
+  const SRC2 = "Regular exercise reduces the risk of chronic disease such as heart disease. Experts recommend taking frequent breaks to stand and stretch. Sleep improves too.";
+  it("finds long sentences copied word for word, ignoring case and punctuation", () => {
+    const out = "People who move more get sick less. EXPERTS recommend taking frequent breaks to stand, and stretch! Sleep gets better.";
+    expect(verbatimSentences(out, SRC2)).toEqual(["EXPERTS recommend taking frequent breaks to stand, and stretch!"]);
+  });
+  it("ignores short sentences and a genuine rewrite", () => {
+    expect(verbatimSentences("Sleep improves too. Moving often protects the heart.", SRC2)).toEqual([]);
+  });
+  it("is flagged as fixable and raises the fix score", () => {
+    const copied = analyzeText(SRC2, SRC2.replace("Sleep improves too.", ""));
+    expect(copied.verbatimCopies.length).toBeGreaterThan(0);
+    expect(copied.fixable.join(" ")).toMatch(/word for word/);
+  });
+  it("route rejects candidates that paste the draft back", () => {
+    const route = fs.readFileSync(path.resolve(__dirname, "../../../app/api/rewrite/route.ts"), "utf8");
+    expect(route).toMatch(/verbatimShare >= 0\.2 \|\| report\.verbatimCopies\.length >= 3\) return null/);
+  });
+});

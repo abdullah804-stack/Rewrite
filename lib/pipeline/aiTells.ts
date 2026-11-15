@@ -86,6 +86,8 @@ export type TellReport = {
   personaInserts: string[];
   /** sentences that open a scene the original did not (e.g. "Picture a small shop owner...") */
   inventedScenes: string[];
+  /** sentences copied from the original word for word */
+  verbatimCopies: string[];
   mirrorsOriginal: boolean;
   numbersMissing: string[];
   /** fixScore + advisoryScore. Lower is better. A sanity check, not a target (see repairPlan.ts). */
@@ -154,6 +156,14 @@ const PERSONA_RES: RegExp[] = [
 // Scenes and framing devices the source never contained ("Picture a small shop owner..."). Humanizer
 // prompts reach for these constantly, so they are a fingerprint, and they add content the author never wrote.
 const SCENE_OPENER = /^(?:picture|imagine|think of|consider|suppose)\s+(?:a|an|the|someone|yourself|you(?:'re| are)?)\b/i;
+
+const normSentence = (x: string) => x.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
+
+/** Sentences of 8+ words that appear in the original word for word (ignoring case and punctuation). */
+export function verbatimSentences(text: string, original: string): string[] {
+  const orig = new Set(splitSentences(original).map(normSentence));
+  return splitSentences(text).filter((x) => wc(x) >= 8 && orig.has(normSentence(x)));
+}
 
 export function splitSentences(text: string): string[] {
   return text
@@ -299,6 +309,7 @@ export function analyzeText(text: string, original: string, opts: TellOptions = 
   const origBg = new Set(contentBigrams(original));
   const copiedBigrams = [...new Set(contentBigrams(text).filter((b) => origBg.has(b)))];
   const personaInserts = PERSONA_RES.map((re) => text.match(re)?.[0]).filter((x): x is string => !!x);
+  const verbatimCopies = original.trim() ? verbatimSentences(text, original) : [];
   const origLower = original.toLowerCase();
   const inventedScenes = sents.filter((x) => SCENE_OPENER.test(x) && !origLower.includes(x.slice(0, 20).toLowerCase()));
   const mirrorsOriginal = mirrorsOrder(sents, splitSentences(original));
@@ -361,6 +372,8 @@ export function analyzeText(text: string, original: string, opts: TellOptions = 
     flag("fix", 
       `Remove filler that sounds like inserted casualness (${personaInserts.join(", ")}). Voice should come from word choice, rhythm and opinions about the subject, never from commentary about yourself or your own sentences.`
     );
+  if (verbatimCopies.length)
+    flag("fix", `${verbatimCopies.length} sentence(s) are copied from the original word for word (e.g. "${verbatimCopies[0].slice(0, 60)}..."). Rewrite every one of them.`);
   if (inventedScenes.length)
     flag("fix", `Delete the invented scene or example ("${inventedScenes[0].slice(0, 60)}..."). The draft has no such scene; add nothing it does not say.`);
   if (mirrorsOriginal)
@@ -375,6 +388,7 @@ export function analyzeText(text: string, original: string, opts: TellOptions = 
     Math.max(0, repeatedTrigrams - 2) * 0.5 +
     keywordRepeats.length;
   const fixScore =
+    verbatimCopies.length * 4 +
     inventedScenes.length * 2 +
     (opensWithQuestion ? 1 : 0) +
     referenceCopiesFound.length * 2 +
@@ -410,6 +424,7 @@ export function analyzeText(text: string, original: string, opts: TellOptions = 
     copiedBigrams,
     personaInserts,
     inventedScenes,
+    verbatimCopies,
     mirrorsOriginal,
     numbersMissing,
     score,

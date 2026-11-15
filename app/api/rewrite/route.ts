@@ -304,6 +304,11 @@ function buildCandidate(resultText: string, provider: string, model: string, pro
 
   const report = analyzeText(restored, ctx.rawText, { maxOverlap: ctx.overlapLimit, references: references.map((e) => e.text) });
   if (report.numbersMissing.length > 0) return null;
+  // Hard stop: a "rewrite" that pastes the draft back (a fifth or more of its sentences unchanged, or
+  // two or more long ones) is a failed generation. Reject it so another candidate or provider is tried,
+  // instead of repairing it or, worse, returning it.
+  const verbatimShare = report.verbatimCopies.length / Math.max(1, report.sentences);
+  if (verbatimShare >= 0.2 || report.verbatimCopies.length >= 3) return null;
 
   return { paragraphs: parsed.paragraphs, tokenized, restored, provider, model, providerId, references, report };
 }
@@ -396,7 +401,7 @@ async function handleFullRewrite(args: {
   }
   if (!best) {
     return NextResponse.json({
-      error: `Rewrite failed: model output invalid, dropped protected spans, or changed a number. Providers tried: ${skippedProviders.join(", ") || "none"}.`,
+      error: `Rewrite failed: model output invalid, copied the draft, dropped protected spans, or changed a number. Providers tried: ${skippedProviders.join(", ") || "none"}.`,
     }, { status: 502 });
   }
 
