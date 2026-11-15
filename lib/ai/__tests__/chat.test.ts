@@ -88,6 +88,6 @@ describe("chatWithFallback", () => {
 
   it("explains every failure when all providers fail", async () => {
     fetchMock.mockResolvedValue(bad());
-    await expect(chatWithFallback({ system: "s", user: "u" })).rejects.toThrow(/deepseek:.*groq:/s);
+    await expect(chatWithFallback({ system: "s", user: "u" })).rejects.toThrow(/deepseek:[\s\S]*groq:/);
   });
 });
