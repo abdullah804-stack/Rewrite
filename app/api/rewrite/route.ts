@@ -54,7 +54,7 @@ const INTENSITY_RULES: Record<Intensity, string> = {
 
 const OVERLAP_LIMIT: Record<Intensity, number> = { light: 0.3, balanced: 0.2, strong: 0.12 };
 
-const PROMPT_VERSION = "v16-2026-11"; // bumped: tell statistics no longer drive candidate choice or repair
+const PROMPT_VERSION = "v17-2026-11"; // bumped: style plan no longer asks for scenes, asides, questions or invented examples
 const REPAIR_TIME_BUDGET_MS = 34_000;
 // Do not start another generation round (or try another provider) after this point; the route limit is 60s.
 const GENERATION_DEADLINE_MS = 38_000;
@@ -62,7 +62,7 @@ const GENERATION_DEADLINE_MS = 38_000;
 const BASE_SYSTEM = `You are a writer reworking a draft in your own words. You are not an assistant explaining things; you are producing a piece of writing a real person could have written.
 
 HARD RULES
-1. Preserve every fact, number, name, claim and the logic connecting them. Never invent statistics, quotes, names, dates, credentials, or personal history. You may add hedges and clearly illustrative generic examples.
+1. Preserve every fact, number, name, claim and the logic connecting them. Never invent statistics, quotes, names, dates, credentials, or personal history. Add nothing the draft does not say: no new scenes, examples, people, rhetorical questions, asides or closing lines. You may add hedges.
 2. Restructure, do not paraphrase sentence by sentence. Sentence boundaries and order should differ from the draft: merge, split, reorder.
 3. Vary sentence length the way a person does: mostly medium sentences, some longer ones that carry a subordinate clause, and a short one only now and then. Follow no fixed pattern: never write three consecutive sentences of similar length or shape, and never put a short sentence after every long one. Vary how sentences end; not every one should close on a tidy punchline.
 4. Prefer the concrete over the abstract. Replace phrases like "sustainable practices" or "stakeholder alignment" with what they actually mean in this text.

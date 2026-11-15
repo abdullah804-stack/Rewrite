@@ -48,7 +48,7 @@ describe("analyzeText splits problems into fixable and advisory", () => {
   it("classifies every kind of message: statistics advisory, wording and copying fixable", () => {
     const src = fs.readFileSync(path.join(root, "lib/pipeline/aiTells.ts"), "utf8");
     const kinds = [...src.matchAll(/flag\("(fix|advisory)",\s*\n?\s*`([^`]{0,70})/g)].map((m) => [m[1], m[2]] as const);
-    expect(kinds.length).toBe(17);
+    expect(kinds.length).toBe(18);
     const advisoryStarts = ["Sentence lengths are too uniform", "${Math.round(shortRatio", "A long sentence is followed", "These consecutive sentences", "Too many sentences start", "The same short phrases", "Overused keywords"];
     for (const [kind, msg] of kinds) {
       const isStat = advisoryStarts.some((a) => msg.startsWith(a));

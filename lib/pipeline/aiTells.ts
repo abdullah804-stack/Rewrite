@@ -84,6 +84,8 @@ export type TellReport = {
   overlapWithOriginal: number;
   copiedBigrams: string[];
   personaInserts: string[];
+  /** sentences that open a scene the original did not (e.g. "Picture a small shop owner...") */
+  inventedScenes: string[];
   mirrorsOriginal: boolean;
   numbersMissing: string[];
   /** fixScore + advisoryScore. Lower is better. A sanity check, not a target (see repairPlan.ts). */
@@ -148,6 +150,10 @@ const PERSONA_RES: RegExp[] = [
   /\([^)]{0,80}\b(?:me|my|i|i'm|i'd)\b[^)]{0,80}\)/i,
   /["“][^"”]{3,40}["”]\s+(?:is|are)\s+(?:doing|carrying|a bit|a little)\b/i,
 ];
+
+// Scenes and framing devices the source never contained ("Picture a small shop owner..."). Humanizer
+// prompts reach for these constantly, so they are a fingerprint, and they add content the author never wrote.
+const SCENE_OPENER = /^(?:picture|imagine|think of|consider|suppose)\s+(?:a|an|the|someone|yourself|you(?:'re| are)?)\b/i;
 
 export function splitSentences(text: string): string[] {
   return text
@@ -293,6 +299,8 @@ export function analyzeText(text: string, original: string, opts: TellOptions = 
   const origBg = new Set(contentBigrams(original));
   const copiedBigrams = [...new Set(contentBigrams(text).filter((b) => origBg.has(b)))];
   const personaInserts = PERSONA_RES.map((re) => text.match(re)?.[0]).filter((x): x is string => !!x);
+  const origLower = original.toLowerCase();
+  const inventedScenes = sents.filter((x) => SCENE_OPENER.test(x) && !origLower.includes(x.slice(0, 20).toLowerCase()));
   const mirrorsOriginal = mirrorsOrder(sents, splitSentences(original));
 
   // facts: every number in the original must survive
@@ -353,6 +361,8 @@ export function analyzeText(text: string, original: string, opts: TellOptions = 
     flag("fix", 
       `Remove filler that sounds like inserted casualness (${personaInserts.join(", ")}). Voice should come from word choice, rhythm and opinions about the subject, never from commentary about yourself or your own sentences.`
     );
+  if (inventedScenes.length)
+    flag("fix", `Delete the invented scene or example ("${inventedScenes[0].slice(0, 60)}..."). The draft has no such scene; add nothing it does not say.`);
   if (mirrorsOriginal)
     flag("fix", `The sentences follow the original one-to-one, in the same order. Lead with a different point, and merge or split so it is not one sentence per original sentence.`);
 
@@ -365,6 +375,7 @@ export function analyzeText(text: string, original: string, opts: TellOptions = 
     Math.max(0, repeatedTrigrams - 2) * 0.5 +
     keywordRepeats.length;
   const fixScore =
+    inventedScenes.length * 2 +
     (opensWithQuestion ? 1 : 0) +
     referenceCopiesFound.length * 2 +
     bannedHits.length * 2 +
@@ -398,6 +409,7 @@ export function analyzeText(text: string, original: string, opts: TellOptions = 
     overlapWithOriginal,
     copiedBigrams,
     personaInserts,
+    inventedScenes,
     mirrorsOriginal,
     numbersMissing,
     score,

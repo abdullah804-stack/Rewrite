@@ -38,39 +38,36 @@ export function pickN<T>(r: () => number, arr: T[], n: number): T[] {
   return copy.slice(0, n);
 }
 
+// Experiment (humanizer-experiment): the old menus asked for scenario openers, parenthetical asides,
+// rhetorical questions, invented examples and "ending on a specific detail". Those are the standard
+// humanizer tricks and they add content the draft never had, so they are gone. What is left only
+// changes how the draft's own points are ordered and worded.
 const OPENINGS = [
-  "Open with the most concrete or surprising point, not a topic sentence.",
-  "Open with your stance in one plain sentence, as if continuing a conversation.",
+  "Open with the draft's main point, stated plainly in your own words.",
   "Open with the consequence, then work back to the cause.",
   "Open with a qualified claim (using words like 'mostly', 'usually', 'in practice').",
-  "Open with a specific, ordinary scenario that illustrates the main point (an illustrative example, with no invented statistics or names).",
+  "Open with the point the draft treats as secondary, then bring in the main one.",
 ];
 
 const STRUCTURE = [
   "Merge two related points into one longer sentence with a subordinate clause.",
   "Reorder the ideas so the least obvious point comes first.",
   "Drop pure filler sentences, but never a fact, number, or argument.",
-  "Turn one abstract claim into a quick concrete example (illustrative only, no invented figures).",
-  "Include one parenthetical aside.",
-  "Use one rhetorical question in the middle of the piece and answer it in the next sentence. Never leave a question hanging.",
   "Split one dense idea across two sentences, and fuse two thin ones into one.",
   "Use a pronoun or short reference instead of repeating the full topic phrase.",
+  "Fold one point into the sentence before it instead of giving it its own sentence.",
 ];
 
 const ENDINGS = [
-  "End on a specific detail rather than a summary.",
-  "End on a short, plain sentence that does not restate anything.",
-  "End by pointing at a trade-off or an unresolved piece.",
-  "End mid-argument with a qualification.",
   "Do not write a concluding moral at all; stop when the last point is made.",
-  "End on a complete statement. Never end on a question or a dangling fragment.",
+  "End on the last point of the draft, stated plainly, with no summary and no new line added after it.",
+  "End on a complete statement. Never end on a question, a dangling fragment, or an added one-line kicker.",
 ];
 
 const VOICE: Record<Register, string[]> = {
   casual: [
     "Use contractions freely.",
     "Start one or two sentences with And, But or So.",
-    "Allow one offhand aside about the subject (never about yourself or your own sentences).",
     "Pick informal wording fresh for this text; no stock filler openers and no inserted reactions.",
     "Use at most one fragment, and only where it adds emphasis.",
   ],
@@ -78,7 +75,6 @@ const VOICE: Record<Register, string[]> = {
     "Use contractions where they sound natural.",
     "Prefer plain, everyday words over abstract nouns.",
     "Include one or two natural hedges (probably, tends to, in most cases).",
-    "State one opinion about the subject itself, plainly, with no 'I think' framing and no commentary about your own wording.",
     "Allow one sentence that starts with a conjunction.",
   ],
   formal: [
