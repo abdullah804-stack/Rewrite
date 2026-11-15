@@ -5,6 +5,10 @@ import { z } from "zod";
 import { prisma } from "../../../lib/prisma";
 import { protect, restore, type ProtectedSpan } from "../../../lib/pipeline/protect";
 import { chatWithFallback } from "../../../lib/ai/chat";
+import { getProvider, getProviderOrder, hasApiKey, type ProviderId } from "../../../lib/ai/providers";
+import { needsRepair, rankScore, repairCost, repairModeFromEnv, repairProblems, type RepairMode } from "../../../lib/pipeline/repairPlan";
+import { defaultExemplarsEnabled, exemplarsTag, pickExemplars, renderExemplarBlock } from "../../../lib/ai/defaultVoice";
+import type { HumanExemplar } from "../../../config/human-exemplars";
 import { computeMetrics } from "../../../lib/pipeline/metrics";
 import type { VoiceProfile } from "../../../lib/ai/schemas";
 import { RewriteOutputSchema } from "../../../lib/ai/schemas";
@@ -13,7 +17,7 @@ import { PRESETS, type PresetId } from "../../../config/presets";
 import { hashRequest, getCachedResponse, setCachedResponse } from "../../../lib/ai/cache";
 import { reserveUserWords, refundUserWords, reserveAnonRun, refundAnonRun, clientIp } from "../../../lib/pipeline/guard";
 import { getLimits } from "../../../config/plans";
-import { analyzeText, type TellReport, injectStructuralChaos } from "../../../lib/pipeline/aiTells";
+import { analyzeText, type TellReport } from "../../../lib/pipeline/aiTells";
 import { makeStylePlan, renderStylePlan, type Intensity } from "../../../lib/pipeline/stylePlan";
 
 export const runtime = "nodejs";
@@ -34,6 +38,12 @@ const RewriteRequestSchema = z.object({
   seoSafe: z.boolean().nullish(),
   toneFormality: z.number().min(0).max(10).nullish(),
   toneDirectness: z.number().min(0).max(10).nullish(),
+  // Benchmark-only: when it equals the BENCH_KEY env var, the request skips the cache and the quota.
+  benchKey: z.string().nullish(),
+  // Benchmark-only (needs a matching benchKey): force the default human reference passages on or off for this request.
+  defaultExemplars: z.boolean().nullish(),
+  // Benchmark-only (needs a matching benchKey): "fixable" or "all", overriding TELL_REPAIR for this request.
+  repairMode: z.enum(["fixable", "all"]).nullish(),
 }).passthrough();
 
 const INTENSITY_RULES: Record<Intensity, string> = {
@@ -44,16 +54,17 @@ const INTENSITY_RULES: Record<Intensity, string> = {
 
 const OVERLAP_LIMIT: Record<Intensity, number> = { light: 0.3, balanced: 0.2, strong: 0.12 };
 
-const PROMPT_VERSION = "v13-2026-11";
-const TARGET_SCORE = 2;
+const PROMPT_VERSION = "v16-2026-11"; // bumped: tell statistics no longer drive candidate choice or repair
 const REPAIR_TIME_BUDGET_MS = 34_000;
+// Do not start another generation round (or try another provider) after this point; the route limit is 60s.
+const GENERATION_DEADLINE_MS = 38_000;
 
 const BASE_SYSTEM = `You are a writer reworking a draft in your own words. You are not an assistant explaining things; you are producing a piece of writing a real person could have written.
 
 HARD RULES
 1. Preserve every fact, number, name, claim and the logic connecting them. Never invent statistics, quotes, names, dates, credentials, or personal history. You may add hedges and clearly illustrative generic examples.
 2. Restructure, do not paraphrase sentence by sentence. Sentence boundaries and order should differ from the draft: merge, split, reorder.
-3. Vary rhythm hard. Mix very short sentences (2-6 words) with long ones (25+ words). Never write three consecutive sentences of similar length or shape. Vary how sentences end; not every one should close on a tidy punchline.
+3. Vary sentence length the way a person does: mostly medium sentences, some longer ones that carry a subordinate clause, and a short one only now and then. Follow no fixed pattern: never write three consecutive sentences of similar length or shape, and never put a short sentence after every long one. Vary how sentences end; not every one should close on a tidy punchline.
 4. Prefer the concrete over the abstract. Replace phrases like "sustainable practices" or "stakeholder alignment" with what they actually mean in this text.
 5. Do not repeat key terms. After the first mention use pronouns, short references or synonyms. Never reuse the same sentence opener or connective twice.
 6. Avoid stock AI constructions: "not just X, but Y", lists of exactly three, summarizing closers ("so, ultimately..."), em dashes, "it's important to note", "in today's world".
@@ -175,7 +186,10 @@ export async function POST(request: Request) {
 
     userId = session?.user?.id ?? null;
     anonIp = userId ? null : clientIp(request);
-    if (userId) {
+    const benchBypass = !!process.env.BENCH_KEY && body.benchKey === process.env.BENCH_KEY;
+    if (benchBypass) {
+      // Benchmark run: no quota reservation, so repeated runs do not eat the daily budget.
+    } else if (userId) {
       const budget = await reserveUserWords(userId, wordCount, limits.rewriteWordsPerDay);
       if (!budget.ok) return NextResponse.json({ error: budget.reason }, { status: 429 });
       quotaReserved = true;
@@ -207,6 +221,10 @@ export async function POST(request: Request) {
     const toneBlock = buildToneBlock(toneFormality, body.toneDirectness ?? 5);
     const extraPrompt = toneBlock + glossaryBlock + presetBlock + (profileRecord ? "\n" + buildVoiceBlock(profileRecord.profile as VoiceProfile) : "");
     const profileUsed = profileRecord ? { name: profileRecord.name } : null;
+    // Default human reference passages: only when no voice profile was chosen, and only when switched on
+    // (DEFAULT_EXEMPLARS=on, or forced per request by the benchmark).
+    const repairMode: RepairMode = benchBypass && body.repairMode ? body.repairMode : repairModeFromEnv();
+    const useExemplars = !profileRecord && (benchBypass && typeof body.defaultExemplars === "boolean" ? body.defaultExemplars : defaultExemplarsEnabled());
 
     if (action === "regen" || action === "selection") {
       const res = action === "regen"
@@ -217,16 +235,17 @@ export async function POST(request: Request) {
     }
 
     const glossaryHash = glossaryBlock ? createHash("sha256").update(glossaryBlock).digest("hex") : null;
-    const primaryModelName = "DeepSeek-V4.1-Flash";
-    const cacheKey = hashRequest(PROMPT_VERSION, rawText, intensity, body.profileId ?? null, presetId, body.seoSafe ?? false, toneFormality, body.toneDirectness ?? 5, glossaryHash, primaryModelName);
-    const cachedData = await getCachedResponse<any>(cacheKey);
+    // The cache key follows the configured provider chain, so changing providers or AI_PROVIDER_ORDER never serves old text.
+    const primaryModelName = getProviderOrder().map((id) => `${id}:${getProvider(id).model}`).join("|");
+    const cacheKey = hashRequest(`${useExemplars ? `${PROMPT_VERSION}:${exemplarsTag()}` : PROMPT_VERSION}${repairMode === "all" ? ":repair-all" : ""}`, rawText, intensity, body.profileId ?? null, presetId, body.seoSafe ?? false, toneFormality, body.toneDirectness ?? 5, glossaryHash, primaryModelName);
+    const cachedData = benchBypass ? null : await getCachedResponse<any>(cacheKey);
 
     if (cachedData && validateGlossary(cachedData.rewritten, glossaryRecord).ok) {
       await refund();
       return NextResponse.json({ ...cachedData, provider: "Cache" });
     }
 
-    const response = await handleFullRewrite({ rawText, intensity, extraPrompt, profileUsed, presetId, toneFormality });
+    const response = await handleFullRewrite({ rawText, intensity, extraPrompt, profileUsed, presetId, toneFormality, useExemplars, repairMode });
     if (response.status !== 200) { await refund(); return response; }
 
     const data = await response.json();
@@ -235,8 +254,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Validation failed." }, { status: 502 });
     }
 
-    await setCachedResponse(cacheKey, data);
-    if (userId) {
+    if (!benchBypass) await setCachedResponse(cacheKey, data);
+    if (userId && !benchBypass) {
       prisma.usageEvent.create({ data: { userId, kind: action, words: wordCount, provider: data.provider || null, day: new Date().toISOString().slice(0, 10) } }).catch(() => {});
     }
     return NextResponse.json(data);
@@ -263,12 +282,15 @@ type Candidate = {
   restored: string;
   provider: string;
   model: string;
+  providerId: ProviderId;
+  /** the reference passages the model saw for this candidate (empty when the default voice is off) */
+  references: HumanExemplar[];
   report: TellReport;
 };
 
 const GEN_PARAMS = { temperature: 1.0, topP: 0.95, frequencyPenalty: 0.4, presencePenalty: 0.3 };
 
-function buildCandidate(resultText: string, provider: string, model: string, ctx: Ctx): Candidate | null {
+function buildCandidate(resultText: string, provider: string, model: string, providerId: ProviderId, ctx: Ctx, references: HumanExemplar[] = []): Candidate | null {
   let parsed: any;
   try { parsed = RewriteOutputSchema.parse(parseJsonLoose(resultText)); } catch { return null; }
   if (!parsed.paragraphs || parsed.paragraphs.length !== ctx.expectedParas) return null;
@@ -280,10 +302,10 @@ function buildCandidate(resultText: string, provider: string, model: string, ctx
   const restored = restore(tokenized, ctx.spans);
   if (restored.trim() === ctx.rawText.trim()) return null;
 
-  const report = analyzeText(restored, ctx.rawText, { maxOverlap: ctx.overlapLimit });
+  const report = analyzeText(restored, ctx.rawText, { maxOverlap: ctx.overlapLimit, references: references.map((e) => e.text) });
   if (report.numbersMissing.length > 0) return null;
 
-  return { paragraphs: parsed.paragraphs, tokenized, restored, provider, model, report };
+  return { paragraphs: parsed.paragraphs, tokenized, restored, provider, model, providerId, references, report };
 }
 
 async function extractClaims(paras: string[]): Promise<string[][] | null> {
@@ -322,8 +344,10 @@ async function handleFullRewrite(args: {
   profileUsed: { name: string } | null;
   presetId: PresetId;
   toneFormality: number;
+  useExemplars: boolean;
+  repairMode: RepairMode;
 }) {
-  const { rawText, intensity, extraPrompt, profileUsed, presetId, toneFormality } = args;
+  const { rawText, intensity, extraPrompt, profileUsed, presetId, toneFormality, useExemplars, repairMode } = args;
   const startedAt = Date.now();
   const elapsed = () => Date.now() - startedAt;
 
@@ -340,29 +364,49 @@ async function handleFullRewrite(args: {
       claims.map((c, i) => `[Paragraph ${i}]\n${c.map((x) => `- ${x}`).join("\n")}`).join("\n\n")
     : `Rewrite the draft below.\n\nDraft:\n"""\n${maskedParagraphs.map((p, i) => `[Paragraph ${i}]\n${p}`).join("\n\n")}\n"""`;
 
-  const generate = async (seed: string): Promise<Candidate | null> => {
+  // Every candidate in a request comes from the SAME provider, and the repair pass stays on it too.
+  // Mixing models inside one request (and between requests) was producing inconsistent style.
+  let transportFailed = false; // the provider errored or timed out (as opposed to returning unusable text)
+  const generate = async (seed: string, providerId: ProviderId): Promise<Candidate | null> => {
     const plan = makeStylePlan({ seed, intensity, formality: toneFormality, preset: presetId });
-    const user = `${material}\n\nIntensity: ${INTENSITY_RULES[intensity]}\n${renderStylePlan(plan)}${extraPrompt}\n\nReturn valid JSON with a "paragraphs" array (exactly ${ctx.expectedParas} paragraph(s), in order).`;
+    const references = useExemplars ? pickExemplars(seed, plan.register) : [];
+    const user = `${material}\n\nIntensity: ${INTENSITY_RULES[intensity]}\n${renderStylePlan(plan)}${extraPrompt}${renderExemplarBlock(references)}\n\nReturn valid JSON with a "paragraphs" array (exactly ${ctx.expectedParas} paragraph(s), in order).`;
     try {
-      const r = await chatWithFallback({ system: BASE_SYSTEM, user, maxTokens: 8000, ...GEN_PARAMS });
-      return buildCandidate(r.text, r.provider, r.model, ctx);
-    } catch { return null; }
+      const r = await chatWithFallback({ system: BASE_SYSTEM, user, maxTokens: 8000, ...GEN_PARAMS }, [providerId]);
+      return buildCandidate(r.text, r.provider, r.model, r.providerId, ctx, references);
+    } catch { transportFailed = true; return null; }
   };
 
   const n = intensity === "light" ? 1 : 2;
   let best: Candidate | null = null;
-  for (let round = 0; round < 2 && !best; round++) {
-    const batch = await Promise.all(Array.from({ length: n }, (_, i) => generate(`${seedBase}:${round}:${i}`)));
-    for (const c of batch) if (c && (!best || c.report.score < best.report.score)) best = c;
+  const skippedProviders: string[] = [];
+  for (const providerId of getProviderOrder()) {
+    if (!hasApiKey(providerId)) { skippedProviders.push(`${providerId} (no API key)`); continue; }
+    transportFailed = false;
+    for (let round = 0; round < 2 && !best; round++) {
+      // A provider that errored or timed out hands over to the next one straight away.
+      // A second round on the same provider is only for unusable output (bad JSON, dropped spans).
+      if (round > 0 && (transportFailed || elapsed() > GENERATION_DEADLINE_MS)) break;
+      const batch = await Promise.all(Array.from({ length: n }, (_, i) => generate(`${seedBase}:${providerId}:${round}:${i}`, providerId)));
+      for (const c of batch) if (c && (!best || rankScore(c.report, repairMode) < rankScore(best.report, repairMode))) best = c;
+    }
+    if (best) break;
+    skippedProviders.push(`${providerId} (${transportFailed ? "error or timeout" : "no valid output"})`);
+    if (elapsed() > GENERATION_DEADLINE_MS) break;
   }
-  if (!best) return NextResponse.json({ error: "Rewrite failed: model output invalid, dropped protected spans, or changed a number." }, { status: 502 });
+  if (!best) {
+    return NextResponse.json({
+      error: `Rewrite failed: model output invalid, dropped protected spans, or changed a number. Providers tried: ${skippedProviders.join(", ") || "none"}.`,
+    }, { status: 502 });
+  }
 
-  const cost = (c: Candidate, iss: string[]) => c.report.score + iss.length * 2;
+  const cost = (c: Candidate, iss: string[]) => repairCost(c.report, iss, repairMode);
+  let repairPasses = 0;
   let issues = elapsed() < REPAIR_TIME_BUDGET_MS ? await reviewMeaning(rawText, best.restored) : [];
 
   for (let pass = 0; pass < 2; pass++) {
-    const problems = [...best.report.problems, ...issues.map((i) => `Meaning/clarity: ${i}`)];
-    if ((best.report.score <= TARGET_SCORE && issues.length === 0) || problems.length === 0) break;
+    if (!needsRepair(best.report, issues, repairMode)) break;
+    const problems = repairProblems(best.report, issues, repairMode);
     if (elapsed() > REPAIR_TIME_BUDGET_MS) break;
 
     const current = toAiPlaceholders(best.tokenized, spans)
@@ -371,26 +415,34 @@ async function handleFullRewrite(args: {
       .join("\n\n");
     const user = `Problems to fix:\n${problems.map((p) => `- ${p}`).join("\n")}\n\nCurrent text:\n"""\n${current}\n"""\n\nReturn JSON with the same ${ctx.expectedParas} paragraph(s).`;
     try {
-      const r = await chatWithFallback({ system: REPAIR_SYSTEM, user, maxTokens: 8000, ...GEN_PARAMS, temperature: 0.8 });
-      const fixed = buildCandidate(r.text, r.provider, r.model, ctx);
+      const r = await chatWithFallback({ system: REPAIR_SYSTEM, user, maxTokens: 8000, ...GEN_PARAMS, temperature: 0.8 }, [best.providerId]);
+      const fixed = buildCandidate(r.text, r.provider, r.model, r.providerId, ctx, best.references);
       if (!fixed) break;
       const fixedIssues = elapsed() < REPAIR_TIME_BUDGET_MS + 8_000 ? await reviewMeaning(rawText, fixed.restored) : issues;
-      if (cost(fixed, fixedIssues) < cost(best, issues)) { best = fixed; issues = fixedIssues; } else break;
+      if (cost(fixed, fixedIssues) < cost(best, issues)) { best = fixed; issues = fixedIssues; repairPasses++; } else break;
     } catch { break; }
   }
 
-   // APPLY STRUCTURAL CHAOS FOR ALL MODES
-  // This guarantees we break the AI's sentence math, regardless of the topic.
-  let finalOutput = injectStructuralChaos(best.restored);
+  // The text that was scored, repaired and checked is the text the user gets.
+  // Nothing edits it afterwards: the old random post-processing broke grammar ("aI", "nASA"),
+  // inserted the same stock phrases into every output, and made `rewritten` disagree with `paragraphs`.
+  const finalOutput = best.restored;
 
   return NextResponse.json({
     ok: true, action: "rewrite", original: rawText, rewritten: finalOutput, paragraphs: best.paragraphs,
-    provider: best.provider, model: best.model, before: computeMetrics(rawText), after: computeMetrics(finalOutput),
+    provider: best.provider, model: best.model, providerId: best.providerId, providerFallback: skippedProviders, exemplarsUsed: best.references.map((e) => e.id), before: computeMetrics(rawText), after: computeMetrics(finalOutput),
     spansProtected: spans.length, profileUsed,
     tells: {
+      // The score is a sanity check, not a target: fixScore comes from concrete defects, advisoryScore from
+      // sentence-shape statistics that are reported but not repaired in the default mode.
       score: best.report.score,
+      fixScore: Number(best.report.fixScore.toFixed(2)),
+      advisoryScore: Number(best.report.advisoryScore.toFixed(2)),
       burstiness: Number(best.report.burstiness.toFixed(2)),
+      repairMode, repairPasses,
       remaining: [...best.report.problems, ...issues.map((i) => `Meaning/clarity: ${i}`)],
+      remainingFixable: [...best.report.fixable, ...issues.map((i) => `Meaning/clarity: ${i}`)],
+      advisory: best.report.advisory,
       usedClaimExtraction: !!claims,
     },
   });

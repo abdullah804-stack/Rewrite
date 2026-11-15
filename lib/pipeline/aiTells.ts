@@ -13,13 +13,66 @@ export type TellOptions = {
   maxOverlap?: number;
   /** minimum burstiness (std/mean of sentence length) for texts with >= 5 sentences */
   minBurstiness?: number;
+  /** max share of sentences with <= SHORT_WORDS words (texts with >= 6 sentences) */
+  maxShortRatio?: number;
+  /** max number of "long sentence then very short sentence" pairs */
+  maxLongShortPairs?: number;
+  /** reference passages shown to the model; any 5-word run copied from them is reported */
+  references?: string[];
 };
+
+const REFERENCE_COPY_WORDS = 5;
+const wordsOf = (t: string) => t.toLowerCase().match(/[a-z0-9']+/g) ?? [];
+
+/** Runs of 5 consecutive words that appear both in the text and in any reference passage. */
+export function referenceCopies(text: string, references: string[], n = REFERENCE_COPY_WORDS): string[] {
+  if (!references.length) return [];
+  const known = new Set<string>();
+  for (const ref of references) {
+    const w = wordsOf(ref);
+    for (let i = 0; i + n <= w.length; i++) known.add(w.slice(i, i + n).join(" "));
+  }
+  const w = wordsOf(text);
+  const found = new Set<string>();
+  for (let i = 0; i + n <= w.length; i++) {
+    const g = w.slice(i, i + n).join(" ");
+    if (known.has(g)) found.add(g);
+  }
+  return [...found];
+}
+
+/** A sentence this short or shorter counts as "very short". */
+export const SHORT_WORDS = 5;
+/** A sentence this long or longer counts as "long" when followed by a very short one. */
+export const LONG_WORDS = 18;
+// Calibrated on fixtures/clean (real human text): share of very short sentences ranged 0-41%
+// (mean 17%) and long->short pairs 0-3 (mean 1.1). These limits sit near the top of that range,
+// so they only catch exaggerated patterns and do not fight normal writing.
+export const DEFAULT_MAX_SHORT_RATIO = 0.3;
+export const DEFAULT_MAX_LONG_SHORT_PAIRS = 2;
+
+/** Sentence-length shape: how many sentences are very short, and how often a long one is followed by a very short one. */
+export function sentenceShape(lens: number[]): { shortRatio: number; longShortPairs: number } {
+  if (!lens.length) return { shortRatio: 0, longShortPairs: 0 };
+  const short = lens.filter((x) => x <= SHORT_WORDS).length;
+  let longShortPairs = 0;
+  for (let i = 1; i < lens.length; i++) if (lens[i - 1] >= LONG_WORDS && lens[i] <= SHORT_WORDS) longShortPairs++;
+  return { shortRatio: short / lens.length, longShortPairs };
+}
 
 export type TellReport = {
   sentences: number;
   lenMean: number;
   lenStd: number;
   burstiness: number;
+  /** share of sentences with 5 words or fewer */
+  shortRatio: number;
+  /** count of (18+ word sentence) followed by (5 or fewer word sentence) */
+  longShortPairs: number;
+  /** the text opens with a question although the original did not */
+  opensWithQuestion: boolean;
+  /** 5-word runs copied from the reference passages shown to the model */
+  referenceCopies: string[];
   similarRuns: string[];
   starterRepeat: { word: string; count: number } | null;
   bannedHits: string[];
@@ -33,8 +86,18 @@ export type TellReport = {
   personaInserts: string[];
   mirrorsOriginal: boolean;
   numbersMissing: string[];
-  score: number; // lower is better
+  /** fixScore + advisoryScore. Lower is better. A sanity check, not a target (see repairPlan.ts). */
+  score: number;
+  /** the part of the score that comes from concrete, fixable defects */
+  fixScore: number;
+  /** the part of the score that comes from sentence-shape statistics (reported, not chased) */
+  advisoryScore: number;
+  /** every problem message: fixable first-class defects and advisory statistics, in a stable order */
   problems: string[];
+  /** problems a repair pass should act on */
+  fixable: string[];
+  /** statistic-based observations that are reported but do not trigger repairs */
+  advisory: string[];
 };
 
 const AI_PHRASES = [
@@ -151,6 +214,8 @@ function mirrorsOrder(outS: string[], origS: string[]): boolean {
 export function analyzeText(text: string, original: string, opts: TellOptions = {}): TellReport {
   const maxOverlap = opts.maxOverlap ?? 0.2;
   const minBurst = opts.minBurstiness ?? 0.4;
+  const maxShortRatio = opts.maxShortRatio ?? DEFAULT_MAX_SHORT_RATIO;
+  const maxLongShortPairs = opts.maxLongShortPairs ?? DEFAULT_MAX_LONG_SHORT_PAIRS;
 
   const sents = splitSentences(text);
   const lens = sents.map(wc);
@@ -158,6 +223,12 @@ export function analyzeText(text: string, original: string, opts: TellOptions = 
   const mean = n ? lens.reduce((a, b) => a + b, 0) / n : 0;
   const std = n ? Math.sqrt(lens.reduce((a, b) => a + (b - mean) ** 2, 0) / n) : 0;
   const burstiness = mean > 0 ? std / mean : 0;
+  const { shortRatio, longShortPairs } = sentenceShape(lens);
+  const tooManyShort = n >= 6 && shortRatio > maxShortRatio;
+  const tooManyLongShort = longShortPairs > maxLongShortPairs;
+  const referenceCopiesFound = referenceCopies(text, opts.references ?? []);
+  const opensWithQuestion = sents.length > 0 && /\?["')\]]*$/.test(sents[0].trim()) &&
+    !(splitSentences(original)[0] ?? "").trim().match(/\?["')\]]*$/);
 
   // runs of 3+ consecutive sentences with near-identical length
   const similarRuns: string[] = [];
@@ -228,45 +299,75 @@ export function analyzeText(text: string, original: string, opts: TellOptions = 
   const nums = (original.match(/\d[\d,.]*\d|\d/g) ?? []).map((x) => x.replace(/[,.]$/, ""));
   const numbersMissing = [...new Set(nums)].filter((x) => !text.includes(x));
 
+  // Every problem is one of two kinds:
+  //  - "fix": a concrete, checkable defect an editor would also fix (stock phrases, em dashes, wording copied
+  //    from the original or from a reference passage, a summarizing closer, a question opener, ...).
+  //  - "advisory": a distribution statistic (sentence-length spread, short-sentence share, similar runs,
+  //    repeated openers or keywords). Nobody has shown that detectors respond to these, and chasing them made
+  //    the model write mechanically, so the pipeline reports them but does not repair or rank on them
+  //    (see lib/pipeline/repairPlan.ts).
   const problems: string[] = [];
+  const fixable: string[] = [];
+  const advisory: string[] = [];
+  const flag = (kind: "fix" | "advisory", msg: string) => {
+    problems.push(msg);
+    (kind === "fix" ? fixable : advisory).push(msg);
+  };
   if (n >= 5 && burstiness < minBurst)
-    problems.push(
-      `Sentence lengths are too uniform (variation ${burstiness.toFixed(2)}, want at least ${minBurst}). Make a few sentences very short (2-6 words) and let one or two run long (25+ words) by merging related points.`
+    flag("advisory", 
+      `Sentence lengths are too uniform (variation ${burstiness.toFixed(2)}, want at least ${minBurst}). Merge two related sentences into a longer one, split one dense sentence, and use a short sentence only now and then.`
     );
+  if (tooManyShort)
+    flag("advisory", 
+      `${Math.round(shortRatio * 100)}% of the sentences are ${SHORT_WORDS} words or fewer (want at most ${Math.round(maxShortRatio * 100)}%). Join some of them to the sentence before or after, so short sentences are the exception.`
+    );
+  if (tooManyLongShort)
+    flag("advisory", 
+      `A long sentence is followed by a very short one ${longShortPairs} times, which reads as a pattern. Keep that move to once or twice, and let the other long sentences end on a normal-length one.`
+    );
+  if (opensWithQuestion)
+    flag("fix", `The text opens with a question. Open with a statement instead.`);
+  if (referenceCopiesFound.length)
+    flag("fix", `These phrases are copied from the reference passages; write them in your own words: ${referenceCopiesFound.slice(0, 6).map((g) => `"${g}"`).join(", ")}.`);
   if (similarRuns.length)
-    problems.push(
+    flag("advisory", 
       `These consecutive sentences have nearly the same length and shape. Merge, split, or reshape them: ${similarRuns.map((r) => `"${r}"`).join(" | ")}`
     );
   if (starterRepeat)
-    problems.push(`Too many sentences start with "${starterRepeat.word}" (${starterRepeat.count} times). Vary the openers.`);
-  if (bannedHits.length) problems.push(`Replace these stock AI words/phrases with plain wording: ${bannedHits.join(", ")}.`);
-  if (repeatedTrigrams > 2) problems.push(`The same short phrases repeat ${repeatedTrigrams} times. Reword the repeats.`);
+    flag("advisory", `Too many sentences start with "${starterRepeat.word}" (${starterRepeat.count} times). Vary the openers.`);
+  if (bannedHits.length) flag("fix", `Replace these stock AI words/phrases with plain wording: ${bannedHits.join(", ")}.`);
+  if (repeatedTrigrams > 2) flag("advisory", `The same short phrases repeat ${repeatedTrigrams} times. Reword the repeats.`);
   if (keywordRepeats.length)
-    problems.push(`Overused keywords: ${keywordRepeats.join(", ")}. Use pronouns, shorter references, or synonyms after first mention.`);
-  if (summaryCloser) problems.push(`The last sentence is a summarizing moral. End on a specific detail or a plain short sentence instead.`);
-  if (stockPatterns) problems.push(`Remove "not just X, but Y" / "whether you're X or Y" style constructions (${stockPatterns} found).`);
-  if (emDashes > 1) problems.push(`Remove em dashes (${emDashes} found). Use commas, periods or parentheses.`);
+    flag("advisory", `Overused keywords: ${keywordRepeats.join(", ")}. Use pronouns, shorter references, or synonyms after first mention.`);
+  if (summaryCloser) flag("fix", `The last sentence is a summarizing moral. End on a specific detail or a plain short sentence instead.`);
+  if (stockPatterns) flag("fix", `Remove "not just X, but Y" / "whether you're X or Y" style constructions (${stockPatterns} found).`);
+  if (emDashes > 1) flag("fix", `Remove em dashes (${emDashes} found). Use commas, periods or parentheses.`);
   if (overlapWithOriginal > maxOverlap)
-    problems.push(
+    flag("fix", 
       `${Math.round(overlapWithOriginal * 100)}% of 3-word phrases are copied from the original. Restructure the sentences rather than swapping words.`
     );
 
   if (copiedBigrams.length > 2)
-    problems.push(`These word pairs are copied from the original; say them differently: ${copiedBigrams.slice(0, 8).join(", ")}.`);
+    flag("fix", `These word pairs are copied from the original; say them differently: ${copiedBigrams.slice(0, 8).join(", ")}.`);
   if (personaInserts.length > 1)
-    problems.push(
+    flag("fix", 
       `Remove filler that sounds like inserted casualness (${personaInserts.join(", ")}). Voice should come from word choice, rhythm and opinions about the subject, never from commentary about yourself or your own sentences.`
     );
   if (mirrorsOriginal)
-    problems.push(`The sentences follow the original one-to-one, in the same order. Lead with a different point, and merge or split so it is not one sentence per original sentence.`);
+    flag("fix", `The sentences follow the original one-to-one, in the same order. Lead with a different point, and merge or split so it is not one sentence per original sentence.`);
 
-  const score =
+  const advisoryScore =
     (n >= 5 && burstiness < minBurst ? (minBurst - burstiness) * 10 : 0) +
+    (tooManyShort ? (shortRatio - maxShortRatio) * 10 : 0) +
+    Math.max(0, longShortPairs - maxLongShortPairs) * 1.5 +
     similarRuns.length * 1.5 +
     (starterRepeat ? starterRepeat.count - starterLimit : 0) +
-    bannedHits.length * 2 +
     Math.max(0, repeatedTrigrams - 2) * 0.5 +
-    keywordRepeats.length +
+    keywordRepeats.length;
+  const fixScore =
+    (opensWithQuestion ? 1 : 0) +
+    referenceCopiesFound.length * 2 +
+    bannedHits.length * 2 +
     (summaryCloser ? 1.5 : 0) +
     stockPatterns +
     Math.max(0, emDashes - 1) * 0.5 +
@@ -275,12 +376,17 @@ export function analyzeText(text: string, original: string, opts: TellOptions = 
     Math.max(0, personaInserts.length - 1) * 2 +
     (mirrorsOriginal ? 2 : 0) +
     numbersMissing.length * 5;
+  const score = fixScore + advisoryScore;
 
   return {
     sentences: n,
     lenMean: mean,
     lenStd: std,
     burstiness,
+    shortRatio,
+    longShortPairs,
+    opensWithQuestion,
+    referenceCopies: referenceCopiesFound,
     similarRuns,
     starterRepeat,
     bannedHits,
@@ -295,56 +401,10 @@ export function analyzeText(text: string, original: string, opts: TellOptions = 
     mirrorsOriginal,
     numbersMissing,
     score,
+    fixScore,
+    advisoryScore,
     problems,
+    fixable,
+    advisory,
   };
-}
-
-// THE UNIVERSAL AI-DETECTOR KILLER
-// This doesn't care about the topic. It mechanically breaks AI sentence structures.
-export function injectStructuralChaos(text: string): string {
-  let result = text;
-
-  // 1. FORCE SENTENCE FRAGMENTS
-  // Find sentences that start with "If", "When", or "Because" and cut them in half.
-  result = result.replace(/\b(If|When|Because) ([^,]{10,40}), ([^.!?]{10,60}[.!?])/gi, "$1 $2. $3");
-
-  // 2. FORCE RUN-ON SENTENCES
-  // Replace 20% of periods with a comma and a conjunction.
-  result = result.replace(/\.\s+([A-Z])/g, (match, letter) => {
-    if (Math.random() < 0.2) {
-      const conjunctions = [", but ", ", and ", ", so ", "; "];
-      const conj = conjunctions[Math.floor(Math.random() * conjunctions.length)];
-      return conj + letter.toLowerCase();
-    }
-    return match;
-  });
-
-  // 3. DESTROY THE FIRST SENTENCE
-  // AI always starts with a perfect summary. Let's force a conversational opener.
-  const sentences = result.split(/(?<=[.!?])\s+/);
-  if (sentences.length > 1) {
-    const openers = ["Honestly, ", "Look, ", "I'll be blunt: ", "Here's the thing: ", "Basically, "];
-    const randomOpener = openers[Math.floor(Math.random() * openers.length)];
-    sentences[0] = randomOpener + sentences[0].charAt(0).toLowerCase() + sentences[0].slice(1);
-  }
-
-  // 4. KILL THE TIDY CONCLUSION
-  // AI always ends with "In conclusion" or "Ultimately". Delete those.
-  const lastIndex = sentences.length - 1;
-  if (lastIndex > 0) {
-    sentences[lastIndex] = sentences[lastIndex]
-      .replace(/^(In conclusion|Ultimately|To sum up|Thus|Therefore),?\s*/i, "")
-      .replace(/^([A-Z])/, (m) => m.toLowerCase());
-  }
-
-  // 5. INSERT RANDOM PARENTHETICALS
-  // Humans add side thoughts. We will inject one into a random sentence.
-  if (sentences.length > 2) {
-    const sideThoughts = ["(which is crazy)", "(at least in my experience)", "(believe it or not)", "(and that's the scary part)"];
-    const randomThought = sideThoughts[Math.floor(Math.random() * sideThoughts.length)];
-    const midIndex = Math.floor(sentences.length / 2);
-    sentences[midIndex] = sentences[midIndex].replace(/\.\s*$/, ` ${randomThought}.`);
-  }
-
-  return sentences.join(" ");
 }
