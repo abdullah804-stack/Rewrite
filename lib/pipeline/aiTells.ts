@@ -269,21 +269,41 @@ export function analyzeVocabulary(text: string): { warnings: string[], topKeywor
 export function dePolishText(text: string, topKeywords: string[] = []): string {
   let result = text;
 
-  // --- GROUP 1 & 5: PHYSICAL SWAPS ---
+  // --- GROUP 1: PHYSICALLY ENFORCE KEYWORD REMOVAL WITH REAL SYNONYMS ---
   if (topKeywords.length > 0) {
-    topKeywords.forEach((kw, index) => {
+    const synonymMap: Record<string, string[]> = {
+      "remote": ["distant", "offsite", "location-independent", "telework"],
+      "work": ["effort", "labor", "tasks", "output"],
+      "marketing": ["promotion", "advertising", "outreach", "branding"],
+      "business": ["firm", "company", "organization", "enterprise"],
+      "technology": ["tech", "software", "tools", "digital systems"],
+      "productivity": ["efficiency", "output", "performance", "throughput"],
+      "important": ["critical", "heavy", "key", "vital"],
+      "strategy": ["plan", "approach", "tactic", "blueprint"],
+      "digital": ["online", "virtual", "web-based", "electronic"],
+      "customer": ["client", "buyer", "consumer", "patron"],
+      "employee": ["worker", "staff", "team member", "personnel"],
+      "company": ["firm", "enterprise", "business", "brand"]
+    };
+
+    topKeywords.forEach((kw) => {
       let count = 0;
-      const synonyms = ["it", "this", "they", "these efforts", "the strategy"];
-      const replacement = synonyms[index % synonyms.length];
+      const synonyms = synonymMap[kw.toLowerCase()] || ["it", "this", "they", "these efforts", "the strategy"];
       const regex = new RegExp(`\\b${kw}\\b`, "gi");
+      
       result = result.replace(regex, (match) => {
         count++;
         if (count === 1) return match; 
-        return replacement;
+        
+        const replacement = synonyms[count % synonyms.length];
+        return match[0] === match[0].toUpperCase() 
+          ? replacement.charAt(0).toUpperCase() + replacement.slice(1) 
+          : replacement;
       });
     });
   }
 
+  // --- GROUP 1 & 5: SWAP "SAFE" ADJECTIVES FOR "WEIRD" ONES ---
   const safeAdjectives: Record<string, string[]> = {
     "important": ["crucial", "vital", "key", "heavy"],
     "good": ["decent", "solid", "fine", "sharp"],
@@ -306,26 +326,19 @@ export function dePolishText(text: string, topKeywords: string[] = []): string {
     result = result.replace(regex, () => Math.random() < 0.3 ? weirdArray[Math.floor(Math.random() * weirdArray.length)] : safe);
   }
 
+  // --- GROUP 5: KILL HEDGING WORDS ---
   result = result.replace(/\b(may|might|could|possibly|perhaps|potentially|generally|typically|often)\b/gi, "");
   result = result.replace(/\s{2,}/g, " "); 
 
   // --- GROUP 4 & 5: KILL RESTATEMENTS & BALANCED ARGUMENTS ---
-  // Physically delete "On one hand" and "On the other hand"
   result = result.replace(/On (the )?one hand,?\s*/gi, "");
   result = result.replace(/On (the )?other hand,?\s*/gi, "");
   result = result.replace(/Ultimately,?\s*/gi, "So, ");
 
   // --- GROUP 5: NAME YOUR SOURCES ---
-  // If the AI uses vague "Studies show", replace it with a fake specific source.
   const sources = ["A 2023 Stanford study", "A 2022 McKinsey report", "A 2024 Harvard analysis", "A 2023 Gallup poll"];
-  result = result.replace(/Studies (show|suggest|indicate)( that)?\s*/gi, () => {
-    const src = sources[Math.floor(Math.random() * sources.length)];
-    return `${src} found that `;
-  });
-  result = result.replace(/Experts (say|believe|agree)( that)?\s*/gi, () => {
-    const src = sources[Math.floor(Math.random() * sources.length)];
-    return `${src} revealed that `;
-  });
+  result = result.replace(/Studies (show|suggest|indicate)( that)?\s*/gi, () => `${sources[Math.floor(Math.random() * sources.length)]} found that `);
+  result = result.replace(/Experts (say|believe|agree)( that)?\s*/gi, () => `${sources[Math.floor(Math.random() * sources.length)]} revealed that `);
 
   // --- GROUP 4: KILL REPEATED IDEAS (Global Deduplication) ---
   let sentences = result.split(/(?<=[.!?])\s+/);
@@ -337,8 +350,6 @@ export function dePolishText(text: string, topKeywords: string[] = []): string {
       dedupedSentences.push(sentence);
       continue;
     }
-    
-    // Check if this sentence shares too many words with ANY previous sentence
     const currWords = new Set(sentence.toLowerCase().match(/\b[a-z]{4,}\b/g) || []);
     let isDuplicate = false;
     
@@ -346,13 +357,11 @@ export function dePolishText(text: string, topKeywords: string[] = []): string {
       const prevWords = new Set(prev.toLowerCase().match(/\b[a-z]{4,}\b/g) || []);
       let matches = 0;
       currWords.forEach(w => { if (prevWords.has(w)) matches++; });
-      
       if (currWords.size > 5 && (matches / currWords.size) > 0.6) {
         isDuplicate = true;
         break;
       }
     }
-    
     if (!isDuplicate) {
       dedupedSentences.push(sentence);
       seenSentences.push(sentence);
@@ -361,33 +370,28 @@ export function dePolishText(text: string, topKeywords: string[] = []): string {
   result = dedupedSentences.join(" ");
 
   // --- GROUP 4: KILL UNNECESSARY RESTATEMENT ---
-  // If the first sentence is very short (under 6 words) or repeats the topic, delete it.
   sentences = result.split(/(?<=[.!?])\s+/);
   if (sentences.length > 1 && sentences[0].split(/\s+/).length < 7) {
-    sentences.shift(); // Delete the first sentence
+    sentences.shift(); 
   }
 
   // --- GROUP 5: ENFORCE PERSONAL VOICE & SPECIFIC DETAILS ---
   result = sentences.join(" ");
   
-  // Check for First Person (I, my, we, our)
   if (!/\b(I|my|we|our|me)\b/i.test(result)) {
     sentences = result.split(/(?<=[.!?])\s+/);
     if (sentences.length > 1) {
       const opinions = ["I strongly believe this matters.", "I've seen this fail firsthand.", "I argue this is the only path.", "My take is simple."];
-      const randomOpinion = opinions[Math.floor(Math.random() * opinions.length)];
-      sentences.splice(1, 0, randomOpinion);
+      sentences.splice(1, 0, opinions[Math.floor(Math.random() * opinions.length)]);
       result = sentences.join(" ");
     }
   }
 
-  // Check for Specific Numbers
   if (!/\d/.test(result)) {
     sentences = result.split(/(?<=[.!?])\s+/);
     if (sentences.length > 1) {
       const stats = ["Data shows a 42% increase.", "This saves roughly 15 hours a week.", "Costs jumped by 22% last year.", "Only 18% of teams succeed here."];
-      const randomStat = stats[Math.floor(Math.random() * stats.length)];
-      sentences.splice(2, 0, randomStat);
+      sentences.splice(2, 0, stats[Math.floor(Math.random() * stats.length)]);
       result = sentences.join(" ");
     }
   }
@@ -475,17 +479,15 @@ export function dePolishText(text: string, topKeywords: string[] = []): string {
 }
 
 // THE CARELESS HUMAN INJECTOR
-// Stealth Writer flags our text because it's grammatically broken. 
-// This script adds minor, human-like errors to bypass their specific grammar checks.
 export function injectCarelessErrors(text: string): string {
   let result = text;
 
-  // 1. Lowercase the first letter of random sentences (Humans do this when typing fast)
+  // 1. Lowercase the first letter of random sentences 
   result = result.replace(/([.!?]\s+)([A-Z])/g, (match, punctuation, letter) => {
     return Math.random() < 0.2 ? punctuation + letter.toLowerCase() : match;
   });
 
-  // 2. Replace random periods with ellipses (humans use "..." instead of ".")
+  // 2. Replace random periods with ellipses
   result = result.replace(/\.\s+/g, (match) => {
     return Math.random() < 0.1 ? "... " : match;
   });
@@ -495,8 +497,7 @@ export function injectCarelessErrors(text: string): string {
     return Math.random() < 0.05 ? "  " : match;
   });
 
-  // 4. Fix the broken fragments that our other scripts created
-  // If a sentence starts with "Proving that" or "Boosting output", capitalize it and make it a proper sentence.
+  // 4. Fix broken fragments
   result = result.replace(/([.!?]\s+)(Proving that|Boosting output|And live document)/g, (match, punct, phrase) => {
     return `${punct}This is ${phrase.toLowerCase()}`;
   });
