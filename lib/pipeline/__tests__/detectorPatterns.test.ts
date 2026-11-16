@@ -12,6 +12,11 @@ describe("normalizeTypography", () => {
     expect(normalizeTypography("afterthoughts either—fueling right")).toBe("afterthoughts either, fueling right");
     expect(normalizeTypography("one — two")).toBe("one, two");
   });
+  it("turns a pair of em dashes into parentheses and a lone one into a comma", () => {
+    expect(normalizeTypography("Embracing all three\u2014exercise, connection, and balance\u2014means health as a whole."))
+      .toBe("Embracing all three (exercise, connection, and balance) means health as a whole.");
+    expect(normalizeTypography("It works\u2014usually. Then, again\u2014never.")).not.toMatch(/\u2014/);
+  });
   it("leaves ordinary text and en dashes in ranges alone", () => {
     const t = "Plain text, with commas. Pages 3–5 stay.";
     expect(normalizeTypography(t)).toBe(t);
@@ -72,5 +77,20 @@ describe("route wiring for the detector-pattern changes", () => {
   it("asks for plain literal wording and no extra length", () => {
     expect(route).toMatch(/plain, literal prose/);
     expect(route).toMatch(/Do not make the text longer than the draft/);
+  });
+});
+
+describe("style plan fingerprints", () => {
+  it("does not ask for literal 'usually' openers or And/But/So sentence starts", async () => {
+    const { makeStylePlan, renderStylePlan } = await import("../stylePlan");
+    for (let i = 0; i < 200; i++) for (const preset of ["human", "humanizer", "email"]) {
+      const plan = renderStylePlan(makeStylePlan({ seed: `f${i}`, intensity: "balanced", formality: 5, preset }));
+      expect(plan).not.toMatch(/'usually'|And, But or So|starts with a conjunction/i);
+    }
+  });
+  it("the route seeds each request with a nonce and flags claims that copy the draft", () => {
+    const route = fs.readFileSync(path.resolve(__dirname, "../../../app/api/rewrite/route.ts"), "utf8");
+    expect(route).toMatch(/presetId \+ "\|" \+ randomUUID\(\)/);
+    expect(route).toMatch(/referenceCopies\(x, \[rawText\], 7\)/);
   });
 });

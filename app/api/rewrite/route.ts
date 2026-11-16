@@ -1,7 +1,7 @@
 import { normalizeTypography } from "@/lib/pipeline/typography";
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { createHash } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import { z } from "zod";
 import { prisma } from "../../../lib/prisma";
 import { protect, restore, type ProtectedSpan } from "../../../lib/pipeline/protect";
@@ -18,7 +18,7 @@ import { PRESETS, type PresetId } from "../../../config/presets";
 import { hashRequest, getCachedResponse, setCachedResponse } from "../../../lib/ai/cache";
 import { reserveUserWords, refundUserWords, reserveAnonRun, refundAnonRun, clientIp } from "../../../lib/pipeline/guard";
 import { getLimits } from "../../../config/plans";
-import { analyzeText, type TellReport } from "../../../lib/pipeline/aiTells";
+import { analyzeText, referenceCopies, type TellReport } from "../../../lib/pipeline/aiTells";
 import { makeStylePlan, renderStylePlan, type Intensity } from "../../../lib/pipeline/stylePlan";
 
 export const runtime = "nodejs";
@@ -364,12 +364,15 @@ async function handleFullRewrite(args: {
   const maskedParagraphs = aiReadyText.split(/\n{2,}/).map((p) => p.trim()).filter((p) => p.length > 0);
   const ctx: Ctx = { rawText, spans, expectedParas: maskedParagraphs.length, overlapLimit: OVERLAP_LIMIT[intensity] };
 
-  const seedBase = createHash("sha256").update(rawText + "|" + intensity + "|" + presetId).digest("hex").slice(0, 16);
+  // A fresh nonce per request: the style plan used to be seeded from the text alone, so every run of the same
+  // text got the SAME plan (same opener, same moves) and the outputs shared one fingerprint. Identical requests
+  // are still served from the cache, so this does not make cached answers vary.
+  const seedBase = createHash("sha256").update(rawText + "|" + intensity + "|" + presetId + "|" + randomUUID()).digest("hex").slice(0, 16);
 
   const claims = intensity === "light" ? null : await extractClaims(maskedParagraphs);
   const material = claims
     ? `Write the piece described below from scratch. These are the points to cover, in no required order. Do not follow this list's order or wording; build your own flow. Every point must appear.\n\n` +
-      claims.map((c, i) => `[Paragraph ${i}]\n${c.map((x) => `- ${x}`).join("\n")}`).join("\n\n")
+      claims.map((c, i) => `[Paragraph ${i}]\n${c.map((x) => `- ${x}${referenceCopies(x, [rawText], 7).length ? "  (this wording is copied from the draft: restate it fully in different words)" : ""}`).join("\n")}`).join("\n\n")
     : `Rewrite the draft below.\n\nDraft:\n"""\n${maskedParagraphs.map((p, i) => `[Paragraph ${i}]\n${p}`).join("\n\n")}\n"""`;
 
   // Every candidate in a request comes from the SAME provider, and the repair pass stays on it too.

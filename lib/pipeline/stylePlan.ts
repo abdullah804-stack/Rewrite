@@ -45,7 +45,7 @@ export function pickN<T>(r: () => number, arr: T[], n: number): T[] {
 const OPENINGS = [
   "Open with the draft's main point, stated plainly in your own words.",
   "Open with the consequence, then work back to the cause.",
-  "Open with a qualified claim (using words like 'mostly', 'usually', 'in practice').",
+  "Open with the claim stated with a fitting hedge placed inside the sentence, not as a lead-in word.",
   "Open with the point the draft treats as secondary, then bring in the main one.",
 ];
 
@@ -67,7 +67,6 @@ const ENDINGS = [
 const VOICE: Record<Register, string[]> = {
   casual: [
     "Use contractions freely.",
-    "Start one or two sentences with And, But or So.",
     "Pick informal wording fresh for this text; no stock filler openers and no inserted reactions.",
     "Use at most one fragment, and only where it adds emphasis.",
   ],
@@ -75,7 +74,6 @@ const VOICE: Record<Register, string[]> = {
     "Use contractions where they sound natural.",
     "Prefer plain, everyday words over abstract nouns.",
     "Include one or two natural hedges (probably, tends to, in most cases).",
-    "Allow one sentence that starts with a conjunction.",
   ],
   formal: [
     "Keep a professional register: no slang, no filler interjections.",
