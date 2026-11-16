@@ -1,4 +1,5 @@
 import { normalizeTypography } from "@/lib/pipeline/typography";
+import { PLAIN_SYSTEM, PLAIN_INTENSITY_RULE, dropIntroCommas } from "@/lib/pipeline/plainMode";
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { createHash, randomUUID } from "crypto";
@@ -45,6 +46,8 @@ const RewriteRequestSchema = z.object({
   defaultExemplars: z.boolean().nullish(),
   // Benchmark-only (needs a matching benchKey): "fixable" or "all", overriding TELL_REPAIR for this request.
   repairMode: z.enum(["fixable", "all"]).nullish(),
+  // Benchmark-only (needs a matching benchKey): force plain mode on or off for this request. Otherwise the Stealth preset uses it.
+  plainMode: z.boolean().nullish(),
 }).passthrough();
 
 const INTENSITY_RULES: Record<Intensity, string> = {
@@ -55,7 +58,7 @@ const INTENSITY_RULES: Record<Intensity, string> = {
 
 const OVERLAP_LIMIT: Record<Intensity, number> = { light: 0.3, balanced: 0.2, strong: 0.12 };
 
-const PROMPT_VERSION = "v18-2026-11"; // bumped: plain literal wording rule, transition/length checks, stricter copy guard
+const PROMPT_VERSION = "v19-2026-11"; // bumped: plain mode for the Stealth preset (comma/sentence-length targets, no claims list)
 const REPAIR_TIME_BUDGET_MS = 26_000; // no review/repair call may START after this; a call can take up to 25s and the route limit is 60s
 // Do not start another generation round (or try another provider) after this point; the route limit is 60s.
 const GENERATION_DEADLINE_MS = 28_000;
@@ -218,6 +221,7 @@ export async function POST(request: Request) {
 
     const glossaryBlock = glossaryRecord ? buildGlossaryPrompt(glossaryRecord) : "";
     const presetId = (body.preset ?? "custom") as PresetId;
+    const plainMode = benchBypass && typeof body.plainMode === "boolean" ? body.plainMode : presetId === "stealth";
     const presetBlock = PRESETS[presetId]?.instruction ? `\n\nFormat (${PRESETS[presetId].name}):\n${PRESETS[presetId].instruction}` : "";
     const toneFormality = body.toneFormality ?? 5;
     const toneBlock = buildToneBlock(toneFormality, body.toneDirectness ?? 5);
@@ -226,7 +230,7 @@ export async function POST(request: Request) {
     // Default human reference passages: only when no voice profile was chosen, and only when switched on
     // (DEFAULT_EXEMPLARS=on, or forced per request by the benchmark).
     const repairMode: RepairMode = benchBypass && body.repairMode ? body.repairMode : repairModeFromEnv();
-    const useExemplars = !profileRecord && (benchBypass && typeof body.defaultExemplars === "boolean" ? body.defaultExemplars : defaultExemplarsEnabled());
+    const useExemplars = !plainMode && !profileRecord && (benchBypass && typeof body.defaultExemplars === "boolean" ? body.defaultExemplars : defaultExemplarsEnabled());
 
     if (action === "regen" || action === "selection") {
       const res = action === "regen"
@@ -239,7 +243,7 @@ export async function POST(request: Request) {
     const glossaryHash = glossaryBlock ? createHash("sha256").update(glossaryBlock).digest("hex") : null;
     // The cache key follows the configured provider chain, so changing providers or AI_PROVIDER_ORDER never serves old text.
     const primaryModelName = getProviderOrder().map((id) => `${id}:${getProvider(id).model}`).join("|");
-    const cacheKey = hashRequest(`${useExemplars ? `${PROMPT_VERSION}:${exemplarsTag()}` : PROMPT_VERSION}${repairMode === "all" ? ":repair-all" : ""}`, rawText, intensity, body.profileId ?? null, presetId, body.seoSafe ?? false, toneFormality, body.toneDirectness ?? 5, glossaryHash, primaryModelName);
+    const cacheKey = hashRequest(`${useExemplars ? `${PROMPT_VERSION}:${exemplarsTag()}` : PROMPT_VERSION}${repairMode === "all" ? ":repair-all" : ""}${plainMode ? ":plain" : ""}`, rawText, intensity, body.profileId ?? null, presetId, body.seoSafe ?? false, toneFormality, body.toneDirectness ?? 5, glossaryHash, primaryModelName);
     const cachedData = benchBypass ? null : await getCachedResponse<any>(cacheKey);
 
     if (cachedData && validateGlossary(cachedData.rewritten, glossaryRecord).ok) {
@@ -247,7 +251,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ ...cachedData, provider: "Cache" });
     }
 
-    const response = await handleFullRewrite({ rawText, intensity, extraPrompt, profileUsed, presetId, toneFormality, useExemplars, repairMode });
+    const response = await handleFullRewrite({ rawText, intensity, extraPrompt, profileUsed, presetId, toneFormality, useExemplars, repairMode, plainMode });
     if (response.status !== 200) { await refund(); return response; }
 
     const data = await response.json();
@@ -276,6 +280,7 @@ type Ctx = {
   spans: ProtectedSpan[];
   expectedParas: number;
   overlapLimit: number;
+  plain: boolean;
 };
 
 type Candidate = {
@@ -305,7 +310,7 @@ function buildCandidate(resultText: string, provider: string, model: string, pro
   if (restored.trim() === ctx.rawText.trim()) return null;
 
   const ignoreVerbatim = ctx.spans.filter((sp) => ["quote", "citation", "code", "heading"].includes(sp.kind)).map((sp) => sp.original);
-  const report = analyzeText(restored, ctx.rawText, { maxOverlap: ctx.overlapLimit, references: references.map((e) => e.text), ignoreVerbatim });
+  const report = analyzeText(restored, ctx.rawText, { maxOverlap: ctx.overlapLimit, references: references.map((e) => e.text), ignoreVerbatim, plain: ctx.plain });
   if (report.numbersMissing.length > 0) return null;
   // Hard stop: a "rewrite" that pastes the draft back (a fifth or more of its sentences unchanged, or
   // two or more long ones) is a failed generation. Reject it so another candidate or provider is tried,
@@ -353,23 +358,26 @@ async function handleFullRewrite(args: {
   presetId: PresetId;
   toneFormality: number;
   useExemplars: boolean;
+  plainMode: boolean;
   repairMode: RepairMode;
 }) {
-  const { rawText, intensity, extraPrompt, profileUsed, presetId, toneFormality, useExemplars, repairMode } = args;
+  const { rawText, intensity, extraPrompt, profileUsed, presetId, toneFormality, useExemplars, repairMode, plainMode } = args;
   const startedAt = Date.now();
   const elapsed = () => Date.now() - startedAt;
 
   const { masked, spans } = protect(rawText);
   const aiReadyText = toAiPlaceholders(masked, spans);
   const maskedParagraphs = aiReadyText.split(/\n{2,}/).map((p) => p.trim()).filter((p) => p.length > 0);
-  const ctx: Ctx = { rawText, spans, expectedParas: maskedParagraphs.length, overlapLimit: OVERLAP_LIMIT[intensity] };
+  const ctx: Ctx = { rawText, spans, expectedParas: maskedParagraphs.length, overlapLimit: plainMode ? 0.6 : OVERLAP_LIMIT[intensity], plain: plainMode };
 
   // A fresh nonce per request: the style plan used to be seeded from the text alone, so every run of the same
   // text got the SAME plan (same opener, same moves) and the outputs shared one fingerprint. Identical requests
   // are still served from the cache, so this does not make cached answers vary.
   const seedBase = createHash("sha256").update(rawText + "|" + intensity + "|" + presetId + "|" + randomUUID()).digest("hex").slice(0, 16);
 
-  const claims = intensity === "light" ? null : await extractClaims(maskedParagraphs);
+  // Plain mode rewrites the draft itself, in order. The "points list" step is skipped: it cost a model call and let
+  // the draft's own sentences leak into the points, which the writer then copied.
+  const claims = intensity === "light" || plainMode ? null : await extractClaims(maskedParagraphs);
   const material = claims
     ? `Write the piece described below from scratch. These are the points to cover, in no required order. Do not follow this list's order or wording; build your own flow. Every point must appear.\n\n` +
       claims.map((c, i) => `[Paragraph ${i}]\n${c.map((x) => `- ${x}${referenceCopies(x, [rawText], 7).length ? "  (this wording is copied from the draft: restate it fully in different words)" : ""}`).join("\n")}`).join("\n\n")
@@ -381,9 +389,9 @@ async function handleFullRewrite(args: {
   const generate = async (seed: string, providerId: ProviderId): Promise<Candidate | null> => {
     const plan = makeStylePlan({ seed, intensity, formality: toneFormality, preset: presetId });
     const references = useExemplars ? pickExemplars(seed, plan.register) : [];
-    const user = `${material}\n\nIntensity: ${INTENSITY_RULES[intensity]}\n${renderStylePlan(plan)}${extraPrompt}${renderExemplarBlock(references)}\n\nReturn valid JSON with a "paragraphs" array (exactly ${ctx.expectedParas} paragraph(s), in order).`;
+    const user = `${material}\n\nIntensity: ${plainMode ? PLAIN_INTENSITY_RULE : INTENSITY_RULES[intensity]}\n${plainMode ? "" : renderStylePlan(plan)}${extraPrompt}${renderExemplarBlock(references)}\n\nReturn valid JSON with a "paragraphs" array (exactly ${ctx.expectedParas} paragraph(s), in order).`;
     try {
-      const r = await chatWithFallback({ system: BASE_SYSTEM, user, maxTokens: 8000, ...GEN_PARAMS }, [providerId]);
+      const r = await chatWithFallback({ system: plainMode ? PLAIN_SYSTEM : BASE_SYSTEM, user, maxTokens: 8000, ...GEN_PARAMS, ...(plainMode ? { temperature: 0.7 } : {}) }, [providerId]);
       return buildCandidate(r.text, r.provider, r.model, r.providerId, ctx, references);
     } catch { transportFailed = true; return null; }
   };
@@ -439,8 +447,9 @@ async function handleFullRewrite(args: {
   // inserted the same stock phrases into every output, and made `rewritten` disagree with `paragraphs`.
   // Only character-level typography is normalised (non-breaking hyphens, curly quotes, em dashes), on the text with
   // protected spans still masked so quotes, URLs and code stay exactly as written.
-  const finalOutput = restore(normalizeTypography(best.tokenized), spans);
-  const finalParagraphs = best.paragraphs.map((p: any) => ({ ...p, text: typeof p?.text === "string" ? normalizeTypography(p.text) : p?.text }));
+  const tidy = (t: string) => normalizeTypography(plainMode ? dropIntroCommas(t) : t);
+  const finalOutput = restore(tidy(best.tokenized), spans);
+  const finalParagraphs = best.paragraphs.map((p: any) => ({ ...p, text: typeof p?.text === "string" ? tidy(p.text) : p?.text }));
 
   return NextResponse.json({
     ok: true, action: "rewrite", original: rawText, rewritten: finalOutput, paragraphs: finalParagraphs,
@@ -453,7 +462,7 @@ async function handleFullRewrite(args: {
       fixScore: Number(best.report.fixScore.toFixed(2)),
       advisoryScore: Number(best.report.advisoryScore.toFixed(2)),
       burstiness: Number(best.report.burstiness.toFixed(2)),
-      repairMode, repairPasses,
+      repairMode, repairPasses, plainMode, commasPerSentence: Number(best.report.commasPerSentence.toFixed(2)),
       remaining: [...best.report.problems, ...issues.map((i) => `Meaning/clarity: ${i}`)],
       remainingFixable: [...best.report.fixable, ...issues.map((i) => `Meaning/clarity: ${i}`)],
       advisory: best.report.advisory,

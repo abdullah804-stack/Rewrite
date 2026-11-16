@@ -5,7 +5,7 @@ export const DETECTORS = ["stealthwriter", "zerogpt", "cleverhumanizer", "gptzer
 
 export const BASE_COLUMNS = [
   "kind", "id", "run", "words", "provider", "model", "ms",
-  "tell_score", "fix_score", "burstiness", "short_ratio", "long_short_pairs",
+  "tell_score", "fix_score", "commas", "avg_sent_words", "burstiness", "short_ratio", "long_short_pairs",
   "copied_bigrams", "persona", "stock", "similar_runs", "issues_left",
 ] as const;
 

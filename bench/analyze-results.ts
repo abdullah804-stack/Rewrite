@@ -59,7 +59,7 @@ function report(run: Run, detectors: string[]) {
 
   // 1) shape of outputs vs controls, needs no detector data
   console.log("\n-- Shape (means). Compare output vs human: big gaps are patterns detectors can pick up --");
-  const shapeCols = ["tell_score", "fix_score", "burstiness", "short_ratio", "long_short_pairs", "copied_bigrams", "persona", "stock"];
+  const shapeCols = ["tell_score", "fix_score", "commas", "avg_sent_words", "burstiness", "short_ratio", "long_short_pairs", "copied_bigrams", "persona", "stock"];
   console.log(pad("kind", 10) + rpad("n", 4) + shapeCols.map((c) => rpad(c, 18)).join(""));
   for (const k of ["output", "ai_input", "human"]) {
     const rs = k === "output" ? outs : ofKind(run, k);
@@ -112,7 +112,7 @@ function report(run: Run, detectors: string[]) {
 
   // 5) which local metrics predict the detectors
   console.log("\n-- Correlation of local metrics with each detector's % human (outputs only, needs 8+ scored rows) --");
-  const metrics = ["tell_score", "fix_score", "burstiness", "short_ratio", "long_short_pairs", "copied_bigrams", "persona", "stock"];
+  const metrics = ["tell_score", "fix_score", "commas", "avg_sent_words", "burstiness", "short_ratio", "long_short_pairs", "copied_bigrams", "persona", "stock"];
   console.log(pad("metric", 18) + detectors.map((d) => rpad(d.slice(0, 12), 14)).join(""));
   for (const m of metrics) {
     console.log(pad(m, 18) + detectors.map((d) => {

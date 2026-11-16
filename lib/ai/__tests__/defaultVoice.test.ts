@@ -151,7 +151,7 @@ describe("reference copy guard", () => {
 describe("route wiring", () => {
   const route = fs.readFileSync(path.join(root, "app/api/rewrite/route.ts"), "utf8");
   it("only applies the default voice when no profile was chosen", () => {
-    expect(route).toMatch(/const useExemplars = !profileRecord &&/);
+    expect(route).toMatch(/const useExemplars = !plainMode && !profileRecord &&/);
   });
   it("only lets the benchmark override the setting (needs the bench key)", () => {
     expect(route).toMatch(/benchBypass && typeof body\.defaultExemplars === "boolean"/);

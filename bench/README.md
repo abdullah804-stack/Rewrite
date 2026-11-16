@@ -67,6 +67,18 @@ pnpm bench:analyze bench/runs/<fixable-folder> bench/runs/<all-folder>
 
 After you have 15+ scored rows per detector, the analysis ends with a "Verdict" that says whether `tell_score` tracks the detectors or should stay a sanity check.
 
+## Plain mode (Stealth preset)
+
+Plain mode was built from one measured pair: a tool output StealthWriter scored 0% human and a light rewrite of the same text that scored 100%. The differences were fewer commas (0.91 vs 0.28 per sentence), the plain future with "you" ("will help"), shorter sentences (16.3 vs 14.0 words) and literal wording. It is on for the Stealth preset only. It is one data pair, so measure it:
+
+```bash
+BENCH_KEY=... pnpm bench --label plain-off --plain off
+BENCH_KEY=... pnpm bench --label plain-on  --plain on
+pnpm bench:analyze bench/runs/<off-folder> bench/runs/<on-folder>
+```
+
+The `commas` and `avg_sent_words` columns are correlated with the detector scores in the analysis, so you can see whether they really predict the result.
+
 ## Rules for fair comparison
 
 - Change **one thing** per experiment, and give it a descriptive `--label`.

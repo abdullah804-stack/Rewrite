@@ -68,7 +68,8 @@ describe("verbatim copy ignores protected quotes", () => {
 describe("route wiring for the detector-pattern changes", () => {
   const route = fs.readFileSync(path.resolve(__dirname, "../../../app/api/rewrite/route.ts"), "utf8");
   it("normalises typography on the masked text and keeps paragraphs in sync", () => {
-    expect(route).toMatch(/restore\(normalizeTypography\(best\.tokenized\), spans\)/);
+    expect(route).toMatch(/restore\(tidy\(best\.tokenized\), spans\)/);
+    expect(route).toMatch(/const tidy = \(t: string\) => normalizeTypography\(/);
     expect(route).toMatch(/paragraphs: finalParagraphs/);
   });
   it("passes protected quote/citation/code/heading text to the copy check", () => {

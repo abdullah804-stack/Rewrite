@@ -14,7 +14,7 @@ export const PRESETS: Record<PresetId, { name: string; instruction: string }> = 
   stealth: {
     name: "Stealth Mode (Anti-Detector)",
     instruction:
-      "Genre: a busy, plain-spoken person typing a quick note. Direct, a little informal, small asides, no corporate or academic vocabulary. Do not force slang or profanity; let the topic decide how casual to get. Never reuse the same filler phrase twice.",
+      "Genre: plain, direct everyday writing. Short simple sentences, literal wording, very few commas. No slang, no asides, no figurative language.",
   },
   blog: {
     name: "Blog post",

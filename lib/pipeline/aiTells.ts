@@ -21,7 +21,13 @@ export type TellOptions = {
   references?: string[];
   /** text of protected spans (quotes, citations, code, headings) that is restored verbatim and so must not count as copying */
   ignoreVerbatim?: string[];
+  /** plain mode: a close sentence-by-sentence paraphrase is the goal, so copying/mirroring are not defects; comma density and sentence length are */
+  plain?: boolean;
 };
+
+/** plain mode targets (measured on one 100%-human text: 0.28 commas per sentence, 14.0 words per sentence) */
+export const PLAIN_MAX_COMMAS = 0.5;
+export const PLAIN_MAX_AVG_WORDS = 16;
 
 const REFERENCE_COPY_WORDS = 5;
 const wordsOf = (t: string) => t.toLowerCase().match(/[a-z0-9']+/g) ?? [];
@@ -95,6 +101,8 @@ export type TellReport = {
   /** output words / original words (1 when there is no original) */
   lengthRatio: number;
   mirrorsOriginal: boolean;
+  /** commas per sentence */
+  commasPerSentence: number;
   numbersMissing: string[];
   /** fixScore + advisoryScore. Lower is better. A sanity check, not a target (see repairPlan.ts). */
   score: number;
@@ -331,7 +339,10 @@ export function analyzeText(text: string, original: string, opts: TellOptions = 
   const lengthRatio = origWords >= 80 ? wc(text) / origWords : 1;
   const origLower = original.toLowerCase();
   const inventedScenes = sents.filter((x) => SCENE_OPENER.test(x) && !origLower.includes(x.slice(0, 20).toLowerCase()));
-  const mirrorsOriginal = mirrorsOrder(sents, splitSentences(original));
+  const mirrorsOriginal = opts.plain ? false : mirrorsOrder(sents, splitSentences(original));
+  const commasPerSent = n ? (text.match(/,/g)?.length ?? 0) / n : 0;
+  const tooManyCommas = !!opts.plain && n >= 5 && commasPerSent > PLAIN_MAX_COMMAS;
+  const tooLongSentences = !!opts.plain && n >= 5 && mean > PLAIN_MAX_AVG_WORDS;
 
   // facts: every number in the original must survive
   const nums = (original.match(/\d[\d,.]*\d|\d/g) ?? []).map((x) => x.replace(/[,.]$/, ""));
@@ -385,7 +396,7 @@ export function analyzeText(text: string, original: string, opts: TellOptions = 
       `${Math.round(overlapWithOriginal * 100)}% of 3-word phrases are copied from the original. Restructure the sentences rather than swapping words.`
     );
 
-  if (copiedBigrams.length > 2)
+  if (copiedBigrams.length > 2 && !opts.plain)
     flag("fix", `These word pairs are copied from the original; say them differently: ${copiedBigrams.slice(0, 8).join(", ")}.`);
   if (personaInserts.length > 1)
     flag("fix", 
@@ -399,6 +410,10 @@ export function analyzeText(text: string, original: string, opts: TellOptions = 
     flag("fix", `The rewrite is ${Math.round((lengthRatio - 1) * 100)}% longer than the draft. Cut it back to about the draft's length or shorter; say each point once, plainly.`);
   if (inventedScenes.length)
     flag("fix", `Delete the invented scene or example ("${inventedScenes[0].slice(0, 60)}..."). The draft has no such scene; add nothing it does not say.`);
+  if (tooManyCommas)
+    flag("fix", `Too many commas (${commasPerSent.toFixed(2)} per sentence; aim for ${PLAIN_MAX_COMMAS} or fewer). Split long sentences into short ones and take out commas; no comma after opening words like however or overall, and no comma-separated asides.`);
+  if (tooLongSentences)
+    flag("fix", `Sentences average ${mean.toFixed(1)} words; aim for 10 to 16. Split long sentences and keep one idea in each.`);
   if (mirrorsOriginal)
     flag("fix", `The sentences follow the original one-to-one, in the same order. Lead with a different point, and merge or split so it is not one sentence per original sentence.`);
 
@@ -422,8 +437,10 @@ export function analyzeText(text: string, original: string, opts: TellOptions = 
     stockPatterns +
     Math.max(0, emDashes - 1) * 0.5 +
     Math.max(0, overlapWithOriginal - maxOverlap) * 10 +
-    Math.max(0, copiedBigrams.length - 2) +
+    (opts.plain ? 0 : Math.max(0, copiedBigrams.length - 2)) +
     Math.max(0, personaInserts.length - 1) * 2 +
+    (tooManyCommas ? (commasPerSent - PLAIN_MAX_COMMAS) * 6 : 0) +
+    (tooLongSentences ? (mean - PLAIN_MAX_AVG_WORDS) * 0.5 : 0) +
     (mirrorsOriginal ? 2 : 0) +
     numbersMissing.length * 5;
   const score = fixScore + advisoryScore;
@@ -453,6 +470,7 @@ export function analyzeText(text: string, original: string, opts: TellOptions = 
     transitionStarts,
     lengthRatio,
     mirrorsOriginal,
+    commasPerSentence: commasPerSent,
     numbersMissing,
     score,
     fixScore,
