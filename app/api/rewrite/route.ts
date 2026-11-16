@@ -42,7 +42,7 @@ const INTENSITY_RULES: Record<string, string> = {
 };
 
 // Bumped to v19 to clear the cache and force the new Group 1 rules to run
-const PROMPT_VERSION = "v20-2026-11";
+const PROMPT_VERSION = "v21-2026-11";
 
 const BASE_SYSTEM = `You are a human writer. Your goal is to evade AI detectors (like StealthWriter, GPTZero).
 
@@ -55,9 +55,13 @@ YOU MUST FOLLOW THESE RULES:
 
 GROUP 2 RULES (SENTENCE STRUCTURE):
 6. BURSTINESS: You must write at least one sentence that is 3 words or fewer. You must write at least one sentence that is 30 words or more.
-7. SENTENCE PATTERNS: Do not start every sentence with a Subject. Start some sentences with a verb (e.g., "Running the numbers takes time."), or a preposition (e.g., "In the end, we lost.").
+7. SENTENCE PATTERNS: Do not start every sentence with a Subject. Start some sentences with a verb or a preposition.
 8. PUNCTUATION: You must use at least one semicolon (;). You must use at least one em-dash (—).
-9. PARAGRAPH STRUCTURE: Make at least one paragraph a single sentence. Make at least one paragraph 5 sentences long. Do not make them all the same length.
+9. PARAGRAPH STRUCTURE: Make at least one paragraph a single sentence. Make at least one paragraph 5 sentences long.
+
+GROUP 3 RULES (FLOW):
+10. NO PREDICTABLE OPENINGS: Never start a paragraph with "One of the key...", "When it comes to...", or "Another important...". Start directly with the subject.
+11. ROUGH FLOW: Do not write perfectly logical transitions. Add a thought that interrupts the flow (e.g., a sudden warning or an off-topic aside).
 
 OUTPUT FORMAT (CRITICAL)
 Return valid JSON matching this exact structure. Do not break the JSON syntax.
@@ -66,7 +70,6 @@ Return valid JSON matching this exact structure. Do not break the JSON syntax.
     { "index": 0, "text": "..." }
   ]
 }`;
-
 const REVIEW_SYSTEM = `You are a strict copy editor comparing a rewrite to its original. Report only real problems: (1) a claim from the original that is missing; (2) a new factual claim that is not in the original; (3) a pronoun that could refer to the wrong thing. Return valid JSON only: { "issues": ["..."] }`;
 
 function verifySpansStrict(rewritten: string, spans: ProtectedSpan[]) {

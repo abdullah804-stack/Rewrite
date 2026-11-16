@@ -269,7 +269,29 @@ export function analyzeVocabulary(text: string): { warnings: string[], topKeywor
 export function dePolishText(text: string): string {
   let result = text;
 
-  // Rule #14, #26, #27: Kill Template Transitions
+  // --- GROUP 3: KILL LISTS ---
+  // Convert bullet points back to a paragraph.
+  if (result.includes("- ") || result.includes("* ") || result.match(/^\d+\.\s/m)) {
+    result = result.replace(/^[\-\*\d\.]+\s+/gm, ""); // Remove the bullets
+    result = result.replace(/\n/g, " "); // Merge lines into a paragraph
+  }
+
+  // --- GROUP 3: KILL PREDICTABLE PARAGRAPH OPENINGS ---
+  const bannedOpenings = [
+    /^One of the key aspects?/i, /^When it comes to/i, /^Another important factor/i, 
+    /^It is worth noting/i, /^In terms of/i, /^The first thing to note/i
+  ];
+  const paragraphs = result.split(/\n{2,}/);
+  const cleanedParagraphs = paragraphs.map(p => {
+    let cleanP = p.trim();
+    for (const regex of bannedOpenings) {
+      cleanP = cleanP.replace(regex, "Here's the reality:");
+    }
+    return cleanP;
+  });
+  result = cleanedParagraphs.join("\n\n");
+
+  // --- PREVIOUS GROUPS (1 & 2) ---
   const bannedTransitions = [
     /In conclusion,?/gi, /Ultimately,?/gi, /Furthermore,?/gi, 
     /Moreover,?/gi, /Additionally,?/gi, /Consequently,?/gi,
@@ -278,7 +300,6 @@ export function dePolishText(text: string): string {
   ];
   bannedTransitions.forEach(regex => { result = result.replace(regex, ""); });
 
-  // Rule #22: Kill Overly Polished / Formal Language
   const formalToCasual: Record<string, string> = {
     "utilize": "use", "utilizing": "using", "utilized": "used",
     "implement": "build", "implementing": "building", "implemented": "built",
@@ -291,30 +312,26 @@ export function dePolishText(text: string): string {
     result = result.replace(new RegExp(`\\b${formal}\\b`, "gi"), plain);
   }
 
-  // Rule #9: Break Uniform Sentence Length (Burstiness)
   result = result.replace(/([^.!?]{22,}),\s+([^.!?]{10,})/g, (match, firstHalf, secondHalf) => {
     return `${firstHalf}. ${secondHalf.charAt(0).toUpperCase() + secondHalf.slice(1)}`;
   });
 
-  // Rule #12: Predictable Sentence Endings
   result = result.replace(/ (in the long run|for years to come|and much more)\./gi, ".");
   
-  // Rule #15: Unnaturally smooth flow (Insert a conversational aside)
   let sentences = result.split(/(?<=[.!?])\s+/);
   if (sentences.length > 2) {
     const asides = ["(which is crazy)", "(honestly)", "(not what I expected)", "(at least on paper)"];
     const randomAside = asides[Math.floor(Math.random() * asides.length)];
-    sentences[1] = sentences[1].replace(/\.$/, ` ${randomAside}.`);
+    // Group 3: Force an interruption in the 3rd sentence (breaks smooth flow)
+    const targetIdx = sentences.length > 3 ? 2 : 1;
+    sentences[targetIdx] = sentences[targetIdx].replace(/\.$/, ` ${randomAside}.`);
   }
 
-  // Rule #12 & #10: Force a short fragment at the end
   if (sentences.length > 0) {
     const lastIdx = sentences.length - 1;
     sentences[lastIdx] = sentences[lastIdx].replace(/\.$/, ". Simple.");
   }
 
-  // Rule #8: Force punctuation variety (semicolon and em-dash)
-  // If there's no semicolon, find a "But" or "And" and replace it with a semicolon.
   if (!result.includes(";")) {
     sentences = sentences.join(" ").split(/(?<=[.!?])\s+/);
     for (let i = 0; i < sentences.length; i++) {
@@ -325,13 +342,11 @@ export function dePolishText(text: string): string {
     }
   }
 
-  // Rule #9: Paragraph structure (force a 1-sentence paragraph)
-  let paragraphs = sentences.join(" ").split(/\n{2,}/);
-  if (paragraphs.length > 1 && paragraphs[1].split(/(?<=[.!?])\s+/).length > 2) {
-    // Split the second paragraph into two, making the first part a single sentence.
-    const pSentences = paragraphs[1].split(/(?<=[.!?])\s+/);
-    paragraphs[1] = pSentences[0] + "\n\n" + pSentences.slice(1).join(" ");
+  let finalParas = sentences.join(" ").split(/\n{2,}/);
+  if (finalParas.length > 1 && finalParas[1].split(/(?<=[.!?])\s+/).length > 2) {
+    const pSentences = finalParas[1].split(/(?<=[.!?])\s+/);
+    finalParas[1] = pSentences[0] + "\n\n" + pSentences.slice(1).join(" ");
   }
 
-  return paragraphs.join("\n\n");
+  return finalParas.join("\n\n");
 }
