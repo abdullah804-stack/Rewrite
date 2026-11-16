@@ -38,24 +38,46 @@ export function validateGlossary(
 ): { ok: boolean; error?: string } {
   if (!glossary) return { ok: true };
 
+  const countOccurrences = (value: string, term: string, caseInsensitive: boolean) => {
+    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const flags = caseInsensitive ? "giu" : "gu";
+    const termPattern = new RegExp(
+      `(^|[^\\p{L}\\p{N}_])${escaped}(?=$|[^\\p{L}\\p{N}_])`,
+      flags
+    );
+    return Array.from(value.matchAll(termPattern)).length;
+  };
+
   for (const term of glossary.neverUse) {
     const trimmed = term.trim();
     if (!trimmed) continue;
-    const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const termPattern = new RegExp(`(^|[^\\p{L}\\p{N}_])${escaped}(?=$|[^\\p{L}\\p{N}_])`, "iu");
-    if (termPattern.test(text)) {
+    if (countOccurrences(text, trimmed, true) > 0) {
       return { ok: false, error: `Used forbidden term: "${term}"` };
+    }
+  }
+
+  for (const term of glossary.alwaysUse) {
+    const trimmed = term.trim();
+    if (
+      trimmed &&
+      countOccurrences(original, trimmed, true) > 0 &&
+      countOccurrences(text, trimmed, false) === 0
+    ) {
+      return { ok: false, error: `Required preferred term was omitted: "${term}"` };
     }
   }
 
   for (const term of glossary.keepAsIs) {
     const trimmed = term.trim();
-    if (
-      trimmed &&
-      original.toLocaleLowerCase().includes(trimmed.toLocaleLowerCase()) &&
-      !text.includes(trimmed)
-    ) {
-      return { ok: false, error: `Required term was changed or removed: "${term}"` };
+    if (trimmed) {
+      const sourceOccurrences = countOccurrences(original, trimmed, true);
+      const outputOccurrences = countOccurrences(text, trimmed, false);
+      if (outputOccurrences < sourceOccurrences) {
+        return {
+          ok: false,
+          error: `Required term "${term}" must remain unchanged (${sourceOccurrences} occurrences).`,
+        };
+      }
     }
   }
 

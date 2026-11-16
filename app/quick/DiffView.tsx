@@ -6,6 +6,7 @@ import {
   assembleAccepted,
   type DiffResult,
 } from "@/lib/pipeline/diff";
+import type { PresetId } from "@/config/presets";
 import { ExportMenu } from "./ExportMenu";
 import { ReviewNotice, type RewriteReviewNotice } from "./ReviewNotice";
 
@@ -61,6 +62,10 @@ export function DiffView({
   profileId,
   projectId,
   seoSafe,
+  intensity,
+  preset,
+  formality,
+  directness,
   onCopyAccepted,
   changes,
 }: {
@@ -70,6 +75,10 @@ export function DiffView({
   profileId?: string | null;
   projectId?: string | null;
   seoSafe?: boolean;
+  intensity: "light" | "balanced" | "strong";
+  preset: PresetId;
+  formality: number;
+  directness: number;
   onCopyAccepted: (text: string) => void;
   changes?: string[]; // Step 7: Editorial Diagnostics
 }) {
@@ -116,6 +125,10 @@ export function DiffView({
           profileId,
           projectId,
           seoSafe,
+          intensity,
+          preset,
+          toneFormality: formality,
+          toneDirectness: directness,
         }),
       });
 

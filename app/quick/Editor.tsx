@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { applyAllFixes } from "@/lib/pipeline/fixes";
+import type { PresetId } from "@/config/presets";
 import { ImportMenu } from "./ImportMenu";
 import { HeatmapEditor } from "./HeatmapEditor";
 import { ReviewNotice, type RewriteReviewNotice } from "./ReviewNotice";
@@ -18,6 +19,10 @@ export function Editor({
   profileId,
   projectId,
   seoSafe,
+  intensity,
+  preset,
+  formality,
+  directness,
   onError,
   onRewrite,
 }: {
@@ -26,6 +31,10 @@ export function Editor({
   profileId: string | null;
   projectId: string | null;
   seoSafe: boolean;
+  intensity: "light" | "balanced" | "strong";
+  preset: PresetId;
+  formality: number;
+  directness: number;
   onError: (message: string | null) => void;
   onRewrite?: () => void;
 }) {
@@ -85,6 +94,10 @@ export function Editor({
           profileId,
           projectId,
           seoSafe,
+          intensity,
+          preset,
+          toneFormality: formality,
+          toneDirectness: directness,
         }),
       });
       const data = await response.json();

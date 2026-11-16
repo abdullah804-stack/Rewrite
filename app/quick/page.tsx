@@ -395,6 +395,10 @@ export default function QuickPage() {
               profileId={profileId}
               projectId={projectId}
               seoSafe={seoSafe}
+              intensity={intensity}
+              preset={preset}
+              formality={formality}
+              directness={directness}
               onError={setError}
               onRewrite={handleRewrite}
             />
@@ -456,6 +460,10 @@ export default function QuickPage() {
                   profileId={profileId}
                   projectId={projectId}
                   seoSafe={seoSafe}
+                  intensity={intensity}
+                  preset={preset}
+                  formality={formality}
+                  directness={directness}
                   onCopyAccepted={handleCopyText}
                   changes={result.changes}
                 />
