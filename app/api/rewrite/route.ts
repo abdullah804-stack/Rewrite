@@ -61,7 +61,11 @@ GROUP 2 RULES (SENTENCE STRUCTURE):
 
 GROUP 3 RULES (FLOW):
 10. NO PREDICTABLE OPENINGS: Never start a paragraph with "One of the key...", "When it comes to...", or "Another important...". Start directly with the subject.
-11. ROUGH FLOW: Do not write perfectly logical transitions. Add a thought that interrupts the flow (e.g., a sudden warning or an off-topic aside).
+11. ROUGH FLOW: Do not write perfectly logical transitions. Add a thought that interrupts the flow.
+
+GROUP 4 RULES (REPETITION):
+12. NO RESTATEMENT: Do not start the text by restating the title or prompt. Jump straight into the first point.
+13. NO REPEATED IDEAS: Do not say the same thing twice. If you make a point, move on to the next point immediately.
 
 OUTPUT FORMAT (CRITICAL)
 Return valid JSON matching this exact structure. Do not break the JSON syntax.

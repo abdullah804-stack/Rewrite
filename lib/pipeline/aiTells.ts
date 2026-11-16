@@ -1,6 +1,6 @@
 /**
  * aiTells.ts
- * Cheap, local, deterministic checks for the patterns AI detectors key on.
+ * Local, deterministic checks and structural manipulation for AI detectors.
  */
 
 export type TellOptions = {
@@ -230,7 +230,7 @@ export function analyzeText(text: string, original: string, opts: TellOptions = 
 }
 
 // ---------------------------------------------------------------------------
-// GROUP 1: Vocabulary Analyzer (Checks for repetitive words and generic phrasing)
+// GROUP 1: Vocabulary Analyzer
 // ---------------------------------------------------------------------------
 export function analyzeVocabulary(text: string): { warnings: string[], topKeywords: string[] } {
   const warnings: string[] = [];
@@ -269,6 +269,26 @@ export function analyzeVocabulary(text: string): { warnings: string[], topKeywor
 export function dePolishText(text: string): string {
   let result = text;
 
+  // --- GROUP 4: KILL REPEATED IDEAS ---
+  // Split into sentences, and remove any sentence that shares too many words with the previous one.
+  let sentences = result.split(/(?<=[.!?])\s+/);
+  const dedupedSentences = [];
+  for (let i = 0; i < sentences.length; i++) {
+    if (i > 0 && sentences[i].length > 20 && sentences[i - 1].length > 20) {
+      const prevWords = new Set(sentences[i - 1].toLowerCase().match(/\b[a-z]{4,}\b/g) || []);
+      const currWords = (sentences[i].toLowerCase().match(/\b[a-z]{4,}\b/g) || []);
+      let matches = 0;
+      currWords.forEach(w => { if (prevWords.has(w)) matches++; });
+      
+      // If more than 60% of the words are the same, it's a repeated idea. Skip it.
+      if (matches / currWords.length > 0.6) {
+        continue; 
+      }
+    }
+    dedupedSentences.push(sentences[i]);
+  }
+  result = dedupedSentences.join(" ");
+
   // --- GROUP 3: KILL LISTS ---
   // Convert bullet points back to a paragraph.
   if (result.includes("- ") || result.includes("* ") || result.match(/^\d+\.\s/m)) {
@@ -291,7 +311,7 @@ export function dePolishText(text: string): string {
   });
   result = cleanedParagraphs.join("\n\n");
 
-  // --- PREVIOUS GROUPS (1 & 2) ---
+  // --- GROUPS 1 & 2: TRANSITIONS & FORMAL LANGUAGE ---
   const bannedTransitions = [
     /In conclusion,?/gi, /Ultimately,?/gi, /Furthermore,?/gi, 
     /Moreover,?/gi, /Additionally,?/gi, /Consequently,?/gi,
@@ -312,17 +332,17 @@ export function dePolishText(text: string): string {
     result = result.replace(new RegExp(`\\b${formal}\\b`, "gi"), plain);
   }
 
+  // --- GROUP 2: SENTENCE STRUCTURE ---
   result = result.replace(/([^.!?]{22,}),\s+([^.!?]{10,})/g, (match, firstHalf, secondHalf) => {
     return `${firstHalf}. ${secondHalf.charAt(0).toUpperCase() + secondHalf.slice(1)}`;
   });
 
   result = result.replace(/ (in the long run|for years to come|and much more)\./gi, ".");
   
-  let sentences = result.split(/(?<=[.!?])\s+/);
+  sentences = result.split(/(?<=[.!?])\s+/);
   if (sentences.length > 2) {
     const asides = ["(which is crazy)", "(honestly)", "(not what I expected)", "(at least on paper)"];
     const randomAside = asides[Math.floor(Math.random() * asides.length)];
-    // Group 3: Force an interruption in the 3rd sentence (breaks smooth flow)
     const targetIdx = sentences.length > 3 ? 2 : 1;
     sentences[targetIdx] = sentences[targetIdx].replace(/\.$/, ` ${randomAside}.`);
   }
