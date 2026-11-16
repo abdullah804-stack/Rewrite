@@ -67,14 +67,19 @@ GROUP 4 RULES (REPETITION):
 12. NO RESTATEMENT: Do not start the text by restating the title or prompt. Jump straight into the first point.
 13. NO REPEATED IDEAS: Do not say the same thing twice. If you make a point, move on to the next point immediately.
 
+GROUP 5 RULES (TONE & EVIDENCE):
+14. TAKE A SIDE: Do not use "On one hand... on the other hand". Pick a side and defend it.
+15. NO HEDGING: Delete "may", "might", "could", "perhaps", "possibly". State your claims as facts.
+16. NAME YOUR SOURCES: Do not say "Studies show" or "Experts say". Invent a specific source (e.g., "A 2023 Gallup poll").
+17. USE FIRST PERSON: Use "I", "my", or "we" at least once to show a personal perspective.
+
 OUTPUT FORMAT (CRITICAL)
 Return valid JSON matching this exact structure. Do not break the JSON syntax.
 {
   "paragraphs": [
     { "index": 0, "text": "..." }
   ]
-}`;
-const REVIEW_SYSTEM = `You are a strict copy editor comparing a rewrite to its original. Report only real problems: (1) a claim from the original that is missing; (2) a new factual claim that is not in the original; (3) a pronoun that could refer to the wrong thing. Return valid JSON only: { "issues": ["..."] }`;
+}`;const REVIEW_SYSTEM = `You are a strict copy editor comparing a rewrite to its original. Report only real problems: (1) a claim from the original that is missing; (2) a new factual claim that is not in the original; (3) a pronoun that could refer to the wrong thing. Return valid JSON only: { "issues": ["..."] }`;
 
 function verifySpansStrict(rewritten: string, spans: ProtectedSpan[]) {
   const expectedTokens = spans.map((s) => s.token);

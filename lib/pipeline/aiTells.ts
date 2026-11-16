@@ -269,8 +269,12 @@ export function analyzeVocabulary(text: string): { warnings: string[], topKeywor
 export function dePolishText(text: string): string {
   let result = text;
 
+  // --- GROUP 5: KILL HEDGING WORDS ---
+  // AI uses these to avoid taking a stance. Humans just state the fact.
+  result = result.replace(/\b(may|might|could|possibly|perhaps|potentially|generally|typically|often)\b/gi, "");
+  result = result.replace(/\s{2,}/g, " "); // Clean up spaces
+
   // --- GROUP 4: KILL REPEATED IDEAS ---
-  // Split into sentences, and remove any sentence that shares too many words with the previous one.
   let sentences = result.split(/(?<=[.!?])\s+/);
   const dedupedSentences = [];
   for (let i = 0; i < sentences.length; i++) {
@@ -280,7 +284,6 @@ export function dePolishText(text: string): string {
       let matches = 0;
       currWords.forEach(w => { if (prevWords.has(w)) matches++; });
       
-      // If more than 60% of the words are the same, it's a repeated idea. Skip it.
       if (matches / currWords.length > 0.6) {
         continue; 
       }
@@ -290,10 +293,9 @@ export function dePolishText(text: string): string {
   result = dedupedSentences.join(" ");
 
   // --- GROUP 3: KILL LISTS ---
-  // Convert bullet points back to a paragraph.
   if (result.includes("- ") || result.includes("* ") || result.match(/^\d+\.\s/m)) {
-    result = result.replace(/^[\-\*\d\.]+\s+/gm, ""); // Remove the bullets
-    result = result.replace(/\n/g, " "); // Merge lines into a paragraph
+    result = result.replace(/^[\-\*\d\.]+\s+/gm, ""); 
+    result = result.replace(/\n/g, " "); 
   }
 
   // --- GROUP 3: KILL PREDICTABLE PARAGRAPH OPENINGS ---
