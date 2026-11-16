@@ -57,43 +57,43 @@ It runs entirely on free infrastructure (Groq, OpenRouter, Neon, Vercel), so pro
 
 ## ⚙️ How it works
 
-Rewrite is a linear pipeline. The AI is used in one step only. Everything else is deterministic code.
+Rewrite uses an LLM to draft an edit and a second advisory pass to compare it with the original. Deterministic code protects exact spans, validates the response, and restores the protected text.
 
 ```mermaid
 flowchart LR
     A[📄 Your draft] --> B[🔒 Protect]
-    B --> C[🧠 Interpret]
-    C --> D[✅ Validate]
-    D --> E[🔁 Execute]
-    E --> F[📝 Diff view]
-    D -. fails .-> C
+    B --> C[✍️ Rewrite]
+    C --> D[✅ Validate structure and protected spans]
+    D --> E[🔎 Advisory meaning review]
+    E --> F[📝 Diff and review flags]
 ```
 
 | Stage | Name | What happens |
 |:---:|---|---|
 | **01** | 🔒 **Protect** | A regex engine finds URLs, numbers, quotes, and citations and swaps them for tokens like `⟦P1⟧` and `⟦P2⟧` |
-| **02** | 🧠 **Interpret** | The masked text, your chosen Persona, and the Tone Dials go to the LLM (Groq or OpenRouter), which must reply in strict JSON |
-| **03** | ✅ **Validate** | Code checks the JSON schema, confirms every token survived, scans for forbidden glossary words, and checks length ratios. A failure triggers a retry with a stricter prompt |
-| **04** | 🔁 **Execute** | Protected spans are put back into the text, and the Diff View highlights each change for you to review and export |
+| **02** | ✍️ **Rewrite** | The masked text, optional voice profile, relevant context, and tone settings go to the LLM, which returns structured JSON |
+| **03** | ✅ **Validate** | Code validates the response schema and confirms every protected token survived before restoring protected text |
+| **04** | 🔎 **Review** | A second LLM pass flags possible meaning or factual changes for the writer to check; it does not automatically alter the rewrite |
+| **05** | 📝 **Review and export** | The Diff View shows the rewrite and any review flags so you can accept or reject changes |
 
 ---
 
 ## 🏗️ Architecture
 
-The system keeps AI interpretation and deterministic execution strictly apart.
+The system separates LLM-generated text from deterministic protection and validation; meaning-review findings are advisory.
 
 ```text
-sources → protect → LLM → validate → restore → diff
+source → protect → rewrite LLM → validate → restore → review LLM → diff + flags
 ```
 
 | Layer | What it does |
 |---|---|
 | **Frontend** | Next.js (App Router), React, Tailwind CSS |
-| **AI layer** | One provider-agnostic `chat()` function. Groq is primary and OpenRouter is the fallback |
+| **AI layer** | Provider-agnostic `chat()` calls. Groq is primary and OpenRouter is the fallback for both rewriting and advisory review |
 | **Deterministic core** | Pure TypeScript for linting, claims checking, readability, and diffing. It runs in the browser for the free tools and on the server for validation |
 | **Database** | Neon Postgres with Prisma, storing documents, voice profiles, and usage quotas |
 
-> **The AI has no tools, no database access, and cannot run code.** It only proposes text. The code decides what happens with it.
+> **The AI has no tools, no database access, and cannot run code.** It proposes text and advisory review flags; the writer decides what to accept.
 
 ---
 

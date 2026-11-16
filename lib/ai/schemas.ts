@@ -43,7 +43,11 @@ export const RewriteOutputSchema = z.object({
       text: z.string().min(1),
       changes: z.array(z.string().max(140)).max(5).optional(),
     })
-  ),
+  ).min(1),
+});
+
+export const RewriteReviewSchema = z.object({
+  issues: z.array(z.string().min(1).max(300)).max(8),
 });
 
 export type RewriteOutput = z.infer<typeof RewriteOutputSchema>;

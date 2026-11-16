@@ -8,6 +8,7 @@ import { StyleReport } from "./StyleReport";
 import { Editor } from "./Editor";
 import { ProjectPicker } from "./ProjectPicker";
 import { analyzeText } from "@/lib/analyze-client";
+import { chunkText } from "@/lib/pipeline/chunking";
 import type { Metrics } from "@/lib/pipeline/metrics";
 import { PRESETS, type PresetId } from "@/config/presets";
 import { Avatar } from "@/lib/avatars";
@@ -25,67 +26,11 @@ type RewriteResponse = {
   after: Metrics;
   spansProtected: number;
   profileUsed: { name: string; avatar: string } | null;
+  reviewStatus: "completed" | "unavailable";
+  reviewIssues: string[];
   changes?: string[]; // Step 7: Editorial Diagnostics
   error?: string;
 };
-
-// ---------------------------------------------------------------------------
-// Step 5: Sentence-aware chunking (Audit §3C)
-// Splits by paragraph first, but if a single paragraph exceeds maxWords, 
-// it splits by sentence boundaries. Never breaks a sentence in half.
-// ---------------------------------------------------------------------------
-function chunkText(text: string, maxWords = 800): string[] {
-  const paragraphs = text.split(/\n{2,}/);
-  const chunks: string[] = [];
-  let currentChunk: string[] = [];
-  let currentWords = 0;
-
-  const flush = () => {
-    if (currentChunk.length > 0) {
-      chunks.push(currentChunk.join("\n\n"));
-      currentChunk = [];
-      currentWords = 0;
-    }
-  };
-
-  for (const p of paragraphs) {
-    const words = p.trim().split(/\s+/).length;
-    
-    // If it's a huge paragraph, split by sentences
-    if (words > maxWords) {
-      flush(); // Empty the current chunk first
-      
-      const sentences = p.match(/[^.!?]+[.!?]+(?=\s|$)/g) || [p];
-      let sentenceChunk: string[] = [];
-      let sentenceWords = 0;
-
-      for (const s of sentences) {
-        const sWords = s.trim().split(/\s+/).length;
-        if (sentenceWords + sWords > maxWords && sentenceChunk.length > 0) {
-          chunks.push(sentenceChunk.join(" ").trim());
-          sentenceChunk = [];
-          sentenceWords = 0;
-        }
-        sentenceChunk.push(s.trim());
-        sentenceWords += sWords;
-      }
-      if (sentenceChunk.length > 0) {
-        chunks.push(sentenceChunk.join(" ").trim());
-      }
-      continue;
-    }
-
-    // Normal paragraph logic
-    if (currentWords + words > maxWords && currentChunk.length > 0) {
-      flush();
-    }
-    currentChunk.push(p);
-    currentWords += words;
-  }
-  
-  flush();
-  return chunks;
-}
 
 const AUTOSAVE_KEY = "rewrite_autosave";
 
@@ -181,6 +126,8 @@ export default function QuickPage() {
       let totalSpans = 0;
       let usedProfile = null;
       let allChanges: string[] = [];
+      let reviewUnavailable = false;
+      const reviewIssues: string[] = [];
 
       for (let i = 0; i < chunks.length; i++) {
         if (chunks.length > 1) setProgress({ current: i + 1, total: chunks.length });
@@ -218,6 +165,8 @@ export default function QuickPage() {
         lastModel = data.model;
         totalSpans += data.spansProtected;
         if (data.profileUsed) usedProfile = data.profileUsed;
+        if (data.review?.status === "unavailable") reviewUnavailable = true;
+        if (Array.isArray(data.review?.issues)) reviewIssues.push(...data.review.issues);
 
         // Step 7: Collect editorial diagnostics
         if (data.paragraphs) {
@@ -237,6 +186,8 @@ export default function QuickPage() {
         after: analyzeText(fullRewritten, "general").metrics,
         spansProtected: totalSpans,
         profileUsed: usedProfile,
+        reviewStatus: reviewUnavailable ? "unavailable" : "completed",
+        reviewIssues: [...new Set(reviewIssues)],
         changes: allChanges.length > 0 ? allChanges : undefined,
       };
 
@@ -483,14 +434,31 @@ export default function QuickPage() {
             )}
 
             {result && (
-              <DiffView
-                original={result.original}
-                rewritten={result.rewritten}
-                context={result.original}
-                profileId={profileId}
-                onCopyAccepted={handleCopyText}
-                changes={result.changes}
-              />
+              <>
+                {(result.reviewStatus === "unavailable" || result.reviewIssues.length > 0) && (
+                  <div className="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950" role="status">
+                    {result.reviewStatus === "unavailable" && (
+                      <p>Automated meaning review was unavailable. Check factual details manually.</p>
+                    )}
+                    {result.reviewIssues.length > 0 && (
+                      <>
+                        <p className="font-semibold">Please review these possible meaning issues:</p>
+                        <ul className="mt-1 list-disc pl-5">
+                          {result.reviewIssues.map((issue, index) => <li key={`${index}-${issue}`}>{issue}</li>)}
+                        </ul>
+                      </>
+                    )}
+                  </div>
+                )}
+                <DiffView
+                  original={result.original}
+                  rewritten={result.rewritten}
+                  context={result.original}
+                  profileId={profileId}
+                  onCopyAccepted={handleCopyText}
+                  changes={result.changes}
+                />
+              </>
             )}
           </div>
         </div>
