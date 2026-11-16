@@ -6,6 +6,7 @@ import { prisma } from "../../../lib/prisma";
 import { getOwnedProfile } from "../../../lib/ownership";
 import { protect, restore, type ProtectedSpan } from "../../../lib/pipeline/protect";
 import { chatWithFallback } from "../../../lib/ai/chat";
+import { getProvider } from "../../../lib/ai/providers";
 import { computeMetrics } from "../../../lib/pipeline/metrics";
 import { RewriteOutputSchema, RewriteReviewSchema, VoiceProfileSchema, type VoiceProfile } from "../../../lib/ai/schemas";
 import { prepareRewriteContext } from "../../../lib/pipeline/rewriteContext";
@@ -25,6 +26,10 @@ const RewriteRequestSchema = z.object({
   action: z.enum(["rewrite", "regen", "selection"]).nullish(),
   text: z.string().min(1, "Text is required"),
   context: z.string().nullish(),
+  reviewOriginal: z.string().max(50_000).nullish(),
+  reviewPrefix: z.string().max(50_000).nullish(),
+  providerId: z.enum(["deepseek", "google", "groq", "openrouter", "cloudflare"]).nullish(),
+  deferReview: z.boolean().nullish(),
   sentenceIndex: z.number().nullish(),
   intensity: z.enum(["light", "balanced", "strong"]).nullish(),
   profileId: z.string().nullish(),
@@ -42,7 +47,7 @@ const INTENSITY_RULES: Record<string, string> = {
   strong: "Substantially restructure the sentences and, where useful, the order of ideas. Preserve all claims, qualifications, and the author's intent; keep exact wording only for quotations, names, technical terms, or protected text.",
 };
 
-const PROMPT_VERSION = "v32-2026-11";
+const PROMPT_VERSION = "v33-2026-11";
 
 const BASE_SYSTEM = `You are a careful editor. Rewrite the supplied draft to improve clarity, readability, and flow while preserving its meaning.
 
@@ -225,14 +230,23 @@ export async function POST(request: Request) {
     const extraPrompt = buildToneBlock(body.toneFormality ?? 5, body.toneDirectness ?? 5) + voiceBlock + presetBlock + glossaryBlock + seoBlock;
     const contextText = prepareRewriteContext(body.context ?? "");
 
-    const promptConfigHash = createHash("sha256").update(extraPrompt).update(contextText).digest("hex");
-    const primaryModelName = "openai/gpt-oss-120b"; 
+    const promptConfigHash = createHash("sha256")
+      .update(extraPrompt)
+      .update(contextText)
+      .update(JSON.stringify([
+        body.providerId ?? null,
+        body.deferReview ?? false,
+        body.reviewOriginal ?? null,
+        body.reviewPrefix ?? null,
+      ]))
+      .digest("hex");
+    const primaryModelName = body.providerId ? getProvider(body.providerId).model : "groq->deepseek";
     const cacheKey = hashRequest(PROMPT_VERSION, rawText, intensity, body.profileId ?? null, presetId, body.seoSafe ?? false, body.toneFormality ?? 5, body.toneDirectness ?? 5, promptConfigHash, primaryModelName);
     const cachedData = await getCachedResponse<any>(cacheKey);
 
     if (cachedData) {
       await refund();
-      return NextResponse.json({ ...cachedData, provider: "Cache" });
+      return NextResponse.json({ ...cachedData, cached: true });
     }
 
     const { masked, spans } = protect(rawText);
@@ -244,7 +258,10 @@ export async function POST(request: Request) {
       : "";
     const userPrompt = `Edit the following draft.\n\nEditing intensity: ${INTENSITY_RULES[intensity]}\n${extraPrompt}${contextPrompt}\n\nDraft:\n"""\n${maskedParagraphs.map((p, i) => `[Paragraph ${i}]\n${p}`).join("\n\n")}\n"""\n\nReturn the requested JSON.`;
 
-    const result = await chatWithFallback({ system: BASE_SYSTEM, user: userPrompt, maxTokens: 8000, temperature: 0.4 });
+    let result = await chatWithFallback(
+      { system: BASE_SYSTEM, user: userPrompt, maxTokens: 8000, temperature: 0.4 },
+      body.providerId ? [body.providerId] : undefined,
+    );
 
     let parsed: z.infer<typeof RewriteOutputSchema>;
     try {
@@ -254,44 +271,74 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Model returned invalid JSON." }, { status: 502 });
     }
 
-    const joined = parsed.paragraphs.map((p) => p.text).join("\n\n");
-    const { text: tokenized, usedFallback } = backToProtectedTokens(joined, spans);
-    
+    let joined = parsed.paragraphs.map((p) => p.text).join("\n\n");
+    let { text: tokenized, usedFallback } = backToProtectedTokens(joined, spans);
+
     if (usedFallback || !verifySpansStrict(tokenized, spans).ok) {
       await refund();
       return NextResponse.json({ error: "Protected spans dropped." }, { status: 502 });
     }
 
-    const restoredText = restore(tokenized, spans);
-    const glossaryValidation = validateGlossary(restoredText, glossary, rawText);
+    let restoredText = restore(tokenized, spans);
+    let glossaryValidation = validateGlossary(restoredText, glossary, rawText);
     if (!glossaryValidation.ok) {
-      await refund();
-      return NextResponse.json({ error: glossaryValidation.error }, { status: 422 });
+      const repairPrompt = `${userPrompt}\n\nThe previous draft did not satisfy these glossary rules: ${glossaryValidation.error}\nRevise the original draft above to satisfy those rules while preserving meaning and all protected content. Use the previous attempt only as a reference for the requested rewrite; do not add facts.\n\nPrevious attempt:\n"""\n${restoredText}\n"""`;
+      result = await chatWithFallback(
+        { system: BASE_SYSTEM, user: repairPrompt, maxTokens: 8000, temperature: 0.2 },
+        [result.providerId],
+      );
+      try {
+        parsed = RewriteOutputSchema.parse(parseJsonLoose(result.text));
+      } catch {
+        await refund();
+        return NextResponse.json({ error: "Model returned invalid JSON while correcting glossary terms." }, { status: 502 });
+      }
+
+      joined = parsed.paragraphs.map((p) => p.text).join("\n\n");
+      ({ text: tokenized, usedFallback } = backToProtectedTokens(joined, spans));
+      if (usedFallback || !verifySpansStrict(tokenized, spans).ok) {
+        await refund();
+        return NextResponse.json({ error: "Protected spans dropped while correcting glossary terms." }, { status: 502 });
+      }
+      restoredText = restore(tokenized, spans);
+      glossaryValidation = validateGlossary(restoredText, glossary, rawText);
+      if (!glossaryValidation.ok) {
+        await refund();
+        return NextResponse.json({ error: glossaryValidation.error }, { status: 422 });
+      }
     }
     const outputParagraphs = parsed.paragraphs.map((paragraph) => ({
       ...paragraph,
       text: restore(backToProtectedTokens(paragraph.text, spans).text, spans),
     }));
-    let review: { status: "completed" | "unavailable"; issues: string[] };
-    try {
-      const reviewResult = await chatWithFallback({
-        system: REVIEW_SYSTEM,
-        user: `Compare the rewrite with the original for meaning and factual consistency only. List specific issues, or return an empty issues array.\n\nOriginal:\n"""\n${rawText}\n"""\n\nRewrite:\n"""\n${restoredText}\n"""`,
-        maxTokens: 1500,
-        temperature: 0.1,
-      });
-      review = {
-        status: "completed",
-        issues: RewriteReviewSchema.parse(parseJsonLoose(reviewResult.text)).issues,
-      };
-    } catch (err) {
-      console.error("Rewrite meaning review failed:", err);
-      review = { status: "unavailable", issues: [] };
+    let review: { status: "completed" | "unavailable" | "deferred"; issues: string[] };
+    if (body.deferReview) {
+      review = { status: "deferred", issues: [] };
+    } else {
+      const reviewOriginal = body.reviewOriginal ?? rawText;
+      const reviewRewritten = body.reviewOriginal !== undefined && body.reviewOriginal !== null
+        ? `${body.reviewPrefix ?? ""}${body.reviewPrefix ? "\n\n" : ""}${restoredText}`
+        : restoredText;
+      try {
+        const reviewResult = await chatWithFallback({
+          system: REVIEW_SYSTEM,
+          user: `Compare the rewrite with the original for meaning and factual consistency only. List specific possible issues, or return an empty issues array. This is an advisory review, not fact verification.\n\nOriginal:\n"""\n${reviewOriginal}\n"""\n\nRewrite:\n"""\n${reviewRewritten}\n"""`,
+          maxTokens: 1500,
+          temperature: 0.1,
+        }, [result.providerId]);
+        review = {
+          status: "completed",
+          issues: RewriteReviewSchema.parse(parseJsonLoose(reviewResult.text)).issues,
+        };
+      } catch (err) {
+        console.error("Rewrite meaning review failed:", err);
+        review = { status: "unavailable", issues: [] };
+      }
     }
 
     const data = {
       ok: true, action: "rewrite", original: rawText, rewritten: restoredText, paragraphs: outputParagraphs,
-      provider: result.provider, model: result.model, before: computeMetrics(rawText), after: computeMetrics(restoredText),
+      provider: result.provider, providerId: result.providerId, model: result.model, before: computeMetrics(rawText), after: computeMetrics(restoredText),
       spansProtected: spans.length,
       profileUsed: selectedProfile ? { name: selectedProfile.name, avatar: selectedProfile.avatar } : null,
       review,

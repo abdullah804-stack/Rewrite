@@ -14,6 +14,7 @@ export type ChatOptions = {
 export type ChatResult = {
   text: string;
   provider: string;
+  providerId: ProviderId;
   model: string;
 };
 
@@ -69,7 +70,7 @@ async function chatGoogle(provider: ProviderConfig, apiKey: string, opts: ChatOp
   const data = await response.json();
   const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
   if (typeof text !== "string" || text.length === 0) throw new Error("Google AI returned an empty response.");
-  return { text, provider: provider.name, model: provider.model };
+  return { text, provider: provider.name, providerId: provider.id, model: provider.model };
 }
 
 async function chatCloudflare(provider: ProviderConfig, apiKey: string, opts: ChatOptions): Promise<ChatResult> {
@@ -88,7 +89,7 @@ async function chatCloudflare(provider: ProviderConfig, apiKey: string, opts: Ch
   const data = await response.json();
   const text = extractCloudflareText(data);
   if (!text) throw new Error(`Cloudflare returned an unrecognized shape.`);
-  return { text, provider: provider.name, model: provider.model };
+  return { text, provider: provider.name, providerId: provider.id, model: provider.model };
 }
 
 function extractCloudflareText(data: unknown): string | null {
@@ -148,7 +149,7 @@ async function chatOpenAICompatible(provider: ProviderConfig, apiKey: string, op
     const text = data?.choices?.[0]?.message?.content;
     if (typeof text !== "string" || text.length === 0) { if (attempt < 2) { await sleep(800); continue; } throw new Error(`${provider.name} returned empty.`); }
 
-    return { text, provider: provider.name, model: provider.model };
+    return { text, provider: provider.name, providerId: provider.id, model: provider.model };
   }
   throw new Error(`${provider.name} failed after retries.`);
 }
@@ -202,5 +203,5 @@ async function chatOpenAICompatibleWithModel(provider: ProviderConfig, apiKey: s
   try { data = JSON.parse(raw); } catch { throw new Error(`${provider.name} returned non-JSON.`); }
   const text = data?.choices?.[0]?.message?.content;
   if (typeof text !== "string" || text.length === 0) throw new Error(`${provider.name} returned empty.`);
-  return { text, provider: provider.name, model };
+  return { text, provider: provider.name, providerId: provider.id, model };
 }

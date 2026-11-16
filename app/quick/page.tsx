@@ -13,9 +13,16 @@ import { chunkText } from "@/lib/pipeline/chunking";
 import type { Metrics } from "@/lib/pipeline/metrics";
 import { PRESETS, type PresetId } from "@/config/presets";
 import { Avatar } from "@/lib/avatars";
+import type { ProviderId } from "@/lib/ai/providers";
 import { Logo } from "../Logo";
 
 type Intensity = "light" | "balanced" | "strong";
+
+const PROVIDER_IDS: ProviderId[] = ["deepseek", "google", "groq", "openrouter", "cloudflare"];
+
+function isProviderId(value: unknown): value is ProviderId {
+  return typeof value === "string" && PROVIDER_IDS.some((providerId) => providerId === value);
+}
 
 type RewriteResponse = {
   ok: boolean;
@@ -115,29 +122,35 @@ export default function QuickPage() {
     try {
       const chunks = chunkText(text, 800);
       
-      // Step 5: Global Context Injection
-      // Grab the first ~300 words of the original doc so the AI knows the overarching topic,
-      // even when processing chunk 5 of 6.
-      const globalContext = text.split(/\s+/).slice(0, 300).join(" ");
+      const globalContext = text.split(/\s+/).slice(0, 180).join(" ");
 
       let fullRewritten = "";
       let lastProvider = "";
+      let chosenProviderId: ProviderId | undefined;
       let lastModel = "";
       let totalSpans = 0;
       let usedProfile = null;
       let allChanges: string[] = [];
-      let reviewUnavailable = false;
-      const reviewIssues: string[] = [];
+      let documentReview: RewriteReviewNotice = { status: "unavailable", issues: [] };
 
       for (let i = 0; i < chunks.length; i++) {
         if (chunks.length > 1) setProgress({ current: i + 1, total: chunks.length });
+        const contextParts = [
+          `Document opening (background only):\n${globalContext}`,
+          i > 0 ? `Previous rewritten section (continuity only):\n${fullRewritten.slice(-1200)}` : "",
+          i + 1 < chunks.length ? `Next original section (continuity only):\n${chunks[i + 1].slice(0, 1200)}` : "",
+        ].filter(Boolean);
 
         const res = await fetch("/api/rewrite", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ 
             text: chunks[i], 
-            context: globalContext, // Send global context for every chunk
+            context: contextParts.join("\n\n"),
+            providerId: chosenProviderId,
+            deferReview: i + 1 < chunks.length,
+            reviewOriginal: i === chunks.length - 1 ? text : undefined,
+            reviewPrefix: i === chunks.length - 1 ? fullRewritten : undefined,
             intensity, 
             profileId, 
             preset, 
@@ -156,17 +169,26 @@ export default function QuickPage() {
         }
 
         if (!res.ok || !data.ok) {
-          setError(data.error ?? `Rewrite failed on section ${i + 1}.`);
+          const consistencyMessage = chosenProviderId
+            ? " The rewrite stopped rather than switching providers, to avoid mixing provider styles."
+            : "";
+          setError(`${data.error ?? `Rewrite failed on section ${i + 1}.`}${consistencyMessage}`);
+          return;
+        }
+        if (!isProviderId(data.providerId)) {
+          setError(`The rewrite response did not identify its provider for section ${i + 1}.`);
           return;
         }
 
         fullRewritten += (i > 0 ? "\n\n" : "") + data.rewritten;
+        if (!chosenProviderId) chosenProviderId = data.providerId;
         lastProvider = data.provider;
         lastModel = data.model;
         totalSpans += data.spansProtected;
         if (data.profileUsed) usedProfile = data.profileUsed;
-        if (data.review?.status === "unavailable") reviewUnavailable = true;
-        if (Array.isArray(data.review?.issues)) reviewIssues.push(...data.review.issues);
+        if (i === chunks.length - 1 && data.review?.status !== "deferred") {
+          documentReview = data.review ?? documentReview;
+        }
 
         // Step 7: Collect editorial diagnostics
         if (data.paragraphs) {
@@ -187,8 +209,8 @@ export default function QuickPage() {
         spansProtected: totalSpans,
         profileUsed: usedProfile,
         review: {
-          status: reviewUnavailable ? "unavailable" : "completed",
-          issues: [...new Set(reviewIssues)],
+          status: documentReview.status,
+          issues: [...new Set(documentReview.issues)],
         },
         changes: allChanges.length > 0 ? allChanges : undefined,
       };
