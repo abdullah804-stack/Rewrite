@@ -269,7 +269,7 @@ export function analyzeVocabulary(text: string): { warnings: string[], topKeywor
 export function dePolishText(text: string): string {
   let result = text;
 
-  // Rule #14, #26, #27: Kill Template Transitions and Intro/Outros
+  // Rule #14, #26, #27: Kill Template Transitions
   const bannedTransitions = [
     /In conclusion,?/gi, /Ultimately,?/gi, /Furthermore,?/gi, 
     /Moreover,?/gi, /Additionally,?/gi, /Consequently,?/gi,
@@ -300,18 +300,38 @@ export function dePolishText(text: string): string {
   result = result.replace(/ (in the long run|for years to come|and much more)\./gi, ".");
   
   // Rule #15: Unnaturally smooth flow (Insert a conversational aside)
-  const sentences = result.split(/(?<=[.!?])\s+/);
+  let sentences = result.split(/(?<=[.!?])\s+/);
   if (sentences.length > 2) {
     const asides = ["(which is crazy)", "(honestly)", "(not what I expected)", "(at least on paper)"];
     const randomAside = asides[Math.floor(Math.random() * asides.length)];
     sentences[1] = sentences[1].replace(/\.$/, ` ${randomAside}.`);
   }
 
-  // Rule #10, #13: Repeat grammatical structures
+  // Rule #12 & #10: Force a short fragment at the end
   if (sentences.length > 0) {
     const lastIdx = sentences.length - 1;
     sentences[lastIdx] = sentences[lastIdx].replace(/\.$/, ". Simple.");
   }
 
-  return sentences.join(" ");
+  // Rule #8: Force punctuation variety (semicolon and em-dash)
+  // If there's no semicolon, find a "But" or "And" and replace it with a semicolon.
+  if (!result.includes(";")) {
+    sentences = sentences.join(" ").split(/(?<=[.!?])\s+/);
+    for (let i = 0; i < sentences.length; i++) {
+      if (sentences[i].includes(", but ")) {
+        sentences[i] = sentences[i].replace(", but ", "; ");
+        break;
+      }
+    }
+  }
+
+  // Rule #9: Paragraph structure (force a 1-sentence paragraph)
+  let paragraphs = sentences.join(" ").split(/\n{2,}/);
+  if (paragraphs.length > 1 && paragraphs[1].split(/(?<=[.!?])\s+/).length > 2) {
+    // Split the second paragraph into two, making the first part a single sentence.
+    const pSentences = paragraphs[1].split(/(?<=[.!?])\s+/);
+    paragraphs[1] = pSentences[0] + "\n\n" + pSentences.slice(1).join(" ");
+  }
+
+  return paragraphs.join("\n\n");
 }
