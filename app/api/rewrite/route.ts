@@ -39,7 +39,7 @@ const INTENSITY_RULES: Record<string, string> = {
   strong: "Substantially restructure the sentences and, where useful, the order of ideas. Preserve all claims, qualifications, and the author's intent; keep exact wording only for quotations, names, technical terms, or protected text.",
 };
 
-const PROMPT_VERSION = "v28-2026-11";
+const PROMPT_VERSION = "v29-2026-11";
 
 const BASE_SYSTEM = `You are a careful editor. Rewrite the supplied draft to improve clarity, readability, and flow while preserving its meaning.
 
