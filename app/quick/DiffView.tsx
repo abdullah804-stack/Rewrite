@@ -7,6 +7,7 @@ import {
   type DiffResult,
 } from "@/lib/pipeline/diff";
 import { ExportMenu } from "./ExportMenu";
+import { ReviewNotice, type RewriteReviewNotice } from "./ReviewNotice";
 
 function getExplanation(reason: string): string | null {
   if (!reason) return null;
@@ -58,6 +59,8 @@ export function DiffView({
   rewritten,
   context,
   profileId,
+  projectId,
+  seoSafe,
   onCopyAccepted,
   changes,
 }: {
@@ -65,6 +68,8 @@ export function DiffView({
   rewritten: string;
   context?: string;
   profileId?: string | null;
+  projectId?: string | null;
+  seoSafe?: boolean;
   onCopyAccepted: (text: string) => void;
   changes?: string[]; // Step 7: Editorial Diagnostics
 }) {
@@ -76,6 +81,7 @@ export function DiffView({
   const [segments, setSegments] = useState(initial.segments);
   const [regenIndex, setRegenIndex] = useState<number | null>(null);
   const [regenError, setRegenError] = useState<string | null>(null);
+  const [regenReview, setRegenReview] = useState<RewriteReviewNotice | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [speaking, setSpeaking] = useState(false);
 
@@ -97,6 +103,7 @@ export function DiffView({
     const seg = segments[index];
     setRegenIndex(index);
     setRegenError(null);
+    setRegenReview(null);
 
     try {
       const res = await fetch("/api/rewrite", {
@@ -107,6 +114,8 @@ export function DiffView({
           text: seg.original || seg.rewritten,
           context: context ?? original,
           profileId,
+          projectId,
+          seoSafe,
         }),
       });
 
@@ -124,6 +133,7 @@ export function DiffView({
             : s
         )
       );
+      setRegenReview(data.review ?? { status: "unavailable", issues: [] });
     } catch (err) {
       setRegenError((err as Error).message);
     } finally {
@@ -255,6 +265,7 @@ export function DiffView({
       {regenError && (
         <div className="text-xs text-red-600 mb-3">{regenError}</div>
       )}
+      <ReviewNotice review={regenReview} />
 
       <div className="space-y-3">
         {segments.map((seg, i) => {

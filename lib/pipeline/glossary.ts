@@ -1,8 +1,12 @@
-export type GlossaryData = {
-  alwaysUse: string[];
-  neverUse: string[];
-  keepAsIs: string[];
-};
+import { z } from "zod";
+
+export const GlossaryDataSchema = z.object({
+  alwaysUse: z.array(z.string()),
+  neverUse: z.array(z.string()),
+  keepAsIs: z.array(z.string()),
+});
+
+export type GlossaryData = z.infer<typeof GlossaryDataSchema>;
 
 export function buildGlossaryPrompt(glossary: GlossaryData | null): string {
   if (!glossary) return "";
@@ -29,21 +33,31 @@ export function buildGlossaryPrompt(glossary: GlossaryData | null): string {
 
 export function validateGlossary(
   text: string,
-  glossary: GlossaryData | null
+  glossary: GlossaryData | null,
+  original = ""
 ): { ok: boolean; error?: string } {
   if (!glossary) return { ok: true };
 
-  const lowerText = text.toLowerCase();
-
-  // Check neverUse
   for (const term of glossary.neverUse) {
-    if (term.trim() && lowerText.includes(term.toLowerCase())) {
+    const trimmed = term.trim();
+    if (!trimmed) continue;
+    const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const termPattern = new RegExp(`(^|[^\\p{L}\\p{N}_])${escaped}(?=$|[^\\p{L}\\p{N}_])`, "iu");
+    if (termPattern.test(text)) {
       return { ok: false, error: `Used forbidden term: "${term}"` };
     }
   }
 
-  // Note: We don't strictly enforce alwaysUse here because the AI might not
-  // have a natural place to put it. We just rely on the prompt for that.
+  for (const term of glossary.keepAsIs) {
+    const trimmed = term.trim();
+    if (
+      trimmed &&
+      original.toLocaleLowerCase().includes(trimmed.toLocaleLowerCase()) &&
+      !text.includes(trimmed)
+    ) {
+      return { ok: false, error: `Required term was changed or removed: "${term}"` };
+    }
+  }
 
   return { ok: true };
 }

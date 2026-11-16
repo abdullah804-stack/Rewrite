@@ -38,7 +38,7 @@ AI is good at structure. It is bad at sounding human, and it sometimes changes y
 
 Most "humanizer" tools are a thin wrapper around a chatbot. Rewrite works differently. The AI only proposes text. Plain TypeScript code protects your data before the AI sees it, checks the result, and puts everything back. You review every change sentence by sentence.
 
-It runs entirely on free infrastructure (Groq, OpenRouter, Neon, Vercel), so professional editing tools are open to everyone.
+It runs on Groq with a DeepSeek-through-TokenLab fallback, alongside Neon and Vercel.
 
 ---
 
@@ -71,7 +71,7 @@ flowchart LR
 | Stage | Name | What happens |
 |:---:|---|---|
 | **01** | 🔒 **Protect** | A regex engine finds URLs, numbers, quotes, and citations and swaps them for tokens like `⟦P1⟧` and `⟦P2⟧` |
-| **02** | ✍️ **Rewrite** | The masked text, optional voice profile, relevant context, and tone settings go to the LLM, which returns structured JSON |
+| **02** | ✍️ **Rewrite** | The masked text, optional voice profile, relevant context, project glossary, SEO-safe setting, and tone settings go to the LLM, which returns structured JSON |
 | **03** | ✅ **Validate** | Code validates the response schema and confirms every protected token survived before restoring protected text |
 | **04** | 🔎 **Review** | A second LLM pass flags possible meaning or factual changes for the writer to check; it does not automatically alter the rewrite |
 | **05** | 📝 **Review and export** | The Diff View shows the rewrite and any review flags so you can accept or reject changes |
@@ -89,7 +89,7 @@ source → protect → rewrite LLM → validate → restore → review LLM → d
 | Layer | What it does |
 |---|---|
 | **Frontend** | Next.js (App Router), React, Tailwind CSS |
-| **AI layer** | Provider-agnostic `chat()` calls. Groq is primary and OpenRouter is the fallback for both rewriting and advisory review |
+| **AI layer** | Provider-agnostic `chat()` calls. Groq is primary and DeepSeek via TokenLab is the fallback; OpenRouter remains available as a configured provider |
 | **Deterministic core** | Pure TypeScript for linting, claims checking, readability, and diffing. It runs in the browser for the free tools and on the server for validation |
 | **Database** | Neon Postgres with Prisma, storing documents, voice profiles, and usage quotas |
 
@@ -161,7 +161,7 @@ source → protect → rewrite LLM → validate → restore → review LLM → d
 | Database | PostgreSQL (Neon) |
 | ORM | Prisma |
 | Auth | Auth.js v5 (Google OAuth) |
-| AI providers | Groq, OpenRouter (behind a provider abstraction) |
+| AI providers | Groq and DeepSeek via TokenLab (behind a provider abstraction) |
 | Rate limiting | Upstash Redis |
 | Validation | Zod |
 | Testing | Vitest |
@@ -177,7 +177,7 @@ source → protect → rewrite LLM → validate → restore → review LLM → d
 | Node.js 18+ | |
 | pnpm | |
 | A Postgres database | [Neon](https://neon.tech) has a free tier |
-| LLM provider API keys | Groq and/or OpenRouter |
+| LLM provider API keys | Groq and optionally DeepSeek via TokenLab for fallback |
 
 ### Setup
 

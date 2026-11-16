@@ -7,6 +7,7 @@ import { DiffView } from "./DiffView";
 import { StyleReport } from "./StyleReport";
 import { Editor } from "./Editor";
 import { ProjectPicker } from "./ProjectPicker";
+import { ReviewNotice, type RewriteReviewNotice } from "./ReviewNotice";
 import { analyzeText } from "@/lib/analyze-client";
 import { chunkText } from "@/lib/pipeline/chunking";
 import type { Metrics } from "@/lib/pipeline/metrics";
@@ -26,8 +27,7 @@ type RewriteResponse = {
   after: Metrics;
   spansProtected: number;
   profileUsed: { name: string; avatar: string } | null;
-  reviewStatus: "completed" | "unavailable";
-  reviewIssues: string[];
+  review: RewriteReviewNotice;
   changes?: string[]; // Step 7: Editorial Diagnostics
   error?: string;
 };
@@ -186,8 +186,10 @@ export default function QuickPage() {
         after: analyzeText(fullRewritten, "general").metrics,
         spansProtected: totalSpans,
         profileUsed: usedProfile,
-        reviewStatus: reviewUnavailable ? "unavailable" : "completed",
-        reviewIssues: [...new Set(reviewIssues)],
+        review: {
+          status: reviewUnavailable ? "unavailable" : "completed",
+          issues: [...new Set(reviewIssues)],
+        },
         changes: allChanges.length > 0 ? allChanges : undefined,
       };
 
@@ -295,6 +297,15 @@ export default function QuickPage() {
         <div className="shrink-0">
           <ProjectPicker value={projectId} onChange={setProjectId} />
         </div>
+        <label className="flex shrink-0 items-center gap-1.5 text-xs text-text-secondary" title="Preserve useful source headings, links, and key phrases without adding keywords">
+          <input
+            type="checkbox"
+            checked={seoSafe}
+            onChange={(e) => setSeoSafe(e.target.checked)}
+            className="accent-brand-600"
+          />
+          SEO-safe
+        </label>
 
         <div className="flex items-center gap-4 ml-2 bg-surface-base px-3 py-1.5 rounded-lg border border-surface-border shadow-sm shrink-0">
           <div className="flex items-center gap-2">
@@ -382,6 +393,8 @@ export default function QuickPage() {
               value={text}
               onChange={setText}
               profileId={profileId}
+              projectId={projectId}
+              seoSafe={seoSafe}
               onError={setError}
               onRewrite={handleRewrite}
             />
@@ -435,26 +448,14 @@ export default function QuickPage() {
 
             {result && (
               <>
-                {(result.reviewStatus === "unavailable" || result.reviewIssues.length > 0) && (
-                  <div className="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950" role="status">
-                    {result.reviewStatus === "unavailable" && (
-                      <p>Automated meaning review was unavailable. Check factual details manually.</p>
-                    )}
-                    {result.reviewIssues.length > 0 && (
-                      <>
-                        <p className="font-semibold">Please review these possible meaning issues:</p>
-                        <ul className="mt-1 list-disc pl-5">
-                          {result.reviewIssues.map((issue, index) => <li key={`${index}-${issue}`}>{issue}</li>)}
-                        </ul>
-                      </>
-                    )}
-                  </div>
-                )}
+                <ReviewNotice review={result.review} />
                 <DiffView
                   original={result.original}
                   rewritten={result.rewritten}
                   context={result.original}
                   profileId={profileId}
+                  projectId={projectId}
+                  seoSafe={seoSafe}
                   onCopyAccepted={handleCopyText}
                   changes={result.changes}
                 />

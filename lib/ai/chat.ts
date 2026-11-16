@@ -159,7 +159,7 @@ const OPENROUTER_SECONDARY_MODEL = "google/gemma-4-31b-it:free";
 
 export async function chatWithFallback(
   opts: Omit<ChatOptions, "providerId">,
-  order: ProviderId[] = ["groq", "openrouter"]): Promise<ChatResult> {
+  order: ProviderId[] = ["groq", "deepseek"]): Promise<ChatResult> {
   let lastError: Error | null = null;
   for (const providerId of order) {
     try {

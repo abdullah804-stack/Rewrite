@@ -9,10 +9,12 @@ import { chatWithFallback } from "../../../lib/ai/chat";
 import { computeMetrics } from "../../../lib/pipeline/metrics";
 import { RewriteOutputSchema, RewriteReviewSchema, VoiceProfileSchema, type VoiceProfile } from "../../../lib/ai/schemas";
 import { prepareRewriteContext } from "../../../lib/pipeline/rewriteContext";
+import { buildGlossaryPrompt, GlossaryDataSchema, validateGlossary, type GlossaryData } from "../../../lib/pipeline/glossary";
 import { PRESETS, type PresetId } from "../../../config/presets";
 import { hashRequest, getCachedResponse, setCachedResponse } from "../../../lib/ai/cache";
 import { reserveUserWords, refundUserWords, reserveAnonRun, refundAnonRun, clientIp } from "../../../lib/pipeline/guard";
 import { getLimits } from "../../../config/plans";
+import { getOwnedGlossary } from "../../../lib/ownership";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -40,7 +42,7 @@ const INTENSITY_RULES: Record<string, string> = {
   strong: "Substantially restructure the sentences and, where useful, the order of ideas. Preserve all claims, qualifications, and the author's intent; keep exact wording only for quotations, names, technical terms, or protected text.",
 };
 
-const PROMPT_VERSION = "v31-2026-11";
+const PROMPT_VERSION = "v32-2026-11";
 
 const BASE_SYSTEM = `You are a careful editor. Rewrite the supplied draft to improve clarity, readability, and flow while preserving its meaning.
 
@@ -164,6 +166,36 @@ export async function POST(request: Request) {
       }
       selectedProfile = { name: savedProfile.name, avatar: savedProfile.avatar, profile: profile.data };
     }
+    let glossary: GlossaryData | null = null;
+    if (body.projectId) {
+      if (!session?.user?.id) {
+        return NextResponse.json({ error: "Sign in to use a project glossary." }, { status: 401 });
+      }
+      const project = await prisma.project.findFirst({
+        where: { id: body.projectId, userId: session.user.id },
+        select: { glossary: true },
+      });
+      if (!project) return NextResponse.json({ error: "Project not found." }, { status: 404 });
+      if (project.glossary !== null) {
+        const parsedGlossary = GlossaryDataSchema.safeParse(project.glossary);
+        if (!parsedGlossary.success) {
+          return NextResponse.json({ error: "Project glossary data is invalid." }, { status: 500 });
+        }
+        glossary = parsedGlossary.data;
+      }
+    }
+    if (!glossary && body.glossaryId) {
+      if (!session?.user?.id) {
+        return NextResponse.json({ error: "Sign in to use a glossary." }, { status: 401 });
+      }
+      const savedGlossary = await getOwnedGlossary(session.user.id, body.glossaryId);
+      if (!savedGlossary) return NextResponse.json({ error: "Glossary not found." }, { status: 404 });
+      glossary = {
+        alwaysUse: savedGlossary.alwaysUse,
+        neverUse: savedGlossary.neverUse,
+        keepAsIs: savedGlossary.keepAsIs,
+      };
+    }
 
     wordCount = rawText.trim().split(/\s+/).length;
     const limits = getLimits(session?.user?.id ?? null);
@@ -186,7 +218,11 @@ export async function POST(request: Request) {
     const presetId = (body.preset ?? "custom") as PresetId;
     const presetBlock = PRESETS[presetId]?.instruction ? `\n\nFormat:\n${PRESETS[presetId].instruction}` : "";
     const voiceBlock = selectedProfile ? buildVoiceBlock(selectedProfile.profile) : "";
-    const extraPrompt = buildToneBlock(body.toneFormality ?? 5, body.toneDirectness ?? 5) + voiceBlock + presetBlock;
+    const glossaryBlock = buildGlossaryPrompt(glossary);
+    const seoBlock = body.seoSafe
+      ? "\n\nSEO-safe editing:\n- Preserve useful headings, links, named entities, and meaningful key phrases already present in the draft.\n- Do not add unsupported claims, keyword lists, or repetitive search terms."
+      : "";
+    const extraPrompt = buildToneBlock(body.toneFormality ?? 5, body.toneDirectness ?? 5) + voiceBlock + presetBlock + glossaryBlock + seoBlock;
     const contextText = prepareRewriteContext(body.context ?? "");
 
     const promptConfigHash = createHash("sha256").update(extraPrompt).update(contextText).digest("hex");
@@ -227,6 +263,11 @@ export async function POST(request: Request) {
     }
 
     const restoredText = restore(tokenized, spans);
+    const glossaryValidation = validateGlossary(restoredText, glossary, rawText);
+    if (!glossaryValidation.ok) {
+      await refund();
+      return NextResponse.json({ error: glossaryValidation.error }, { status: 422 });
+    }
     const outputParagraphs = parsed.paragraphs.map((paragraph) => ({
       ...paragraph,
       text: restore(backToProtectedTokens(paragraph.text, spans).text, spans),
