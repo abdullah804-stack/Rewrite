@@ -1,5 +1,7 @@
 # Benchmark
 
+**No command line needed:** open `/bench` on your deployment. Paste an AI text, generate blind-labelled variants, paste each into your detectors, type the % human, and the page ranks the variants across all texts you have tested (stored in your browser, with CSV export). It needs the server's `BENCH_KEY` (set it in Vercel and redeploy). The command-line workflow below does the same thing for larger runs.
+
 This is how you find out whether a change to the pipeline actually helped. Judge changes by these numbers, not by two or three manual checks.
 
 ## Why it works this way
