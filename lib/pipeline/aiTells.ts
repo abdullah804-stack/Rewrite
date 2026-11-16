@@ -473,3 +473,33 @@ export function dePolishText(text: string, topKeywords: string[] = []): string {
 
   return finalParas.join("\n\n");
 }
+
+// THE CARELESS HUMAN INJECTOR
+// Stealth Writer flags our text because it's grammatically broken. 
+// This script adds minor, human-like errors to bypass their specific grammar checks.
+export function injectCarelessErrors(text: string): string {
+  let result = text;
+
+  // 1. Lowercase the first letter of random sentences (Humans do this when typing fast)
+  result = result.replace(/([.!?]\s+)([A-Z])/g, (match, punctuation, letter) => {
+    return Math.random() < 0.2 ? punctuation + letter.toLowerCase() : match;
+  });
+
+  // 2. Replace random periods with ellipses (humans use "..." instead of ".")
+  result = result.replace(/\.\s+/g, (match) => {
+    return Math.random() < 0.1 ? "... " : match;
+  });
+
+  // 3. Add a double space after a random word
+  result = result.replace(/\s/g, (match) => {
+    return Math.random() < 0.05 ? "  " : match;
+  });
+
+  // 4. Fix the broken fragments that our other scripts created
+  // If a sentence starts with "Proving that" or "Boosting output", capitalize it and make it a proper sentence.
+  result = result.replace(/([.!?]\s+)(Proving that|Boosting output|And live document)/g, (match, punct, phrase) => {
+    return `${punct}This is ${phrase.toLowerCase()}`;
+  });
+
+  return result;
+}

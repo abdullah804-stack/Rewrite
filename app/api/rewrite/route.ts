@@ -13,7 +13,7 @@ import { PRESETS, type PresetId } from "../../../config/presets";
 import { hashRequest, getCachedResponse, setCachedResponse } from "../../../lib/ai/cache";
 import { reserveUserWords, refundUserWords, reserveAnonRun, refundAnonRun, clientIp } from "../../../lib/pipeline/guard";
 import { getLimits } from "../../../config/plans";
-import { dePolishText, analyzeVocabulary } from "../../../lib/pipeline/aiTells";
+import { dePolishText, analyzeVocabulary, injectCarelessErrors } from "../../../lib/pipeline/aiTells";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -41,8 +41,7 @@ const INTENSITY_RULES: Record<string, string> = {
   strong: "Rebuild the piece from the ideas up. Keep every fact, but let the order and sentence shapes be entirely your own.",
 };
 
-// Bumped to v19 to clear the cache and force the new Group 1 rules to run
-const PROMPT_VERSION = "v26-2026-11";
+const PROMPT_VERSION = "v27-2026-11";
 
 const BASE_SYSTEM = `You are a human writer. Your goal is to evade AI detectors (like StealthWriter, GPTZero).
 
@@ -224,6 +223,9 @@ export async function POST(request: Request) {
     // THE MAGIC STEP: Apply CleverHumanizer 28-rule de-polisher
     let restoredText = restore(tokenized, spans);
     restoredText = dePolishText(restoredText, vocabAnalysis.topKeywords);
+    
+    // THE FINAL STEP: Apply careless human errors and fix broken fragments
+    restoredText = injectCarelessErrors(restoredText);
 
     const data = {
       ok: true, action: "rewrite", original: rawText, rewritten: restoredText, paragraphs: parsed.paragraphs,
