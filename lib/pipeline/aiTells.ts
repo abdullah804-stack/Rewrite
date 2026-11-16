@@ -377,13 +377,52 @@ export function dePolishText(text: string, topKeywords: string[] = []): string {
     result = result.replace(new RegExp(`\\b${formal}\\b`, "gi"), plain);
   }
 
-  // --- GROUP 2: SENTENCE STRUCTURE ---
-  result = result.replace(/([^.!?]{22,}),\s+([^.!?]{10,})/g, (match, firstHalf, secondHalf) => {
+  // --- GROUP 2: DESTROY REPETITIVE SENTENCE PATTERNS (Rule #7) ---
+  sentences = result.split(/(?<=[.!?])\s+/);
+  let subjectCount = 0;
+  for (let i = 0; i < sentences.length; i++) {
+    if (/^(I|We|The|A|An|This|That|It|They|He|She|Companies|Organizations|People|Users|Managers)\b/i.test(sentences[i])) {
+      subjectCount++;
+      if (subjectCount >= 2) {
+        const preps = ["In this case, ", "From a practical view, ", "Across the board, ", "Beyond that, ", "Without a doubt, "];
+        const randomPrep = preps[Math.floor(Math.random() * preps.length)];
+        sentences[i] = randomPrep + sentences[i].charAt(0).toLowerCase() + sentences[i].slice(1);
+        subjectCount = 0; 
+      }
+    } else {
+      subjectCount = 0;
+    }
+  }
+  result = sentences.join(" ");
+
+  // --- GROUP 2: SPLIT SENTENCES TO BREAK RHYTHM (Rule #8) ---
+  // Find sentences with a comma and split them in half.
+  result = result.replace(/([^.!?]{15,}),\s+([^.!?]{10,})/g, (match, firstHalf, secondHalf) => {
     return `${firstHalf}. ${secondHalf.charAt(0).toUpperCase() + secondHalf.slice(1)}`;
   });
 
-  result = result.replace(/ (in the long run|for years to come|and much more)\./gi, ".");
-  
+  // --- GROUP 2: FORCE A SHORT SENTENCE (Rule #6) ---
+  sentences = result.split(/(?<=[.!?])\s+/);
+  let hasShortSentence = false;
+  for (const s of sentences) {
+    if (s.split(/\s+/).length <= 5) { hasShortSentence = true; break; }
+  }
+
+  // If no short sentence exists, find the longest sentence, cut the last 3 words off, and make them a fragment.
+  if (!hasShortSentence && sentences.length > 2) {
+    let longestIdx = 0, maxLen = 0;
+    sentences.forEach((s, i) => { if (s.length > maxLen) { maxLen = s.length; longestIdx = i; } });
+    
+    const wordsArr = sentences[longestIdx].split(" ");
+    if (wordsArr.length > 8) {
+      const cutIdx = wordsArr.length - 4;
+      sentences[longestIdx] = wordsArr.slice(0, cutIdx).join(" ") + ".";
+      sentences.splice(longestIdx + 1, 0, wordsArr.slice(cutIdx).join(" ") + ".");
+    }
+  }
+  result = sentences.join(" ");
+
+  // --- GROUP 3: INSERT RANDOM PARENTHETICALS & ENDINGS ---
   sentences = result.split(/(?<=[.!?])\s+/);
   if (sentences.length > 2) {
     const asides = ["(which is crazy)", "(honestly)", "(not what I expected)", "(at least on paper)"];
