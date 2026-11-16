@@ -72,7 +72,7 @@ flowchart LR
 |:---:|---|---|
 | **01** | 🔒 **Protect** | A regex engine finds URLs, numbers, quotes, and citations and swaps them for tokens like `⟦P1⟧` and `⟦P2⟧` |
 | **02** | ✍️ **Rewrite** | The masked text, optional voice profile, relevant context, project glossary, SEO-safe setting, and tone settings go to the LLM, which returns structured JSON |
-| **03** | ✅ **Validate** | Code validates the response schema, confirms every protected token survived, and retries once if glossary rules are missed |
+| **03** | ✅ **Validate** | Code checks that every source paragraph appears exactly once and in order, validates protected tokens, and retries once for output or glossary validation failures |
 | **04** | 🔎 **Review** | One second LLM pass checks the assembled rewrite for possible meaning changes; it is advisory, not fact verification, and does not alter the rewrite |
 | **05** | 📝 **Review and export** | The Diff View shows the rewrite and any review flags so you can accept or reject changes |
 
