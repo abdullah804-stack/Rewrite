@@ -42,7 +42,7 @@ const INTENSITY_RULES: Record<string, string> = {
 };
 
 // Bumped to v19 to clear the cache and force the new Group 1 rules to run
-const PROMPT_VERSION = "v21-2026-11";
+const PROMPT_VERSION = "v24-2026-11";
 
 const BASE_SYSTEM = `You are a human writer. Your goal is to evade AI detectors (like StealthWriter, GPTZero).
 
@@ -217,7 +217,7 @@ export async function POST(request: Request) {
 
     // THE MAGIC STEP: Apply CleverHumanizer 28-rule de-polisher
     let restoredText = restore(tokenized, spans);
-    restoredText = dePolishText(restoredText);
+    restoredText = dePolishText(restoredText, vocabAnalysis.topKeywords);
 
     const data = {
       ok: true, action: "rewrite", original: rawText, rewritten: restoredText, paragraphs: parsed.paragraphs,

@@ -246,18 +246,18 @@ export function analyzeVocabulary(text: string): { warnings: string[], topKeywor
   const topKeywords = sortedWords.slice(0, 3).filter(([_, count]) => count >= 4).map(([word]) => word);
 
   if (topKeywords.length > 0) {
-    warnings.push(`REPETITIVE KEYWORDS DETECTED: The words "${topKeywords.join('", "')}" are used too frequently. You MUST use pronouns or synonyms for these words in the rewrite.`);
+    warnings.push(`REPETITIVE KEYWORDS DETECTED: You are using the words "${topKeywords.join('", "')}" too frequently. You MUST use pronouns (it, they, this) or specific synonyms for these words after their first mention.`);
   }
 
   const genericPhrases = ["vital role", "crucial role", "wide range", "various stakeholders", "important to note", "in today's world", "plays a key role", "multifaceted issue", "significant impact", "rapidly evolving"];
   const foundGeneric = genericPhrases.filter(p => text.toLowerCase().includes(p));
   if (foundGeneric.length > 0) {
-    warnings.push(`GENERIC PHRASES DETECTED: You are strictly FORBIDDEN from using: "${foundGeneric.join('", "')}". Replace them with specific details.`);
+    warnings.push(`GENERIC PHRASES DETECTED: You are strictly FORBIDDEN from using: "${foundGeneric.join('", "')}". Replace them with specific, named examples or numbers.`);
   }
 
   const uniqueWords = new Set(words).size;
   if ((uniqueWords / Math.max(words.length, 1)) < 0.4) {
-    warnings.push(`LOW VOCABULARY VARIATION: The text repeats too many words. You must choose unexpected synonyms.`);
+    warnings.push(`LOW VOCABULARY VARIATION: The text repeats too many words. You MUST choose unexpected synonyms and avoid repeating sentence structures.`);
   }
 
   return { warnings, topKeywords };
@@ -266,13 +266,29 @@ export function analyzeVocabulary(text: string): { warnings: string[], topKeywor
 // ---------------------------------------------------------------------------
 // THE DE-POLISHER (Applies structural rules after the AI writes)
 // ---------------------------------------------------------------------------
-export function dePolishText(text: string): string {
+export function dePolishText(text: string, topKeywords: string[] = []): string {
   let result = text;
 
+  // --- GROUP 1: PHYSICALLY ENFORCE KEYWORD REMOVAL ---
+  // If the input had repetitive keywords, we physically replace them in the output.
+  if (topKeywords.length > 0) {
+    topKeywords.forEach((kw, index) => {
+      let count = 0;
+      const synonyms = ["it", "this", "they", "these efforts", "the strategy"];
+      const replacement = synonyms[index % synonyms.length];
+      
+      const regex = new RegExp(`\\b${kw}\\b`, "gi");
+      result = result.replace(regex, (match) => {
+        count++;
+        if (count === 1) return match; 
+        return replacement;
+      });
+    });
+  }
+
   // --- GROUP 5: KILL HEDGING WORDS ---
-  // AI uses these to avoid taking a stance. Humans just state the fact.
   result = result.replace(/\b(may|might|could|possibly|perhaps|potentially|generally|typically|often)\b/gi, "");
-  result = result.replace(/\s{2,}/g, " "); // Clean up spaces
+  result = result.replace(/\s{2,}/g, " "); 
 
   // --- GROUP 4: KILL REPEATED IDEAS ---
   let sentences = result.split(/(?<=[.!?])\s+/);
