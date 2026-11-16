@@ -270,7 +270,6 @@ export function dePolishText(text: string, topKeywords: string[] = []): string {
   let result = text;
 
   // --- GROUP 1: PHYSICALLY ENFORCE KEYWORD REMOVAL ---
-  // If the input had repetitive keywords, we physically replace them in the output.
   if (topKeywords.length > 0) {
     topKeywords.forEach((kw, index) => {
       let count = 0;
@@ -283,6 +282,34 @@ export function dePolishText(text: string, topKeywords: string[] = []): string {
         if (count === 1) return match; 
         return replacement;
       });
+    });
+  }
+
+  // --- GROUP 1: SWAP "SAFE" ADJECTIVES FOR "WEIRD" ONES ---
+  const safeAdjectives: Record<string, string[]> = {
+    "important": ["crucial", "vital", "key", "heavy"],
+    "good": ["decent", "solid", "fine", "sharp"],
+    "bad": ["messy", "awful", "sloppy", "rough"],
+    "big": ["massive", "hefty", "huge", "wild"],
+    "small": ["tiny", "slim", "modest", "bare"],
+    "significant": ["sharp", "heavy", "real", "wild"],
+    "effective": ["sharp", "solid", "lean", "tight"],
+    "difficult": ["rough", "uphill", "messy", "brutal"],
+    "easy": ["simple", "quick", "cheap", "breezy"],
+    "beautiful": ["stunning", "lovely", "vivid", "wild"],
+    "interesting": ["sharp", "wild", "odd", "gripping"],
+    "useful": ["handy", "practical", "sharp", "lean"],
+    "positive": ["bright", "good", "solid", "upbeat"],
+    "negative": ["dark", "rough", "messy", "brutal"]
+  };
+
+  for (const [safe, weirdArray] of Object.entries(safeAdjectives)) {
+    const regex = new RegExp(`\\b${safe}\\b`, "gi");
+    result = result.replace(regex, () => {
+      if (Math.random() < 0.3) {
+        return weirdArray[Math.floor(Math.random() * weirdArray.length)];
+      }
+      return safe;
     });
   }
 
