@@ -35,8 +35,8 @@ const RewriteRequestSchema = z.object({
 
 const INTENSITY_RULES: Record<string, string> = {
   light: "Make light edits for clarity and flow. Keep the structure and wording where they already work.",
-  balanced: "Improve clarity and flow, changing sentence structure where useful while preserving the original meaning and emphasis.",
-  strong: "Reorganize the explanation where it genuinely improves clarity. Preserve all facts, qualifications, and the author's intent.",
+  balanced: "Restate each sentence in fresh, clear wording while preserving its claims, qualifications, and emphasis. Keep exact wording only for quotations, names, technical terms, or protected text.",
+  strong: "Substantially restructure the sentences and, where useful, the order of ideas. Preserve all claims, qualifications, and the author's intent; keep exact wording only for quotations, names, technical terms, or protected text.",
 };
 
 const PROMPT_VERSION = "v28-2026-11";
@@ -48,7 +48,8 @@ Rules:
 - Keep the author's point of view and intended audience. Do not add first-person language unless it is present in the draft.
 - Use natural wording appropriate to the requested tone. Do not force slang, sentence-length patterns, punctuation, or awkward imperfections.
 - Keep useful transitions, lists, and paragraph breaks when they help the reader. Remove only genuinely redundant wording.
-- If a sentence is already clear, do not change it just to make it different.
+- Follow the selected editing intensity. Light edits may keep clear sentences; balanced and strong edits should restate eligible sentences without changing their meaning.
+- Do not reword quotations, names, technical terms, or protected exact text merely to make them different.
 
 Return valid JSON matching this exact structure. Do not include any other text:
 {
