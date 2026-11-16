@@ -7,14 +7,14 @@ export const PRESETS: Record<PresetId, { name: string; instruction: string }> = 
       "Genre: General human writing. Write like a real person explaining something to a smart friend over coffee. Be clear, direct and natural. Avoid buzzwords, corporate jargon and em dashes. Never sound like a press release or use robotic transitions.",
   },
   humanizer: {
-    name: "Aggressive Humanizer",
+    name: "Conversational rewrite",
     instruction:
-      "Genre: loose, conversational first draft. Relaxed grammar is fine. Sentence lengths should be uneven, with an occasional fragment. Every sentence must be restructured; do not follow the original's order or phrasing. Choose fresh wording every time and never fall back on stock filler phrases.",
+      "Genre: natural conversational writing. Use clear, everyday language while preserving the author's meaning, qualifications, and point of view. Change phrasing only where it improves clarity or flow; do not force slang, fragments, or unnecessary restructuring.",
   },
   stealth: {
-    name: "Stealth Mode (Anti-Detector)",
+    name: "Plain-spoken",
     instruction:
-      "Genre: a busy, plain-spoken person typing a quick note. Direct, a little informal, small asides, no corporate or academic vocabulary. Do not force slang or profanity; let the topic decide how casual to get. Never reuse the same filler phrase twice.",
+      "Genre: plain-spoken writing. Be direct and approachable without adding asides, slang, or personal claims. Preserve the source's evidence, uncertainty, and intended tone.",
   },
   blog: {
     name: "Blog post",

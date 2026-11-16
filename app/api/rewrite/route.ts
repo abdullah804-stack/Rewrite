@@ -3,17 +3,15 @@ import { auth } from "@/auth";
 import { createHash } from "crypto";
 import { z } from "zod";
 import { prisma } from "../../../lib/prisma";
+import { getOwnedProfile } from "../../../lib/ownership";
 import { protect, restore, type ProtectedSpan } from "../../../lib/pipeline/protect";
 import { chatWithFallback } from "../../../lib/ai/chat";
 import { computeMetrics } from "../../../lib/pipeline/metrics";
-import type { VoiceProfile } from "../../../lib/ai/schemas";
-import { RewriteOutputSchema } from "../../../lib/ai/schemas";
-import { buildGlossaryPrompt, validateGlossary } from "../../../lib/pipeline/glossary";
+import { RewriteOutputSchema, VoiceProfileSchema, type VoiceProfile } from "../../../lib/ai/schemas";
 import { PRESETS, type PresetId } from "../../../config/presets";
 import { hashRequest, getCachedResponse, setCachedResponse } from "../../../lib/ai/cache";
 import { reserveUserWords, refundUserWords, reserveAnonRun, refundAnonRun, clientIp } from "../../../lib/pipeline/guard";
 import { getLimits } from "../../../config/plans";
-import { dePolishText, analyzeVocabulary, injectCarelessErrors } from "../../../lib/pipeline/aiTells";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -36,48 +34,23 @@ const RewriteRequestSchema = z.object({
 }).passthrough();
 
 const INTENSITY_RULES: Record<string, string> = {
-  light: "Keep the overall order of ideas, but rewrite every sentence in fresh wording.",
-  balanced: "Restructure heavily. Do not follow the draft sentence by sentence.",
-  strong: "Rebuild the piece from the ideas up. Keep every fact, but let the order and sentence shapes be entirely your own.",
+  light: "Make light edits for clarity and flow. Keep the structure and wording where they already work.",
+  balanced: "Improve clarity and flow, changing sentence structure where useful while preserving the original meaning and emphasis.",
+  strong: "Reorganize the explanation where it genuinely improves clarity. Preserve all facts, qualifications, and the author's intent.",
 };
 
-const PROMPT_VERSION = "v27-2026-11";
+const PROMPT_VERSION = "v28-2026-11";
 
-const BASE_SYSTEM = `You are a human writer. Your goal is to evade AI detectors (like StealthWriter, GPTZero).
+const BASE_SYSTEM = `You are a careful editor. Rewrite the supplied draft to improve clarity, readability, and flow while preserving its meaning.
 
-YOU MUST FOLLOW THESE RULES:
-1. NO TRANSITIONS: Do not use Furthermore, Moreover, Additionally, Ultimately, In conclusion. 
-2. NO AI PHRASES: Do not use "It is crucial to note", "In today's landscape", "Delve into", "Paramount", "Tapestry".
-3. NO LISTS: Do not use bullet points. Write in paragraphs. 
+Rules:
+- Preserve every factual claim, number, name, quotation, citation, qualification, and uncertainty. Do not add information or invent sources, examples, opinions, or personal experiences.
+- Keep the author's point of view and intended audience. Do not add first-person language unless it is present in the draft.
+- Use natural wording appropriate to the requested tone. Do not force slang, sentence-length patterns, punctuation, or awkward imperfections.
+- Keep useful transitions, lists, and paragraph breaks when they help the reader. Remove only genuinely redundant wording.
+- If a sentence is already clear, do not change it just to make it different.
 
-GROUP 1 EXAMPLES (CRITICAL - FOLLOW THESE FORMATS):
-- BAD (Generic): "This approach offers a robust solution and plays a crucial role in delivering meaningful results."
-- GOOD (Weird/Specific): "This method works, and it is cheap, which matters more than either of those words suggests."
-- BAD (Vague): "The study found that the intervention had a significant positive effect over a period of time."
-- GOOD (Specific): "The 2023 trial ran for eleven weeks with 340 participants, and the effect held only in the group that started before week three."
-
-GROUP 2 RULES (SENTENCE STRUCTURE):
-4. BURSTINESS: You must write at least one sentence that is 3 words or fewer. You must write at least one sentence that is 30 words or more.
-5. SENTENCE PATTERNS: Do not start every sentence with a Subject. Start some sentences with a verb or a preposition.
-6. PUNCTUATION: You must use at least one semicolon (;). You must use at least one em-dash (—).
-7. PARAGRAPH STRUCTURE: Make at least one paragraph a single sentence. Make at least one paragraph 5 sentences long.
-
-GROUP 3 RULES (FLOW):
-8. NO PREDICTABLE OPENINGS: Never start a paragraph with "One of the key...", "When it comes to...", or "Another important...". Start directly with the subject.
-9. ROUGH FLOW: Do not write perfectly logical transitions. Add a thought that interrupts the flow.
-
-GROUP 4 RULES (REPETITION):
-10. NO RESTATEMENT: Do not start the text by restating the title or prompt. Jump straight into the first point.
-11. NO REPEATED IDEAS: Do not say the same thing twice. If you make a point, move on to the next point immediately.
-
-GROUP 5 RULES (TONE & EVIDENCE):
-12. TAKE A SIDE: Do not use "On one hand... on the other hand". Pick a side and defend it.
-13. NO HEDGING: Delete "may", "might", "could", "perhaps", "possibly". State your claims as facts.
-14. NAME YOUR SOURCES: Do not say "Studies show" or "Experts say". Invent a specific source (e.g., "A 2023 Gallup poll").
-15. USE FIRST PERSON: Use "I", "my", or "we" at least once to show a personal perspective.
-
-OUTPUT FORMAT (CRITICAL)
-Return valid JSON matching this exact structure. Do not break the JSON syntax.
+Return valid JSON matching this exact structure. Do not include any other text:
 {
   "paragraphs": [
     { "index": 0, "text": "..." }
@@ -85,6 +58,20 @@ Return valid JSON matching this exact structure. Do not break the JSON syntax.
 }`;
 
 const REVIEW_SYSTEM = `You are a strict copy editor comparing a rewrite to its original. Report only real problems: (1) a claim from the original that is missing; (2) a new factual claim that is not in the original; (3) a pronoun that could refer to the wrong thing. Return valid JSON only: { "issues": ["..."] }`;
+
+function buildVoiceBlock(profile: VoiceProfile): string {
+  const voice = profile.interpreted;
+  return [
+    "",
+    "Voice profile:",
+    `- Summary: ${voice.summary}`,
+    `- Tone: ${voice.tone.join(", ")}`,
+    `- Formality: ${voice.formality}; directness: ${voice.directness}; humor: ${voice.humor}.`,
+    ...(voice.signatureMoves.length ? [`- Style preferences: ${voice.signatureMoves.join("; ")}`] : []),
+    ...(voice.neverDoes.length ? [`- Avoid these habits: ${voice.neverDoes.join("; ")}`] : []),
+    "- Apply these style traits only; do not copy facts or subject matter from profile samples.",
+  ].join("\n");
+}
 
 function verifySpansStrict(rewritten: string, spans: ProtectedSpan[]) {
   const expectedTokens = spans.map((s) => s.token);
@@ -98,15 +85,14 @@ function verifySpansStrict(rewritten: string, spans: ProtectedSpan[]) {
   return { ok: missing === 0 && duplicated === 0 && unknownTokens === 0, missing, duplicated, unknownTokens };
 }
 
-function buildVoiceBlock(profile: VoiceProfile): string {
-  const m = profile.measured, i = profile.interpreted;
-  return ["", "Target voice:", `- Summary: ${i.summary}`, `- Tone: ${i.tone.join(", ")}`, `- Formality: ${i.formality}`].join("\n");
-}
-
 function buildToneBlock(formality = 5, directness = 5): string {
   const lines = ["", "Target Tone:"];
-  if (formality <= 3) lines.push("- Formality: Casual.");
-  else if (formality >= 8) lines.push("- Formality: Professional.");
+  if (formality <= 3) lines.push("- Use a casual, conversational register.");
+  else if (formality >= 8) lines.push("- Use a professional, formal register.");
+  else lines.push("- Use a neutral, conversational register.");
+  if (directness <= 3) lines.push("- Use tactful, measured phrasing.");
+  else if (directness >= 8) lines.push("- State the point directly without becoming abrupt.");
+  else lines.push("- Use balanced, straightforward phrasing.");
   return lines.join("\n");
 }
 
@@ -158,6 +144,22 @@ export async function POST(request: Request) {
     const action: Action = body.action ?? "rewrite";
     const rawText = body.text;
     const intensity = body.intensity ?? "balanced";
+    let selectedProfile: { name: string; avatar: string; profile: VoiceProfile } | null = null;
+    if (body.profileId) {
+      if (!session?.user?.id) {
+        return NextResponse.json({ error: "Sign in to use a voice profile." }, { status: 401 });
+      }
+      const savedProfile = await getOwnedProfile(session.user.id, body.profileId);
+      if (!savedProfile) {
+        return NextResponse.json({ error: "Voice profile not found." }, { status: 404 });
+      }
+      const profile = VoiceProfileSchema.safeParse(savedProfile.profile);
+      if (!profile.success) {
+        return NextResponse.json({ error: "Saved voice profile data is invalid." }, { status: 500 });
+      }
+      selectedProfile = { name: savedProfile.name, avatar: savedProfile.avatar, profile: profile.data };
+    }
+
     wordCount = rawText.trim().split(/\s+/).length;
     const limits = getLimits(session?.user?.id ?? null);
 
@@ -178,7 +180,8 @@ export async function POST(request: Request) {
 
     const presetId = (body.preset ?? "custom") as PresetId;
     const presetBlock = PRESETS[presetId]?.instruction ? `\n\nFormat:\n${PRESETS[presetId].instruction}` : "";
-    const extraPrompt = buildToneBlock(body.toneFormality ?? 5, body.toneDirectness ?? 5) + presetBlock;
+    const voiceBlock = selectedProfile ? buildVoiceBlock(selectedProfile.profile) : "";
+    const extraPrompt = buildToneBlock(body.toneFormality ?? 5, body.toneDirectness ?? 5) + voiceBlock + presetBlock;
 
     const glossaryHash = createHash("sha256").update(extraPrompt).digest("hex");
     const primaryModelName = "openai/gpt-oss-120b"; 
@@ -190,19 +193,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ ...cachedData, provider: "Cache" });
     }
 
-    // GROUP 1: Analyze original text for vocabulary issues
-    const vocabAnalysis = analyzeVocabulary(rawText);
-    const vocabWarnings = vocabAnalysis.warnings.length > 0 
-      ? `\n\nCRITICAL FIXES REQUIRED:\n${vocabAnalysis.warnings.join("\n")}` 
-      : "";
-
     const { masked, spans } = protect(rawText);
     const aiReadyText = toAiPlaceholders(masked, spans);
     const maskedParagraphs = aiReadyText.split(/\n{2,}/).map((p) => p.trim()).filter((p) => p.length > 0);
 
-    const userPrompt = `Rewrite this text following all rules. Do not copy the original structure.\n\nIntensity: ${INTENSITY_RULES[intensity]}\n${extraPrompt}${vocabWarnings}\n\nDraft:\n"""\n${maskedParagraphs.map((p, i) => `[Paragraph ${i}]\n${p}`).join("\n\n")}\n"""\n\nReturn valid JSON.`;
+    const userPrompt = `Edit the following draft.\n\nEditing intensity: ${INTENSITY_RULES[intensity]}\n${extraPrompt}\n\nDraft:\n"""\n${maskedParagraphs.map((p, i) => `[Paragraph ${i}]\n${p}`).join("\n\n")}\n"""\n\nReturn the requested JSON.`;
 
-    const result = await chatWithFallback({ system: BASE_SYSTEM, user: userPrompt, maxTokens: 8000, temperature: 1.0 });
+    const result = await chatWithFallback({ system: BASE_SYSTEM, user: userPrompt, maxTokens: 8000, temperature: 0.4 });
 
     let parsed: any;
     try {
@@ -220,17 +217,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Protected spans dropped." }, { status: 502 });
     }
 
-    // THE MAGIC STEP: Apply CleverHumanizer 28-rule de-polisher
-    let restoredText = restore(tokenized, spans);
-    restoredText = dePolishText(restoredText, vocabAnalysis.topKeywords);
-    
-    // THE FINAL STEP: Apply careless human errors and fix broken fragments
-    restoredText = injectCarelessErrors(restoredText);
+    const restoredText = restore(tokenized, spans);
 
     const data = {
       ok: true, action: "rewrite", original: rawText, rewritten: restoredText, paragraphs: parsed.paragraphs,
       provider: result.provider, model: result.model, before: computeMetrics(rawText), after: computeMetrics(restoredText),
-      spansProtected: spans.length, profileUsed: null, changes: []
+      spansProtected: spans.length,
+      profileUsed: selectedProfile ? { name: selectedProfile.name, avatar: selectedProfile.avatar } : null,
+      changes: []
     };
 
     await setCachedResponse(cacheKey, data);
