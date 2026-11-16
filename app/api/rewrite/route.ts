@@ -42,7 +42,7 @@ const INTENSITY_RULES: Record<string, string> = {
 };
 
 // Bumped to v19 to clear the cache and force the new Group 1 rules to run
-const PROMPT_VERSION = "v25-2026-11";
+const PROMPT_VERSION = "v26-2026-11";
 
 const BASE_SYSTEM = `You are a human writer. Your goal is to evade AI detectors (like StealthWriter, GPTZero).
 
